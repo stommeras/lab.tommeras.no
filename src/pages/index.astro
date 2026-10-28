@@ -17,7 +17,11 @@ const experiments = (await getCollection('experiments')).sort((a, b) => b.data.d
             <time datetime={date}>{date}</time>
             <span class="status">{data.status}</span>
             <a href={`/${id}/`}>{data.title}</a>
-            <p>{data.summary}</p>
+            {data.tags.map((tag) => (
+              <span class="tag">{tag}</span>
+            ))}
+            {/* Backticks in the summary mark code, as in Markdown */}
+            <p>{data.summary.split('`').map((part, i) => (i % 2 ? <code>{part}</code> : part))}</p>
           </li>
         );
       })}
@@ -48,6 +52,7 @@ const experiments = (await getCollection('experiments')).sort((a, b) => b.data.d
   li {
     display: flex;
     flex-wrap: wrap;
+    align-items: baseline;
     gap: 0 16px;
     padding: 12px 0;
     border-top: 1px solid var(--line);
@@ -56,6 +61,14 @@ const experiments = (await getCollection('experiments')).sort((a, b) => b.data.d
   li p {
     flex-basis: 100%;
     margin: 0;
+  }
+
+  .tag {
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--lavender);
+    font-size: 0.8125rem;
   }
 
   .status {

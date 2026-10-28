@@ -7,6 +7,14 @@ interface Props {
 }
 
 const { title = 'Lab | Tømmerås', description = 'Eksperimenter av Steffen Tømmerås.' } = Astro.props;
+
+// A path like tommeras.no / lab / sirkel, built from the URL. The last part is the current page.
+const parts = Astro.url.pathname.split('/').filter(Boolean);
+const crumbs = [
+  { label: 'tommeras.no', href: 'https://tommeras.no' },
+  { label: 'lab', href: '/' },
+  ...parts.map((part, i) => ({ label: part, href: `/${parts.slice(0, i + 1).join('/')}/` })),
+];
 ---
 
 <!doctype html>
@@ -23,8 +31,13 @@ const { title = 'Lab | Tømmerås', description = 'Eksperimenter av Steffen Tøm
   </head>
   <body>
     <header>
-      <a href="https://tommeras.no">← tommeras.no</a>
-      {Astro.url.pathname !== '/' && <a href="/">lab</a>}
+      <nav aria-label="Brødsmulesti">
+        <ol>
+          {crumbs.map(({ label, href }, i) => (
+            <li>{i < crumbs.length - 1 ? <a href={href}>{label}</a> : <span aria-current="page">{label}</span>}</li>
+          ))}
+        </ol>
+      </nav>
     </header>
     <main>
       <slot />
@@ -68,6 +81,12 @@ const { title = 'Lab | Tømmerås', description = 'Eksperimenter av Steffen Tøm
     color: var(--pink);
   }
 
+  /* Everything is monospace already, so inline code stands out by color */
+  code {
+    color: var(--mint);
+    white-space: nowrap;
+  }
+
   @media (max-width: 600px) {
     body {
       font-size: 0.9375rem;
@@ -83,9 +102,24 @@ const { title = 'Lab | Tømmerås', description = 'Eksperimenter av Steffen Tøm
     padding: 24px 16px;
   }
 
-  header {
+  ol {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
     font-size: 0.9375rem;
+  }
+
+  /* The slash is decoration, so screen readers get an empty alt text instead */
+  li + li::before {
+    content: '/' / '';
+    margin-right: 8px;
+    color: var(--muted);
+  }
+
+  [aria-current] {
+    color: var(--muted);
   }
 </style>

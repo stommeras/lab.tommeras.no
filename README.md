@@ -8,7 +8,7 @@ Laget med [Astro](https://astro.build). Vercel bygger og publiserer `main`.
 
 ```console
 $ bun install
-$ bun dev        # http://localhost:4321
+$ bun dev        # http://localhost:4322
 $ bun run build  # astro check og statisk bygg til dist/
 $ bun run format # Prettier
 ```
@@ -19,7 +19,7 @@ Lag en mappe i `src/experiments/` med navnet du vil ha i URL-en:
 
 ```console
 $ ls src/experiments/mitt-eksperiment/
-index.md     tittel, dato, status, sammendrag og et kort notat
+index.md     tittel, dato, status, sammendrag, tags og et kort notat
 Demo.astro   selve eksperimentet
 ```
 

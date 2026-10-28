@@ -17,7 +17,7 @@ const { Content } = await render(entry);
 const date = entry.data.date.toISOString().slice(0, 10);
 ---
 
-<Layout title={`${entry.data.title} | Lab`} description={entry.data.summary}>
+<Layout title={`${entry.data.title} | Lab`} description={entry.data.summary.replaceAll('`', '')}>
   <h1>{entry.data.title}</h1>
   <p class="meta">
     <time datetime={date}>{date}</time> · {entry.data.status}

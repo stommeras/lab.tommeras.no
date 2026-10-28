@@ -15,6 +15,8 @@ const experiments = defineCollection({
     date: z.coerce.date(),
     status: z.enum(['skisse', 'pågår', 'ferdig']),
     summary: z.string(),
+    // What the experiment is about. Add a value here when a new kind of experiment shows up.
+    tags: z.array(z.enum(['CSS'])).min(1),
   }),
 });
 
