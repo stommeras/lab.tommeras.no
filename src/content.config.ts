@@ -16,7 +16,7 @@ export const STATUS_COLORS = {
 } satisfies Record<Status, string>;
 
 // What the experiment is about. Add a value when a new kind of experiment shows up.
-export const TAGS = ['Animasjon', 'Layout', 'Simulering', 'WebAssembly'] as const;
+export const TAGS = ['3D', 'Animasjon', 'Layout', 'Simulering', 'WebAssembly'] as const;
 export type Tag = (typeof TAGS)[number];
 
 // The main language the experiment is written in, one per experiment

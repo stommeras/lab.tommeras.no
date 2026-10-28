@@ -1,5 +1,5 @@
 ---
-title: En sirkel som teller seg selv
+title: En sirkel i CSS
 date: 2026-10-28
 status: ferdig
 language: CSS

@@ -74,6 +74,8 @@ const materials = [
 </div>
 
 <script>
+  import { toRgba, type Rgba } from '../../lib/color';
+
   // --- Materials ---
 
   const EMPTY = 0;
@@ -288,19 +290,7 @@ const materials = [
 
   // --- Rendering ---
 
-  type Rgba = [number, number, number, number];
-
   const TRANSPARENT: Rgba = [0, 0, 0, 0];
-
-  // Resolves any CSS color, such as oklch() or color-mix(), to RGBA
-  const probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
-  const toRgba = (color: string): Rgba => {
-    probe.clearRect(0, 0, 1, 1);
-    probe.fillStyle = color;
-    probe.fillRect(0, 0, 1, 1);
-    const [r, g, b, a] = probe.getImageData(0, 0, 1, 1).data;
-    return [r, g, b, a];
-  };
 
   // A canvas can't use CSS variables, so read the resolved token color from the material's swatch
   const swatchColor = (name: string) =>

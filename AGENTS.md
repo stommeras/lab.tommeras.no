@@ -20,7 +20,7 @@ Each experiment is a folder `src/experiments/<slug>/`. The folder name is the UR
 - Pick the tool per experiment: plain HTML and CSS, a vanilla `<script>`, or a framework island. Add a framework integration (`bunx astro add react`) the first time an experiment needs it.
 - Add experiment dependencies with exact versions (`bun add --exact`), so an upgrade elsewhere doesn't break an old experiment.
 - Prebuilt exports, such as a Godot web build, go in `public/<slug>/` and load in an `<iframe>` from `Demo.astro`.
-- Anything heavy (wasm, Pyodide, a 3D scene, a game) loads only after the visitor clicks a start button, never on page load.
+- Anything heavy loads after the page, never in its initial bundle. A 3D scene loads with a dynamic `import()` when it scrolls into view. Wasm, Pyodide and games wait for the visitor to click a start button.
 - Mobile support is optional. Say "fungerer best på desktop" in the note when it doesn't work on a phone.
 - An experiment that needs `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` (a threaded Godot build, `SharedArrayBuffer`) gets them for its own path only, in `vercel.json`.
 - When an experiment breaks after an upgrade and isn't worth fixing, freeze it: commit its built output to `public/<slug>/`, remove its dependencies, and point `Demo.astro` at the frozen build.
