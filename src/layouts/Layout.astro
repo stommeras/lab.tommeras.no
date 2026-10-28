@@ -1,0 +1,91 @@
+---
+import { Font } from 'astro:assets';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = 'Lab | Tømmerås', description = 'Eksperimenter av Steffen Tømmerås.' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="nb">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <Font cssVariable="--font-mono" preload={[{ style: 'normal' }]} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <header>
+      <a href="https://tommeras.no">← tommeras.no</a>
+      {Astro.url.pathname !== '/' && <a href="/">lab</a>}
+    </header>
+    <main>
+      <slot />
+    </main>
+  </body>
+</html>
+
+<style is:global>
+  /* Copied from src/layouts/Layout.astro in tommeras.no. Update both when one changes. */
+  :root {
+    color-scheme: light dark;
+    --bg: light-dark(#eeeaf4, #16151d);
+    --surface: light-dark(#fbfafd, #1e1c27);
+    --chrome: light-dark(#e4dfee, #26232f);
+    --line: light-dark(#d6d0e3, #34303f);
+    --fg: light-dark(#2a2638, #e6e2f0);
+    --muted: light-dark(#625c78, #a39db8);
+    --pink: light-dark(#b5487a, #f2a7c3);
+    --lavender: light-dark(#6a51c9, #bba8f5);
+    --mint: light-dark(#2c7a5d, #9edbbf);
+    --peach: light-dark(#a2561c, #f3c29a);
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-mono);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: var(--fg);
+    text-decoration: underline 2px var(--pink);
+    text-underline-offset: 4px;
+  }
+
+  a:hover {
+    color: var(--pink);
+  }
+
+  @media (max-width: 600px) {
+    body {
+      font-size: 0.9375rem;
+    }
+  }
+</style>
+
+<style>
+  header,
+  main {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 24px 16px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9375rem;
+  }
+</style>

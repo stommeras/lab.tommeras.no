@@ -1,43 +1,26 @@
-# Astro Starter Kit: Minimal
+# lab.tommeras.no
 
-```sh
-bun create astro@latest -- --template minimal
+Eksperimenter av Steffen Tømmerås: skisser, demoer og ting som kanskje ikke virker ennå. Hovedsiden er [tommeras.no](https://tommeras.no).
+
+Laget med [Astro](https://astro.build). Vercel bygger og publiserer `main`.
+
+## Kom i gang
+
+```console
+$ bun install
+$ bun dev        # http://localhost:4321
+$ bun run build  # astro check og statisk bygg til dist/
+$ bun run format # Prettier
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Nytt eksperiment
 
-## 🚀 Project Structure
+Lag en mappe i `src/experiments/` med navnet du vil ha i URL-en:
 
-Inside of your Astro project, you'll see the following folders and files:
-
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+```console
+$ ls src/experiments/mitt-eksperiment/
+index.md     tittel, dato, status, sammendrag og et kort notat
+Demo.astro   selve eksperimentet
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
-
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
-
-Any static assets, like images, can be placed in the `public/` directory.
-
-## 🧞 Commands
-
-All commands are run from the root of the project, from a terminal:
-
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `bun install`             | Installs dependencies                            |
-| `bun dev`             | Starts local dev server at `localhost:4321`      |
-| `bun build`           | Build your production site to `./dist/`          |
-| `bun preview`         | Preview your build locally, before deploying     |
-| `bun astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `bun astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Se [AGENTS.md](AGENTS.md) for reglene og [docs/adr/](docs/adr/) for hvorfor siden er satt opp slik.

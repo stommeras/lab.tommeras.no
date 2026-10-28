@@ -1,0 +1,37 @@
+---
+import { getCollection, render } from 'astro:content';
+import type { AstroComponentFactory } from 'astro/runtime/server/index.js';
+import Layout from '../layouts/Layout.astro';
+
+// Each experiment's Demo.astro, keyed by its folder name
+const demos = import.meta.glob<{ default: AstroComponentFactory }>('../experiments/*/Demo.astro', { eager: true });
+
+export async function getStaticPaths() {
+  const experiments = await getCollection('experiments');
+  return experiments.map((entry) => ({ params: { slug: entry.id }, props: { entry } }));
+}
+
+const { entry } = Astro.props;
+const Demo = demos[`../experiments/${entry.id}/Demo.astro`]?.default;
+const { Content } = await render(entry);
+const date = entry.data.date.toISOString().slice(0, 10);
+---
+
+<Layout title={`${entry.data.title} | Lab`} description={entry.data.summary}>
+  <h1>{entry.data.title}</h1>
+  <p class="meta">
+    <time datetime={date}>{date}</time> · {entry.data.status}
+  </p>
+  {Demo && <Demo />}
+  <Content />
+</Layout>
+
+<style>
+  h1 {
+    margin: 0;
+  }
+
+  .meta {
+    color: var(--muted);
+  }
+</style>
