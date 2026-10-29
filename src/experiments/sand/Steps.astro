@@ -202,8 +202,9 @@ const steps = [
       start();
       overlay.hidden = true;
       restartButton.hidden = false;
-      // The Start button disappears, so keyboard focus moves to the button that replaces it
-      restartButton.focus();
+      // The Start button disappears, so keyboard focus moves to the button that replaces it. Without preventScroll,
+      // the browser scrolls that button into view when it's below the screen.
+      restartButton.focus({ preventScroll: true });
     });
 
     restartButton.addEventListener('click', start);
