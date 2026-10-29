@@ -21,6 +21,26 @@ const materials = [
         {label}
       </button>
     ))}
+    <button type="button" class="clear-button">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="m16 22-1-4" />
+        <path d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1" />
+        <path d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z" />
+        <path d="m8 22 1-4" />
+      </svg>
+      Tøm
+    </button>
   </div>
 </div>
 
@@ -384,6 +404,14 @@ const materials = [
     button.addEventListener('click', () => selectMaterial(button));
   }
 
+  document.querySelector('.clear-button')!.addEventListener('click', () => {
+    grid.fill(0);
+    shades.fill(0);
+    rough.fill(0);
+    velocity.fill(0);
+    movedOn.fill(0);
+  });
+
   // offsetX and clientWidth are measured inside the border, so the border doesn't skew the position
   const toGridPosition = (event: PointerEvent): Point => ({
     x: Math.floor((event.offsetX / canvas.clientWidth) * COLS),
@@ -459,7 +487,8 @@ const materials = [
     margin: 16px 0;
   }
 
-  .material-button {
+  .material-button,
+  .clear-button {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -473,8 +502,15 @@ const materials = [
     cursor: pointer;
   }
 
-  .material-button:hover {
+  .material-button:hover,
+  .clear-button:hover {
     border-color: var(--pink);
+  }
+
+  /* An action, not a material, so it has no swatch and sits apart at the end of the row */
+  .clear-button {
+    margin-left: auto;
+    padding: 0 16px;
   }
 
   /* A box-shadow thickens the border without changing the button's size, and leaves outline free for keyboard focus */
