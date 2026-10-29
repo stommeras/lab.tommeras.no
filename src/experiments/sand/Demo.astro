@@ -105,8 +105,10 @@ const materials = [
 
   // --- Grid ---
 
-  const canvas = document.querySelector<HTMLCanvasElement>('.canvas')!;
-  const hint = document.querySelector<HTMLElement>('.hint')!;
+  // Other demos on the page, like the steps under the note, use the same class names, so look up inside this one
+  const demo = document.querySelector<HTMLElement>('.demo')!;
+  const canvas = demo.querySelector<HTMLCanvasElement>('.canvas')!;
+  const hint = demo.querySelector<HTMLElement>('.hint')!;
   const COLS = canvas.width;
   const ROWS = canvas.height;
 
@@ -302,7 +304,7 @@ const materials = [
 
   // A canvas can't use CSS variables, so read the resolved token color from the material's swatch
   const swatchColor = (name: string) =>
-    toRgba(getComputedStyle(document.querySelector(`.swatch.${name}`)!).backgroundColor);
+    toRgba(getComputedStyle(demo.querySelector(`.swatch.${name}`)!).backgroundColor);
 
   const colors: Rgba[] = [];
   for (const [name, material] of Object.entries(MATERIALS)) {
@@ -398,7 +400,7 @@ const materials = [
   let pointer: Point = { x: 0, y: 0 };
   let hover: Point | null = null;
 
-  const materialButtons = document.querySelectorAll<HTMLButtonElement>('.material-button');
+  const materialButtons = demo.querySelectorAll<HTMLButtonElement>('.material-button');
 
   const selectMaterial = (selected: HTMLButtonElement) => {
     material = MATERIALS[selected.dataset.material!];
@@ -413,7 +415,7 @@ const materials = [
     button.addEventListener('click', () => selectMaterial(button));
   }
 
-  document.querySelector('.clear-button')!.addEventListener('click', () => {
+  demo.querySelector('.clear-button')!.addEventListener('click', () => {
     grid.fill(0);
     shades.fill(0);
     rough.fill(0);
