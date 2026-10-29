@@ -13,7 +13,12 @@ const materials = [
 ---
 
 <div>
-  <canvas class="canvas" width={cols} height={rows}></canvas>
+  <canvas
+    class="canvas"
+    width={cols}
+    height={rows}
+    role="img"
+    aria-label="Tegneflate med sand, vann og stein. Tegn med mus eller finger."></canvas>
   <div class="material-picker">
     {materials.map(({ name, label }, index) => (
       <button type="button" class="material-button" data-material={name} aria-pressed={index === 0 ? 'true' : 'false'}>
@@ -100,6 +105,9 @@ const materials = [
   // or a cell that last moved exactly 255 frames ago would count as moved this frame.
   let frame = 0;
 
+  // Set when the grid or the eraser outline changes, so the loop can skip render() when nothing did
+  let changed = true;
+
   type Point = { x: number; y: number };
 
   const inBounds = (x: number, y: number) => x >= 0 && x < COLS && y >= 0 && y < ROWS;
@@ -112,6 +120,7 @@ const materials = [
       shades[indexOf(x, y)] = shade;
       rough[indexOf(x, y)] = value === SAND && Math.random() < ROUGH_CHANCE ? 1 : 0;
       velocity[indexOf(x, y)] = 0;
+      changed = true;
     }
   };
   const isEmpty = (x: number, y: number) => getCell(x, y) === EMPTY;
@@ -132,6 +141,7 @@ const materials = [
     [velocity[a], velocity[b]] = [velocity[b], velocity[a]];
     movedOn[a] = frame;
     movedOn[b] = frame;
+    changed = true;
   };
 
   // --- Simulation ---
@@ -324,7 +334,7 @@ const materials = [
       data[p + 3] = color[3];
     }
 
-    // Drawn into the image only, so it never touches the grid. The next frame paints over it.
+    // Drawn into the image only, so it never touches the grid. The next render paints over it.
     if (material === EMPTY && hover) {
       for (const point of brushOutline(hover, brushRadius(material))) drawPixel(point, outlineColor);
     }
@@ -395,6 +405,8 @@ const materials = [
     material = MATERIALS[selected.dataset.material!];
     // The outline replaces the system cursor while erasing
     canvas.classList.toggle('erasing', material === EMPTY);
+    // Shows or hides the eraser outline
+    changed = true;
     for (const button of materialButtons) {
       button.setAttribute('aria-pressed', String(button === selected));
     }
@@ -410,6 +422,7 @@ const materials = [
     rough.fill(0);
     velocity.fill(0);
     movedOn.fill(0);
+    changed = true;
   });
 
   // offsetX and clientWidth are measured inside the border, so the border doesn't skew the position
@@ -429,6 +442,7 @@ const materials = [
   canvas.addEventListener('pointermove', (event) => {
     // Tracked without the button held too, so the eraser outline follows the cursor
     hover = toGridPosition(event);
+    changed = true;
     if (!isDrawing) return;
     paintLine(pointer, hover, material);
     pointer = hover;
@@ -436,6 +450,7 @@ const materials = [
 
   canvas.addEventListener('pointerleave', () => {
     hover = null;
+    changed = true;
   });
 
   const stopDrawing = () => (isDrawing = false);
@@ -449,7 +464,10 @@ const materials = [
   // Time not yet simulated, in milliseconds
   let pending = 0;
 
-  requestAnimationFrame(function loop(now) {
+  // The pending requestAnimationFrame id, or null while the loop is paused
+  let frameRequest: number | null = null;
+
+  const loop = (now: number) => {
     // Capped, so a tab that comes back from the background doesn't run a burst of catch-up steps
     pending += Math.min(now - (lastTime ?? now), MAX_STEPS_PER_RENDER * STEP_MS);
     lastTime = now;
@@ -461,14 +479,39 @@ const materials = [
       pending -= STEP_MS;
     }
 
-    render();
-    requestAnimationFrame(loop);
-  });
+    if (changed) {
+      render();
+      changed = false;
+    }
+    frameRequest = requestAnimationFrame(loop);
+  };
+
+  const startLoop = () => {
+    // Already running, so the observer firing twice doesn't start a second loop
+    if (frameRequest !== null) return;
+    // The time spent off screen isn't simulated
+    lastTime = null;
+    frameRequest = requestAnimationFrame(loop);
+  };
+
+  const stopLoop = () => {
+    if (frameRequest === null) return;
+    cancelAnimationFrame(frameRequest);
+    frameRequest = null;
+  };
+
+  // Runs the loop only while the canvas is on screen. The observer reports the first state on its own, which starts it.
+  new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) startLoop();
+      else stopLoop();
+    }
+  }).observe(canvas);
 </script>
 
 <style>
   .canvas {
-    border: 1px solid var(--pink);
+    border: 2px solid var(--pink);
     width: 100%;
     height: auto;
     image-rendering: pixelated;
