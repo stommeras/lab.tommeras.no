@@ -12,26 +12,49 @@ const materials = [
 ];
 ---
 
-<div>
-  <canvas
-    class="canvas"
-    width={cols}
-    height={rows}
-    role="img"
-    aria-label="Tegneflate med sand, vann og stein. Tegn med mus eller finger."
-  ></canvas>
+<div class="demo">
+  <div class="canvas-frame">
+    <canvas
+      class="canvas"
+      width={cols}
+      height={rows}
+      role="img"
+      aria-label="Tegneflate med sand, vann og stein. Tegn med mus eller finger."
+    ></canvas>
+    <p class="hint" aria-hidden="true">
+      Tegn med mus eller finger
+    </p>
+  </div>
   <div class="material-picker">
     {materials.map(({ name, label }, index) => (
       <button type="button" class="material-button" data-material={name} aria-pressed={index === 0 ? 'true' : 'false'}>
-        <span class:list={['swatch', name]} aria-hidden="true" />
+        {name === 'empty' ? (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21" />
+            <path d="m5.082 11.09 8.828 8.828" />
+          </svg>
+        ) : (
+          <span class:list={['swatch', name]} aria-hidden="true" />
+        )}
         {label}
       </button>
     ))}
     <button type="button" class="clear-button">
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
+        width="18"
+        height="18"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -88,6 +111,7 @@ const materials = [
   // --- Grid ---
 
   const canvas = document.querySelector<HTMLCanvasElement>('.canvas')!;
+  const hint = document.querySelector<HTMLElement>('.hint')!;
   const COLS = canvas.width;
   const ROWS = canvas.height;
 
@@ -294,15 +318,19 @@ const materials = [
   // Empty cells are transparent, so the page background shows through
   const TRANSPARENT: Rgba = [0, 0, 0, 0];
 
-  // Reads the numbers out of a computed color like "rgb(162, 86, 28)"
-  const parseRgb = (color: string): Rgba => {
-    const [r, g, b] = color.match(/\d+/g)!.map(Number);
-    return [r, g, b, 255];
+  // Reads any CSS color, including oklch() and color-mix() results, by painting it into one pixel
+  const probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+  const toRgba = (color: string): Rgba => {
+    probe.clearRect(0, 0, 1, 1);
+    probe.fillStyle = color;
+    probe.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = probe.getImageData(0, 0, 1, 1).data;
+    return [r, g, b, a];
   };
 
   // A canvas can't use CSS variables, so read the resolved token color from the material's swatch
   const swatchColor = (name: string) =>
-    parseRgb(getComputedStyle(document.querySelector(`.swatch.${name}`)!).backgroundColor);
+    toRgba(getComputedStyle(document.querySelector(`.swatch.${name}`)!).backgroundColor);
 
   // Indexed by material number
   const colors: Rgba[] = [];
@@ -310,14 +338,18 @@ const materials = [
     colors[material] = material === EMPTY ? TRANSPARENT : swatchColor(name);
   }
 
-  // The eraser outline uses the canvas border color
-  const outlineColor = parseRgb(getComputedStyle(canvas).borderTopColor);
+  // The eraser outline is the border color over empty cells and the page background over filled ones,
+  // since the border color is too close to sand and water to see
+  const outlineColor = toRgba(getComputedStyle(canvas).borderTopColor);
+  const outlineOnFilledColor = toRgba(getComputedStyle(document.body).backgroundColor);
 
   const ctx = canvas.getContext('2d')!;
   const image = ctx.createImageData(COLS, ROWS);
 
-  const drawPixel = (point: Point, color: Rgba) => {
-    if (inBounds(point.x, point.y)) image.data.set(color, indexOf(point.x, point.y) * 4);
+  const drawOutlinePixel = (point: Point) => {
+    if (!inBounds(point.x, point.y)) return;
+    const color = isEmpty(point.x, point.y) ? outlineColor : outlineOnFilledColor;
+    image.data.set(color, indexOf(point.x, point.y) * 4);
   };
 
   // The grid and the image are in the same order, and each pixel takes 4 bytes (RGBA).
@@ -337,10 +369,14 @@ const materials = [
 
     // Drawn into the image only, so it never touches the grid. The next render paints over it.
     if (material === EMPTY && hover) {
-      for (const point of brushOutline(hover, brushRadius(material))) drawPixel(point, outlineColor);
+      for (const point of brushOutline(hover, brushRadius(material))) drawOutlinePixel(point);
     }
 
     ctx.putImageData(image, 0, 0);
+
+    // The hint only shows on an empty canvas
+    const hasContent = grid.some((cell) => cell !== EMPTY);
+    hint.classList.toggle('hidden', hasContent);
   };
 
   // --- Painting ---
@@ -511,7 +547,18 @@ const materials = [
 </script>
 
 <style>
+  /* Groups the canvas and its controls, with the same space around them as the sirkel demo */
+  .demo {
+    margin: 32px 0 48px;
+  }
+
+  /* Lets the hint sit on top of the canvas */
+  .canvas-frame {
+    position: relative;
+  }
+
   .canvas {
+    display: block;
     border: 2px solid var(--pink);
     width: 100%;
     height: auto;
@@ -524,11 +571,26 @@ const materials = [
     cursor: none;
   }
 
+  /* Clicks go through to the canvas */
+  .hint {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  .hint.hidden {
+    display: none;
+  }
+
   .material-picker {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    margin: 16px 0;
+    margin-top: 12px;
   }
 
   .material-button,
@@ -551,16 +613,25 @@ const materials = [
     border-color: var(--pink);
   }
 
-  /* An action, not a material, so it has no swatch and sits apart at the end of the row */
+  /* An action, not a material, so it sits apart at the end of the row */
   .clear-button {
     margin-left: auto;
-    padding: 0 16px;
   }
 
-  /* A box-shadow thickens the border without changing the button's size, and leaves outline free for keyboard focus */
+  /* A box-shadow thickens the border without changing the button's size, and leaves outline free for keyboard focus.
+     The fill tells pressed apart from hover, which also turns the border pink. */
   .material-button[aria-pressed='true'] {
     border-color: var(--pink);
     box-shadow: 0 0 0 1px var(--pink);
+    background: color-mix(in oklch, var(--pink) 14%, var(--surface));
+  }
+
+  /* On a phone the buttons fill each row, so the rows line up with the canvas edges */
+  @media (max-width: 600px) {
+    .material-button,
+    .clear-button {
+      flex: 1 0 auto;
+    }
   }
 
   .swatch {
@@ -569,9 +640,10 @@ const materials = [
     border-radius: 4px;
   }
 
-  /* The script reads these backgrounds as the canvas colors */
+  /* The script reads these backgrounds as the canvas colors. The peach token is dark in light mode,
+     tuned for text, so sand is mixed lighter there. */
   .swatch.sand {
-    background: var(--peach);
+    background: light-dark(color-mix(in oklch, var(--peach) 70%, var(--surface)), var(--peach));
   }
 
   .swatch.water {
@@ -580,10 +652,5 @@ const materials = [
 
   .swatch.stone {
     background: var(--muted);
-  }
-
-  /* The eraser paints nothing, so its swatch is an empty outline */
-  .swatch.empty {
-    border: 1px dashed var(--muted);
   }
 </style>
