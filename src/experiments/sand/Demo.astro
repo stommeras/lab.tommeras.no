@@ -37,12 +37,19 @@ const materials = [
   // The most cells water can flow sideways in one frame. Higher levels out faster.
   const WATER_SPREAD = 6;
   // Chance that water under the surface may flow into a cell vacated this frame (see canFlowInto)
-  const UNDERWATER_CHAIN = 0.9;
+  const UNDERWATER_CHAIN = 0.8;
   // Chance per frame that a grain sinks into water, so sand falls slower in water than in air
   const SAND_SINK_CHANCE = 0.5;
-  // Cells per frame added to a falling cell's speed, and the most cells it can fall in one frame
+  // A cell starts falling at 1 cell per frame and gains GRAVITY each frame, up to MAX_SPEED. From the top
+  // of the grid it reaches the cap about 40 frames in, so the last part of a long fall runs at a steady speed.
   const GRAVITY = 0.1;
-  const MAX_SPEED = 6;
+  const MAX_SPEED = 5;
+  // The simulation runs this many steps per second whatever the screen's refresh rate, so every per-frame
+  // rate above means per step
+  const STEPS_PER_SECOND = 60;
+  // The most steps run before one render. A slow device then runs in slow motion and doesn't fall further
+  // and further behind.
+  const MAX_STEPS_PER_RENDER = 4;
   // Each grain gets a random darkening up to this, so piles have texture
   const MAX_SHADE = 16;
   // Share of grains that are rough. A rough grain rests on a step of two cells, where a smooth one slides
@@ -63,12 +70,14 @@ const materials = [
   const movedOn = new Uint8Array(COLS * ROWS);
   // Per-cell darkening, which travels with the grain
   const shades = new Uint8Array(COLS * ROWS);
-  // 1 for a rough grain (see ROUGH_CHANCE). Set when painted and travels with the grain.
+  // 1 for a rough grain of sand (see ROUGH_CHANCE). Set when painted and travels with the grain.
   const rough = new Uint8Array(COLS * ROWS);
-  // Falling speed in cells per frame. 0 for any cell that isn't falling freely.
+  // Falling speed in cells per frame. Reset to 0 on the cell's next step once the cell below isn't empty,
+  // so empty cells always hold 0.
   const velocity = new Float32Array(COLS * ROWS);
 
-  // Counts 1 to 255 and wraps. Never 0, since a fresh movedOn is all zeros.
+  // Counts 1 to 255 and wraps. Never 0, since a fresh movedOn is all zeros. movedOn is cleared on the wrap,
+  // or a cell that last moved exactly 255 frames ago would count as moved this frame.
   let frame = 0;
 
   type Point = { x: number; y: number };
@@ -81,15 +90,17 @@ const materials = [
     if (inBounds(x, y)) {
       grid[indexOf(x, y)] = value;
       shades[indexOf(x, y)] = shade;
-      rough[indexOf(x, y)] = Math.random() < ROUGH_CHANCE ? 1 : 0;
+      rough[indexOf(x, y)] = value === SAND && Math.random() < ROUGH_CHANCE ? 1 : 0;
       velocity[indexOf(x, y)] = 0;
     }
   };
   const isEmpty = (x: number, y: number) => getCell(x, y) === EMPTY;
   const hasMoved = (x: number, y: number) => inBounds(x, y) && movedOn[indexOf(x, y)] === frame;
   // Sand can't take water that already moved, or the displaced water rides up a falling column in one frame
-  const sandCanEnter = (x: number, y: number) =>
-    getCell(x, y) === EMPTY || (getCell(x, y) === WATER && !hasMoved(x, y));
+  const sandCanEnter = (x: number, y: number) => {
+    const cell = getCell(x, y);
+    return cell === EMPTY || (cell === WATER && !hasMoved(x, y));
+  };
   // Does nothing if either cell is outside the grid, so FULL never gets written into it
   const swap = (x1: number, y1: number, x2: number, y2: number) => {
     if (!inBounds(x1, y1) || !inBounds(x2, y2)) return;
@@ -114,12 +125,17 @@ const materials = [
   // several cells at once when its speed allows. Callers check that the cell below is empty.
   const fall = (x: number, y: number) => {
     const i = indexOf(x, y);
-    const speed = Math.min(velocity[i] + GRAVITY, MAX_SPEED);
+    const speed = Math.min(Math.max(velocity[i], 1) + GRAVITY, MAX_SPEED);
     let distance = 1;
     while (distance < Math.floor(speed) && isEmpty(x, y + distance + 1)) distance++;
     velocity[i] = speed;
     swap(x, y, x, y + distance);
   };
+
+  // Can the grain at (x, y) slide diagonally down to side dx? A rough grain only slides to a side where it
+  // would keep falling after the step.
+  const canSlide = (x: number, y: number, dx: number) =>
+    sandCanEnter(x + dx, y) && sandCanEnter(x + dx, y + 1) && (!rough[indexOf(x, y)] || sandCanEnter(x + dx, y + 2));
 
   const stepSand = (x: number, y: number) => {
     if (isEmpty(x, y + 1)) {
@@ -129,13 +145,10 @@ const materials = [
     // The fall is over. The cell it swaps with gets this 0, so empty cells stay at 0.
     velocity[indexOf(x, y)] = 0;
 
-    // A rough grain only slides to a side where it would keep falling after the step
-    const canSlide = (dx: number) =>
-      sandCanEnter(x + dx, y) && sandCanEnter(x + dx, y + 1) && (!rough[indexOf(x, y)] || sandCanEnter(x + dx, y + 2));
     // The cell below isn't empty, so down here means sinking into water, one cell per frame at most
     const canDown = sandCanEnter(x, y + 1);
-    const canLeft = canSlide(-1);
-    const canRight = canSlide(1);
+    const canLeft = !canDown && canSlide(x, y, -1);
+    const canRight = !canDown && canSlide(x, y, 1);
 
     let dx;
     if (canDown) {
@@ -162,9 +175,11 @@ const materials = [
   const canFlowInto = (x: number, y: number, atSurface: boolean) =>
     isEmpty(x, y) && (atSurface || !hasMoved(x, y) || Math.random() < UNDERWATER_CHAIN);
 
-  // How many cells in a row water can flow into next to (x, y) in direction dx, up to max
+  // How many cells in a row water can flow into next to (x, y) in direction dx, up to max. The caller has
+  // already checked the first cell, so it isn't checked again here: a second roll of UNDERWATER_CHAIN could
+  // fail and leave the water swapping with itself.
   const flowDistance = (x: number, y: number, dx: number, max: number, atSurface: boolean) => {
-    let distance = 0;
+    let distance = 1;
     while (distance < max && canFlowInto(x + dx * (distance + 1), y, atSurface)) distance++;
     return distance;
   };
@@ -213,8 +228,12 @@ const materials = [
 
   // Bottom-up, so a grain that falls lands in a row that's already done and moves once per frame
   const step = () => {
-    if (frame === 255) frame = 1;
-    else frame++;
+    if (frame === 255) {
+      frame = 1;
+      movedOn.fill(0);
+    } else {
+      frame++;
+    }
 
     leftToRight = !leftToRight;
 
@@ -275,13 +294,14 @@ const materials = [
   const render = () => {
     const data = image.data;
     for (let i = 0; i < grid.length; i++) {
-      const [r, g, b, a] = colors[grid[i]];
+      // Indexed, not destructured, since this runs for every pixel every frame
+      const color = colors[grid[i]];
       const shade = shades[i];
       const p = i * 4;
-      data[p] = r - shade;
-      data[p + 1] = g - shade;
-      data[p + 2] = b - shade;
-      data[p + 3] = a;
+      data[p] = color[0] - shade;
+      data[p + 1] = color[1] - shade;
+      data[p + 2] = color[2] - shade;
+      data[p + 3] = color[3];
     }
 
     // Drawn into the image only, so it never touches the grid. The next frame paints over it.
@@ -396,10 +416,23 @@ const materials = [
 
   // --- Main loop ---
 
-  requestAnimationFrame(function loop() {
-    // Keep pouring while the pointer is held still
-    if (isDrawing) paintCircle(pointer, material);
-    step();
+  const STEP_MS = 1000 / STEPS_PER_SECOND;
+  let lastTime: number | null = null;
+  // Time not yet simulated, in milliseconds
+  let pending = 0;
+
+  requestAnimationFrame(function loop(now) {
+    // Capped, so a tab that comes back from the background doesn't run a burst of catch-up steps
+    pending += Math.min(now - (lastTime ?? now), MAX_STEPS_PER_RENDER * STEP_MS);
+    lastTime = now;
+
+    for (let steps = 0; pending >= STEP_MS && steps < MAX_STEPS_PER_RENDER; steps++) {
+      // Keep pouring while the pointer is held still. Once per step, so the pour rate is the same on every screen.
+      if (isDrawing) paintCircle(pointer, material);
+      step();
+      pending -= STEP_MS;
+    }
+
     render();
     requestAnimationFrame(loop);
   });
