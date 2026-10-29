@@ -34,8 +34,10 @@ const materials = [
   // Returned for cells outside the grid. No material uses it, so the edges act as walls.
   const FULL = 255;
 
-  // How many cells water can flow sideways in one frame. Higher levels out faster.
-  const WATER_SPREAD = 4;
+  // The most cells water can flow sideways in one frame. Higher levels out faster.
+  const WATER_SPREAD = 6;
+  // Chance that water under the surface may flow into a cell vacated this frame (see canFlowInto)
+  const UNDERWATER_CHAIN = 0.9;
   // Chance per frame that a grain sinks into water, so sand falls slower in water than in air
   const SAND_SINK_CHANCE = 0.5;
   // Each grain gets a random darkening up to this, so piles have texture
@@ -118,22 +120,26 @@ const materials = [
     swap(x, y, x + dx, y + 1);
   };
 
-  // How many empty cells in a row there are next to (x, y) in direction dx, up to max
-  const farthestEmpty = (x: number, y: number, dx: number, max: number) => {
-    let farthest = 0;
-    for (let i = 1; i <= max; i++) {
-      if (!isEmpty(x + dx * i, y)) break;
-      farthest = i;
-    }
-    return farthest;
+  // Water flows sideways into empty cells, and a row can shift in one frame as each cell moves into the one
+  // its neighbor just left. That chain is what levels water out. Under the surface it's only allowed some of
+  // the time, or an erased hole travels to the wall in one frame and the surface sinks there, not above the hole.
+  const canFlowInto = (x: number, y: number, atSurface: boolean) =>
+    isEmpty(x, y) && (atSurface || !hasMoved(x, y) || Math.random() < UNDERWATER_CHAIN);
+
+  // How many cells in a row water can flow into next to (x, y) in direction dx, up to max
+  const flowDistance = (x: number, y: number, dx: number, max: number, atSurface: boolean) => {
+    let distance = 0;
+    while (distance < max && canFlowInto(x + dx * (distance + 1), y, atSurface)) distance++;
+    return distance;
   };
 
   const stepWater = (x: number, y: number) => {
+    const atSurface = getCell(x, y - 1) !== WATER;
     const canDown = isEmpty(x, y + 1);
     const canDownLeft = isEmpty(x - 1, y) && isEmpty(x - 1, y + 1);
     const canDownRight = isEmpty(x + 1, y) && isEmpty(x + 1, y + 1);
-    const canLeft = isEmpty(x - 1, y);
-    const canRight = isEmpty(x + 1, y);
+    const canLeft = canFlowInto(x - 1, y, atSurface);
+    const canRight = canFlowInto(x + 1, y, atSurface);
 
     let dx;
     let dy = 1;
@@ -159,8 +165,9 @@ const materials = [
       return;
     }
 
-    // Sideways, water flows several cells at once so the surface levels out quickly
-    if (dy === 0) dx *= farthestEmpty(x, y, dx, WATER_SPREAD);
+    // Water flows several cells at once so it levels out quickly. A random reach per move keeps
+    // neighbors from moving in lockstep.
+    if (dy === 0) dx *= flowDistance(x, y, dx, 1 + Math.floor(Math.random() * WATER_SPREAD), atSurface);
 
     swap(x, y, x + dx, y + dy);
   };
