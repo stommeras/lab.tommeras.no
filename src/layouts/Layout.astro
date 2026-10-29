@@ -1,5 +1,6 @@
 ---
 import { Font } from 'astro:assets';
+import '../styles/reset.css';
 
 interface Props {
   title?: string;
@@ -61,13 +62,6 @@ const crumbs = [
     --peach: light-dark(#a2561c, #f3c29a);
   }
 
-  /* Sizes include padding and border, so a bordered element with width: 100% stays inside its column */
-  *,
-  *::before,
-  *::after {
-    box-sizing: border-box;
-  }
-
   /* The browser's default ring disappears on the dark background */
   :focus-visible {
     outline: 2px solid var(--fg);
@@ -75,7 +69,6 @@ const crumbs = [
   }
 
   body {
-    margin: 0;
     background: var(--bg);
     color: var(--fg);
     font-family: var(--font-mono);
@@ -120,7 +113,6 @@ const crumbs = [
     display: flex;
     flex-wrap: wrap;
     gap: 0 8px;
-    margin: 0;
     padding: 0;
     list-style: none;
     font-size: 0.9375rem;
