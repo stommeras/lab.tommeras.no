@@ -7,7 +7,7 @@ import Step5 from './steps/5-en-flytting.astro';
 import Step6 from './steps/6-flatt-vann.astro';
 import Step7 from './steps/7-fart.astro';
 
-// All the visitor text for the steps. Backticks mark code, as in the summary. The caption sits next to the Start
+// All the visitor text for the steps. Backticks mark code, as in the summary. The caption sits under the demo
 // button and says what to do or watch for in the demo.
 const steps = [
   {
@@ -99,11 +99,29 @@ const steps = [
           {Demo && (
             <div class="step-stage">
               <Demo />
-              <div class="demo-bar">
+              <div class="start-overlay">
                 <button type="button" class="start-button">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 4.5v15a1 1 0 0 0 1.5.87l13-7.5a1 1 0 0 0 0-1.74l-13-7.5A1 1 0 0 0 6 4.5z" />
+                  </svg>
                   Start
                 </button>
+              </div>
+              <div class="demo-bar">
                 <p class="caption">{caption}</p>
+                <button type="button" class="restart-button" hidden>
+                  Start på nytt
+                </button>
               </div>
             </div>
           )}
@@ -141,8 +159,11 @@ const steps = [
 
     const previous = panels[current];
     demoOf(previous)?.dispatchEvent(new Event('stop'));
-    const startButton = previous.querySelector('.start-button');
-    if (startButton) startButton.textContent = 'Start';
+    // Back to the paused state, so the demo starts over from its initial state next time
+    const overlay = previous.querySelector<HTMLElement>('.start-overlay');
+    if (overlay) overlay.hidden = false;
+    const restartButton = previous.querySelector<HTMLElement>('.restart-button');
+    if (restartButton) restartButton.hidden = true;
     previous.hidden = true;
 
     current = index;
@@ -171,11 +192,21 @@ const steps = [
   }
 
   for (const panel of panels) {
-    const startButton = panel.querySelector('.start-button');
-    startButton?.addEventListener('click', () => {
-      demoOf(panel)?.dispatchEvent(new Event('start'));
-      startButton.textContent = 'Start på nytt';
+    const overlay = panel.querySelector<HTMLElement>('.start-overlay');
+    const restartButton = panel.querySelector<HTMLButtonElement>('.restart-button');
+    if (!overlay || !restartButton) continue;
+
+    const start = () => demoOf(panel)?.dispatchEvent(new Event('start'));
+
+    overlay.querySelector('.start-button')!.addEventListener('click', () => {
+      start();
+      overlay.hidden = true;
+      restartButton.hidden = false;
+      // The Start button disappears, so keyboard focus moves to the button that replaces it
+      restartButton.focus();
     });
+
+    restartButton.addEventListener('click', start);
   }
 </script>
 
@@ -367,6 +398,26 @@ const steps = [
     margin-top: 1em;
   }
 
+  .step-stage {
+    position: relative;
+  }
+
+  /* Covers the canvas, which is the first thing in every demo and always 4:3 at full width */
+  .start-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: color-mix(in oklch, var(--bg) 55%, transparent);
+  }
+
+  .start-overlay[hidden] {
+    display: none;
+  }
+
   .demo-bar {
     display: flex;
     align-items: center;
@@ -375,15 +426,18 @@ const steps = [
   }
 
   .caption {
+    flex: 1;
     color: var(--muted);
   }
 
   .start-button,
+  .restart-button,
   .nav-button {
     display: inline-flex;
     flex: none;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     min-height: 44px;
     padding: 0 16px;
     border: 1px solid var(--line);
@@ -393,7 +447,21 @@ const steps = [
     cursor: pointer;
   }
 
-  .start-button:hover,
+  .start-button {
+    padding: 0 20px 0 16px;
+    border-color: var(--pink);
+    box-shadow: 0 0 0 1px var(--pink);
+  }
+
+  .start-button:hover {
+    background: color-mix(in oklch, var(--pink) 14%, var(--surface));
+  }
+
+  .restart-button[hidden] {
+    display: none;
+  }
+
+  .restart-button:hover,
   .nav-button:hover {
     border-color: var(--pink);
   }
