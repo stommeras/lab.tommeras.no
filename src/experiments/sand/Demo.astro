@@ -112,13 +112,14 @@ const materials = [
 
   const grid = new Uint8Array(COLS * ROWS);
   // The frame each cell last moved on, so nothing moves twice in one frame
-  const movedOn = new Uint8Array(COLS * ROWS);
+  const movedOn = new Uint32Array(COLS * ROWS);
   const shades = new Uint8Array(COLS * ROWS);
   const rough = new Uint8Array(COLS * ROWS);
-  // Falling speed in cells per frame. Empty cells always hold 0.
+  // Falling speed in cells per frame. 0 for any cell that isn't falling.
   const velocity = new Float32Array(COLS * ROWS);
 
-  // Runs 1 to 255, never 0, since a fresh movedOn is all zeros. step() clears movedOn on the wrap.
+  // Starts at 1 on the first step, so it never matches a fresh movedOn. At 60 steps a second it takes over
+  // two years to wrap.
   let frame = 0;
 
   let changed = true;
@@ -153,7 +154,9 @@ const materials = [
     [grid[a], grid[b]] = [grid[b], grid[a]];
     [shades[a], shades[b]] = [shades[b], shades[a]];
     [rough[a], rough[b]] = [rough[b], rough[a]];
-    [velocity[a], velocity[b]] = [velocity[b], velocity[a]];
+    // A move ends any fall. fall() sets the new speed after its swap.
+    velocity[a] = 0;
+    velocity[b] = 0;
     movedOn[a] = frame;
     movedOn[b] = frame;
     changed = true;
@@ -172,8 +175,8 @@ const materials = [
     const speed = Math.min(Math.max(velocity[i], 1) + GRAVITY, MAX_SPEED);
     let distance = 1;
     while (distance < Math.floor(speed) && isEmpty(x, y + distance + 1)) distance++;
-    velocity[i] = speed;
     swap(x, y, x, y + distance);
+    velocity[indexOf(x, y + distance)] = speed;
   };
 
   // A rough grain only slides to a side where it would keep falling after the step
@@ -185,7 +188,7 @@ const materials = [
       fall(x, y);
       return;
     }
-    // Reset before any swap, so the empty cell it trades places with keeps 0
+    // Landed
     velocity[indexOf(x, y)] = 0;
 
     const canDown = sandCanEnter(x, y + 1);
@@ -214,9 +217,9 @@ const materials = [
   const canFlowInto = (x: number, y: number, atSurface: boolean) =>
     isEmpty(x, y) && (atSurface || !hasMoved(x, y) || Math.random() < UNDERWATER_CHAIN);
 
-  // Skips the first cell, which the caller checked, since a second roll could fail and swap water with itself
+  // How many cells in a row water can flow into toward dx, up to max
   const flowDistance = (x: number, y: number, dx: number, max: number, atSurface: boolean) => {
-    let distance = 1;
+    let distance = 0;
     while (distance < max && canFlowInto(x + dx * (distance + 1), y, atSurface)) distance++;
     return distance;
   };
@@ -226,13 +229,12 @@ const materials = [
       fall(x, y);
       return;
     }
+    // Landed
     velocity[indexOf(x, y)] = 0;
 
     const atSurface = getCell(x, y - 1) !== WATER;
     const canDownLeft = isEmpty(x - 1, y) && isEmpty(x - 1, y + 1);
     const canDownRight = isEmpty(x + 1, y) && isEmpty(x + 1, y + 1);
-    const canLeft = canFlowInto(x - 1, y, atSurface);
-    const canRight = canFlowInto(x + 1, y, atSurface);
 
     let dx;
     let dy = 1;
@@ -243,33 +245,24 @@ const materials = [
       dx = -1;
     } else if (canDownRight) {
       dx = 1;
-    } else if (canLeft && canRight) {
-      dx = randomSide();
-      dy = 0;
-    } else if (canLeft) {
-      dx = -1;
-      dy = 0;
-    } else if (canRight) {
-      dx = 1;
-      dy = 0;
     } else {
-      return;
-    }
+      // A random reach per move keeps neighbors from moving in lockstep
+      const reach = 1 + Math.floor(Math.random() * WATER_SPREAD);
+      const left = flowDistance(x, y, -1, reach, atSurface);
+      const right = flowDistance(x, y, 1, reach, atSurface);
+      if (!left && !right) return;
 
-    // A random reach per move keeps neighbors from moving in lockstep
-    if (dy === 0) dx *= flowDistance(x, y, dx, 1 + Math.floor(Math.random() * WATER_SPREAD), atSurface);
+      const side = left && right ? randomSide() : left ? -1 : 1;
+      dx = side === -1 ? -left : right;
+      dy = 0;
+    }
 
     swap(x, y, x + dx, y + dy);
   };
 
   // Bottom-up, so a grain that falls lands in a row that's already done and moves once per frame
   const step = () => {
-    if (frame === 255) {
-      frame = 1;
-      movedOn.fill(0);
-    } else {
-      frame++;
-    }
+    frame++;
 
     leftToRight = !leftToRight;
 
