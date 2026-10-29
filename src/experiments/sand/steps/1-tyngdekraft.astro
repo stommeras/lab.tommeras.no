@@ -1,0 +1,108 @@
+---
+// Reconstructed, never committed on its own: the canvas, colors and test grains from b7c0ffe, plus the first step
+// loop, where a grain only falls straight down. 200 × 150 as in ad54eba, so the grains are big enough to see.
+const cols = 200;
+const rows = 150;
+---
+
+<div class="step-demo" data-step="1">
+  <canvas class="canvas" width={cols} height={rows}></canvas>
+  <div class="sand-color" hidden aria-hidden="true"></div>
+</div>
+
+<script>
+  const root = document.querySelector<HTMLElement>('.step-demo[data-step="1"]')!;
+  const canvas = root.querySelector<HTMLCanvasElement>('.canvas')!;
+  const COLS = canvas.width;
+  const ROWS = canvas.height;
+
+  const EMPTY = 0;
+  const SAND = 1;
+
+  const toRgb = (selector: string) => {
+    const color = getComputedStyle(root.querySelector(selector)!).color;
+    const [r, g, b] = color.match(/\d+/g)!.map(Number);
+    return [r, g, b, 255];
+  };
+
+  const colors = [[0, 0, 0, 0], toRgb('.sand-color')];
+
+  const grid = new Uint8Array(COLS * ROWS);
+  const getCell = (x: number, y: number) => grid[y * COLS + x];
+  const setCell = (x: number, y: number, value: number) => (grid[y * COLS + x] = value);
+
+  const ctx = canvas.getContext('2d')!;
+  const image = ctx.createImageData(COLS, ROWS);
+
+  const render = () => {
+    for (let i = 0; i < grid.length; i++) {
+      const [r, g, b, a] = colors[grid[i]];
+      const index = i * 4;
+      image.data[index] = r;
+      image.data[index + 1] = g;
+      image.data[index + 2] = b;
+      image.data[index + 3] = a;
+    }
+    ctx.putImageData(image, 0, 0);
+  };
+
+  // Bottom-up, so a grain that falls lands in a row that's already done and moves once per frame
+  const step = () => {
+    for (let y = ROWS - 2; y >= 0; y--) {
+      for (let x = 0; x < COLS; x++) {
+        if (getCell(x, y) === SAND && getCell(x, y + 1) === EMPTY) {
+          setCell(x, y, EMPTY);
+          setCell(x, y + 1, SAND);
+        }
+      }
+    }
+  };
+
+  // The test grains from b7c0ffe, at half the coordinates
+  const preset = () => {
+    setCell(5, 5, SAND);
+    setCell(100, 75, SAND);
+    setCell(101, 75, SAND);
+    setCell(100, 76, SAND);
+    setCell(199, 149, SAND);
+  };
+
+  // --- Stepper contract: start resets to the initial state and runs, stop pauses ---
+
+  let frameRequest: number | null = null;
+
+  const loop = () => {
+    step();
+    render();
+    frameRequest = requestAnimationFrame(loop);
+  };
+
+  root.addEventListener('start', () => {
+    grid.fill(EMPTY);
+    preset();
+    render();
+    frameRequest ??= requestAnimationFrame(loop);
+  });
+
+  root.addEventListener('stop', () => {
+    if (frameRequest !== null) cancelAnimationFrame(frameRequest);
+    frameRequest = null;
+  });
+
+  // The initial state shows as a still frame until the visitor starts it
+  preset();
+  render();
+</script>
+
+<style>
+  .canvas {
+    border: 1px solid var(--pink);
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+  }
+
+  .sand-color {
+    color: var(--peach);
+  }
+</style>

@@ -1,0 +1,201 @@
+---
+// Snapshot of c497370. Changed only to fit the stepper: elements are found inside the root, the loop runs
+// between the start and stop events, and a hint shows on the empty canvas.
+
+// Grid size in cells. The canvas has one pixel per cell, and CSS scales it up.
+const cols = 200;
+const rows = 150;
+---
+
+<div class="step-demo" data-step="3">
+  <div class="canvas-frame">
+    <canvas class="canvas" width={cols} height={rows}></canvas>
+    <p class="hint" aria-hidden="true" hidden>
+      Tegn med mus eller finger
+    </p>
+  </div>
+  <div class="sand-color" hidden aria-hidden="true"></div>
+</div>
+
+<script>
+  const root = document.querySelector<HTMLElement>('.step-demo[data-step="3"]')!;
+  const canvas = root.querySelector<HTMLCanvasElement>('.canvas')!;
+  const hint = root.querySelector<HTMLElement>('.hint')!;
+  const COLS = canvas.width;
+  const ROWS = canvas.height;
+
+  const EMPTY = 0;
+  const SAND = 1;
+  const FULL = 255;
+
+  const toRgb = (selector: string) => {
+    const color = getComputedStyle(root.querySelector(selector)!).color;
+    const [r, g, b] = color.match(/\d+/g)!.map(Number);
+    return [r, g, b, 255];
+  };
+
+  const colors = [[0, 0, 0, 0], toRgb('.sand-color')];
+
+  const inBounds = (x: number, y: number) => x >= 0 && x < COLS && y >= 0 && y < ROWS;
+
+  const grid = new Uint8Array(COLS * ROWS);
+  const getCell = (x: number, y: number) => (inBounds(x, y) ? grid[y * COLS + x] : FULL);
+  const setCell = (x: number, y: number, value: number) => {
+    if (inBounds(x, y)) grid[y * COLS + x] = value;
+  };
+  const isEmpty = (x: number, y: number) => getCell(x, y) === EMPTY;
+
+  const ctx = canvas.getContext('2d')!;
+  const image = ctx.createImageData(COLS, ROWS);
+
+  const render = () => {
+    for (let i = 0; i < grid.length; i++) {
+      const [r, g, b, a] = colors[grid[i]];
+      const index = i * 4;
+      image.data[index] = r;
+      image.data[index + 1] = g;
+      image.data[index + 2] = b;
+      image.data[index + 3] = a;
+    }
+    ctx.putImageData(image, 0, 0);
+  };
+
+  // Flips every frame so the scan order doesn't favor one side when grains compete for a cell
+  let leftToRight = true;
+
+  const step = () => {
+    leftToRight = !leftToRight;
+    for (let y = ROWS - 1; y >= 0; y--) {
+      for (let i = 0; i < COLS; i++) {
+        const x = leftToRight ? i : COLS - 1 - i;
+        if (getCell(x, y) !== SAND) continue;
+
+        const canDown = isEmpty(x, y + 1);
+        const canLeft = isEmpty(x - 1, y) && isEmpty(x - 1, y + 1);
+        const canRight = isEmpty(x + 1, y) && isEmpty(x + 1, y + 1);
+
+        let dx;
+        if (canDown) {
+          dx = 0;
+        } else if (canLeft && canRight) {
+          dx = Math.random() < 0.5 ? -1 : 1;
+        } else if (canLeft) {
+          dx = -1;
+        } else if (canRight) {
+          dx = 1;
+        } else {
+          continue;
+        }
+
+        setCell(x, y, EMPTY);
+        setCell(x + dx, y + 1, SAND);
+      }
+    }
+  };
+
+  type Point = { x: number; y: number };
+
+  const BRUSH_RADIUS = 2;
+
+  const paintCircle = (cx: number, cy: number, value: number) => {
+    for (let dy = -BRUSH_RADIUS; dy <= BRUSH_RADIUS; dy++) {
+      for (let dx = -BRUSH_RADIUS; dx <= BRUSH_RADIUS; dx++) {
+        if (dx * dx + dy * dy > BRUSH_RADIUS * BRUSH_RADIUS) continue;
+        if (isEmpty(cx + dx, cy + dy)) setCell(cx + dx, cy + dy, value);
+      }
+    }
+  };
+
+  const paintLine = (from: Point, to: Point, value: number) => {
+    const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+    for (let i = 0; i <= steps; i++) {
+      const t = steps === 0 ? 0 : i / steps;
+      paintCircle(Math.round(from.x + (to.x - from.x) * t), Math.round(from.y + (to.y - from.y) * t), value);
+    }
+  };
+
+  const toGridPosition = (event: PointerEvent): Point => ({
+    x: Math.floor((event.offsetX / canvas.clientWidth) * COLS),
+    y: Math.floor((event.offsetY / canvas.clientHeight) * ROWS),
+  });
+
+  let isDrawing = false;
+  let pointer: Point = { x: 0, y: 0 };
+
+  canvas.addEventListener('pointerdown', (event) => {
+    canvas.setPointerCapture(event.pointerId);
+    isDrawing = true;
+    pointer = toGridPosition(event);
+    paintCircle(pointer.x, pointer.y, SAND);
+    hint.hidden = true;
+  });
+
+  canvas.addEventListener('pointermove', (event) => {
+    if (!isDrawing) return;
+    const next = toGridPosition(event);
+    paintLine(pointer, next, SAND);
+    pointer = next;
+  });
+
+  const stopDrawing = () => (isDrawing = false);
+  canvas.addEventListener('pointerup', stopDrawing);
+  canvas.addEventListener('pointercancel', stopDrawing);
+
+  // --- Stepper contract: start resets to the initial state and runs, stop pauses ---
+
+  let frameRequest: number | null = null;
+
+  const loop = () => {
+    if (isDrawing) paintCircle(pointer.x, pointer.y, SAND);
+    step();
+    render();
+    frameRequest = requestAnimationFrame(loop);
+  };
+
+  root.addEventListener('start', () => {
+    grid.fill(EMPTY);
+    leftToRight = true;
+    isDrawing = false;
+    hint.hidden = false;
+    render();
+    frameRequest ??= requestAnimationFrame(loop);
+  });
+
+  root.addEventListener('stop', () => {
+    if (frameRequest !== null) cancelAnimationFrame(frameRequest);
+    frameRequest = null;
+    isDrawing = false;
+  });
+</script>
+
+<style>
+  .canvas-frame {
+    position: relative;
+  }
+
+  .canvas {
+    border: 1px solid var(--pink);
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    /* Dragging on a touch screen draws instead of scrolling the page */
+    touch-action: none;
+  }
+
+  .hint {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  .hint[hidden] {
+    display: none;
+  }
+
+  .sand-color {
+    color: var(--peach);
+  }
+</style>
