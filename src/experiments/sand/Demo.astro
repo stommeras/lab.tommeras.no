@@ -26,12 +26,14 @@ const rows = 150;
 
   const colors = [[0, 0, 0, 0], toRgb('.sand-color')];
 
+  const inBounds = (x: number, y: number) => x >= 0 && x < COLS && y >= 0 && y < ROWS;
+
   const grid = new Uint8Array(COLS * ROWS);
-  const getCell = (x: number, y: number) => {
-    if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return FULL;
-    return grid[y * COLS + x];
+  const getCell = (x: number, y: number) => (inBounds(x, y) ? grid[y * COLS + x] : FULL);
+  const setCell = (x: number, y: number, value: number) => {
+    if (inBounds(x, y)) grid[y * COLS + x] = value;
   };
-  const setCell = (x: number, y: number, value: number) => (grid[y * COLS + x] = value);
+  const isEmpty = (x: number, y: number) => getCell(x, y) === EMPTY;
 
   const ctx = canvas.getContext('2d')!;
   const image = ctx.createImageData(COLS, ROWS);
@@ -58,9 +60,9 @@ const rows = 150;
         const x = leftToRight ? i : COLS - 1 - i;
         if (getCell(x, y) !== SAND) continue;
 
-        const canDown = getCell(x, y + 1) === EMPTY;
-        const canLeft = getCell(x - 1, y) === EMPTY && getCell(x - 1, y + 1) === EMPTY;
-        const canRight = getCell(x + 1, y) === EMPTY && getCell(x + 1, y + 1) === EMPTY;
+        const canDown = isEmpty(x, y + 1);
+        const canLeft = isEmpty(x - 1, y) && isEmpty(x - 1, y + 1);
+        const canRight = isEmpty(x + 1, y) && isEmpty(x + 1, y + 1);
 
         let dx;
         if (canDown) {
@@ -81,13 +83,56 @@ const rows = 150;
     }
   };
 
-  const spawn = () => {
-    setCell(75, 50, SAND);
+  type Point = { x: number; y: number };
+
+  const BRUSH_RADIUS = 2;
+
+  const paintCircle = (cx: number, cy: number, value: number) => {
+    for (let dy = -BRUSH_RADIUS; dy <= BRUSH_RADIUS; dy++) {
+      for (let dx = -BRUSH_RADIUS; dx <= BRUSH_RADIUS; dx++) {
+        if (dx * dx + dy * dy > BRUSH_RADIUS * BRUSH_RADIUS) continue;
+        if (isEmpty(cx + dx, cy + dy)) setCell(cx + dx, cy + dy, value);
+      }
+    }
   };
 
+  const paintLine = (from: Point, to: Point, value: number) => {
+    const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+    for (let i = 0; i <= steps; i++) {
+      const t = steps === 0 ? 0 : i / steps;
+      paintCircle(Math.round(from.x + (to.x - from.x) * t), Math.round(from.y + (to.y - from.y) * t), value);
+    }
+  };
+
+  const toGridPosition = (event: PointerEvent): Point => ({
+    x: Math.floor((event.offsetX / canvas.clientWidth) * COLS),
+    y: Math.floor((event.offsetY / canvas.clientHeight) * ROWS),
+  });
+
+  let isDrawing = false;
+  let pointer: Point = { x: 0, y: 0 };
+
+  canvas.addEventListener('pointerdown', (event) => {
+    canvas.setPointerCapture(event.pointerId);
+    isDrawing = true;
+    pointer = toGridPosition(event);
+    paintCircle(pointer.x, pointer.y, SAND);
+  });
+
+  canvas.addEventListener('pointermove', (event) => {
+    if (!isDrawing) return;
+    const next = toGridPosition(event);
+    paintLine(pointer, next, SAND);
+    pointer = next;
+  });
+
+  const stopDrawing = () => (isDrawing = false);
+  canvas.addEventListener('pointerup', stopDrawing);
+  canvas.addEventListener('pointercancel', stopDrawing);
+
   requestAnimationFrame(function loop() {
+    if (isDrawing) paintCircle(pointer.x, pointer.y, SAND);
     step();
-    spawn();
     render();
     requestAnimationFrame(loop);
   });
@@ -99,6 +144,8 @@ const rows = 150;
     width: 100%;
     height: auto;
     image-rendering: pixelated;
+    /* Dragging on a touch screen draws instead of scrolling the page */
+    touch-action: none;
   }
 
   .sand-color {
