@@ -1,0 +1,422 @@
+---
+// Snapshot of 8a47549. Changed only to fit the stepper: elements are found inside the root, the loop runs
+// between the start and stop events, and start sets up a scene.
+
+// Grid size in cells. The canvas has one pixel per cell, and CSS scales it up.
+const cols = 200;
+const rows = 150;
+
+// The script maps each name to a material number, and reads the canvas color from the swatch
+const materials = [
+  { name: 'sand', label: 'Sand' },
+  { name: 'water', label: 'Vann' },
+  { name: 'stone', label: 'Stein' },
+  { name: 'empty', label: 'Viskelær' },
+];
+---
+
+<div class="step-demo" data-step="4">
+  <canvas class="canvas" width={cols} height={rows}></canvas>
+  <div class="material-picker">
+    {materials.map(({ name, label }, index) => (
+      <button type="button" class="material-button" data-material={name} aria-pressed={index === 0 ? 'true' : 'false'}>
+        <span class:list={['swatch', name]} aria-hidden="true" />
+        {label}
+      </button>
+    ))}
+  </div>
+</div>
+
+<script>
+  // --- Materials ---
+
+  const EMPTY = 0;
+  const SAND = 1;
+  const WATER = 2;
+  const STONE = 3;
+  // Returned for cells outside the grid. No material uses it, so the edges act as walls.
+  const FULL = 255;
+
+  // Maps the button's data-material to the material number
+  const MATERIALS: Record<string, number> = { empty: EMPTY, sand: SAND, water: WATER, stone: STONE };
+
+  // --- Grid ---
+
+  const root = document.querySelector<HTMLElement>('.step-demo[data-step="4"]')!;
+  const canvas = root.querySelector<HTMLCanvasElement>('.canvas')!;
+  const COLS = canvas.width;
+  const ROWS = canvas.height;
+
+  const grid = new Uint8Array(COLS * ROWS);
+
+  type Point = { x: number; y: number };
+
+  const inBounds = (x: number, y: number) => x >= 0 && x < COLS && y >= 0 && y < ROWS;
+  const indexOf = (x: number, y: number) => y * COLS + x;
+
+  const getCell = (x: number, y: number) => (inBounds(x, y) ? grid[indexOf(x, y)] : FULL);
+  const setCell = (x: number, y: number, value: number) => {
+    if (inBounds(x, y)) grid[indexOf(x, y)] = value;
+  };
+  const isEmpty = (x: number, y: number) => getCell(x, y) === EMPTY;
+  const sandCanEnter = (x: number, y: number) => getCell(x, y) === EMPTY || getCell(x, y) === WATER;
+  // Does nothing if either cell is outside the grid, so FULL never gets written into it
+  const swap = (x1: number, y1: number, x2: number, y2: number) => {
+    if (!inBounds(x1, y1) || !inBounds(x2, y2)) return;
+    const temp = getCell(x1, y1);
+    setCell(x1, y1, getCell(x2, y2));
+    setCell(x2, y2, temp);
+  };
+
+  // --- Simulation ---
+
+  const randomSide = () => (Math.random() < 0.5 ? -1 : 1);
+
+  // Flips every frame so the scan order doesn't favor one side when grains compete for a cell
+  let leftToRight = true;
+
+  const stepSand = (x: number, y: number) => {
+    const canDown = sandCanEnter(x, y + 1);
+    const canLeft = sandCanEnter(x - 1, y) && sandCanEnter(x - 1, y + 1);
+    const canRight = sandCanEnter(x + 1, y) && sandCanEnter(x + 1, y + 1);
+
+    let dx;
+    if (canDown) {
+      dx = 0;
+    } else if (canLeft && canRight) {
+      dx = randomSide();
+    } else if (canLeft) {
+      dx = -1;
+    } else if (canRight) {
+      dx = 1;
+    } else {
+      return;
+    }
+
+    swap(x, y, x + dx, y + 1);
+  };
+
+  const stepWater = (x: number, y: number) => {
+    const canDown = isEmpty(x, y + 1);
+    const canDownLeft = isEmpty(x - 1, y) && isEmpty(x - 1, y + 1);
+    const canDownRight = isEmpty(x + 1, y) && isEmpty(x + 1, y + 1);
+    const canLeft = isEmpty(x - 1, y);
+    const canRight = isEmpty(x + 1, y);
+
+    let dx;
+    let dy = 1;
+
+    if (canDown) {
+      dx = 0;
+    } else if (canDownLeft && canDownRight) {
+      dx = randomSide();
+    } else if (canDownLeft) {
+      dx = -1;
+    } else if (canDownRight) {
+      dx = 1;
+    } else if (canLeft && canRight) {
+      dx = randomSide();
+      dy = 0;
+    } else if (canLeft) {
+      dx = -1;
+      dy = 0;
+    } else if (canRight) {
+      dx = 1;
+      dy = 0;
+    } else {
+      return;
+    }
+
+    swap(x, y, x + dx, y + dy);
+  };
+
+  // Bottom-up, so a grain that falls lands in a row that's already done and moves once per frame
+  const step = () => {
+    leftToRight = !leftToRight;
+    for (let y = ROWS - 1; y >= 0; y--) {
+      for (let i = 0; i < COLS; i++) {
+        const x = leftToRight ? i : COLS - 1 - i;
+
+        // Empty and stone never move, so they have no case
+        switch (getCell(x, y)) {
+          case SAND:
+            stepSand(x, y);
+            break;
+          case WATER:
+            stepWater(x, y);
+            break;
+        }
+      }
+    }
+  };
+
+  // --- Rendering ---
+
+  type Rgba = [number, number, number, number];
+
+  // Empty cells are transparent, so the page background shows through
+  const TRANSPARENT: Rgba = [0, 0, 0, 0];
+
+  // Reads the numbers out of a computed color like "rgb(162, 86, 28)"
+  const parseRgb = (color: string): Rgba => {
+    const [r, g, b] = color.match(/\d+/g)!.map(Number);
+    return [r, g, b, 255];
+  };
+
+  // A canvas can't use CSS variables, so read the resolved token color from the material's swatch
+  const swatchColor = (name: string) =>
+    parseRgb(getComputedStyle(root.querySelector(`.swatch.${name}`)!).backgroundColor);
+
+  // Indexed by material number
+  const colors: Rgba[] = [];
+  for (const [name, material] of Object.entries(MATERIALS)) {
+    colors[material] = material === EMPTY ? TRANSPARENT : swatchColor(name);
+  }
+
+  // The eraser outline uses the canvas border color
+  const outlineColor = parseRgb(getComputedStyle(canvas).borderTopColor);
+
+  const ctx = canvas.getContext('2d')!;
+  const image = ctx.createImageData(COLS, ROWS);
+
+  const drawPixel = (point: Point, color: Rgba) => {
+    if (inBounds(point.x, point.y)) image.data.set(color, indexOf(point.x, point.y) * 4);
+  };
+
+  // The grid and the image are in the same order, and each pixel takes 4 bytes (RGBA)
+  const render = () => {
+    for (let i = 0; i < grid.length; i++) {
+      image.data.set(colors[grid[i]], i * 4);
+    }
+
+    // Drawn into the image only, so it never touches the grid. The next frame paints over it.
+    if (material === EMPTY && hover) {
+      for (const point of brushOutline(hover, brushRadius(material))) drawPixel(point, outlineColor);
+    }
+
+    ctx.putImageData(image, 0, 0);
+  };
+
+  // --- Painting ---
+
+  const isInsideBrush = (dx: number, dy: number, r: number) => dx * dx + dy * dy <= (r + 0.5) * (r + 0.5);
+
+  // The eraser is bigger, since clearing an area takes more than drawing a line
+  const brushRadius = (value: number) => (value === EMPTY ? 4 : 2);
+
+  // Fills empty cells only, so the brush never paints over what's there. The eraser clears everything.
+  const paintCircle = (center: Point, value: number) => {
+    const radius = brushRadius(value);
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if (!isInsideBrush(dx, dy, radius)) continue;
+
+        const x = center.x + dx;
+        const y = center.y + dy;
+        if (value === EMPTY || isEmpty(x, y)) setCell(x, y, value);
+      }
+    }
+  };
+
+  // The cells inside the brush that have a neighbor outside it, which makes a ring one cell wide
+  const brushOutline = (center: Point, radius: number) => {
+    const points: Point[] = [];
+    for (let dy = -radius; dy <= radius; dy++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        if (!isInsideBrush(dx, dy, radius)) continue;
+
+        const onEdge =
+          !isInsideBrush(dx - 1, dy, radius) ||
+          !isInsideBrush(dx + 1, dy, radius) ||
+          !isInsideBrush(dx, dy - 1, radius) ||
+          !isInsideBrush(dx, dy + 1, radius);
+        if (onEdge) points.push({ x: center.x + dx, y: center.y + dy });
+      }
+    }
+    return points;
+  };
+
+  const lerp = (from: number, to: number, t: number) => Math.round(from + (to - from) * t);
+
+  // Pointer events arrive about once per frame, so stamp along the line between them to avoid gaps
+  const paintLine = (from: Point, to: Point, value: number) => {
+    const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
+    for (let i = 0; i <= steps; i++) {
+      const t = steps === 0 ? 0 : i / steps;
+      paintCircle({ x: lerp(from.x, to.x, t), y: lerp(from.y, to.y, t) }, value);
+    }
+  };
+
+  // --- Input ---
+
+  let material = SAND;
+  let isDrawing = false;
+  let pointer: Point = { x: 0, y: 0 };
+  let hover: Point | null = null;
+
+  const materialButtons = root.querySelectorAll<HTMLButtonElement>('.material-button');
+
+  const selectMaterial = (selected: HTMLButtonElement) => {
+    material = MATERIALS[selected.dataset.material!];
+    // The outline replaces the system cursor while erasing
+    canvas.classList.toggle('erasing', material === EMPTY);
+    for (const button of materialButtons) {
+      button.setAttribute('aria-pressed', String(button === selected));
+    }
+  };
+
+  for (const button of materialButtons) {
+    button.addEventListener('click', () => selectMaterial(button));
+  }
+
+  // offsetX and clientWidth are measured inside the border, so the border doesn't skew the position
+  const toGridPosition = (event: PointerEvent): Point => ({
+    x: Math.floor((event.offsetX / canvas.clientWidth) * COLS),
+    y: Math.floor((event.offsetY / canvas.clientHeight) * ROWS),
+  });
+
+  canvas.addEventListener('pointerdown', (event) => {
+    // Keeps move and up events coming to the canvas when the pointer leaves it
+    canvas.setPointerCapture(event.pointerId);
+    isDrawing = true;
+    pointer = toGridPosition(event);
+    paintCircle(pointer, material);
+  });
+
+  canvas.addEventListener('pointermove', (event) => {
+    // Tracked without the button held too, so the eraser outline follows the cursor
+    hover = toGridPosition(event);
+    if (!isDrawing) return;
+    paintLine(pointer, hover, material);
+    pointer = hover;
+  });
+
+  canvas.addEventListener('pointerleave', () => {
+    hover = null;
+  });
+
+  const stopDrawing = () => (isDrawing = false);
+  canvas.addEventListener('pointerup', stopDrawing);
+  canvas.addEventListener('pointercancel', stopDrawing);
+
+  // --- Stepper contract: start resets to the initial state and runs, stop pauses ---
+
+  const reset = () => {
+    grid.fill(EMPTY);
+    leftToRight = true;
+    isDrawing = false;
+    selectMaterial(materialButtons[0]);
+  };
+
+  const fillRect = (x1: number, y1: number, x2: number, y2: number, value: number) => {
+    for (let y = y1; y <= y2; y++) {
+      for (let x = x1; x <= x2; x++) setCell(x, y, value);
+    }
+  };
+
+  // A stone cup of water with a column of sand above it
+  const preset = () => {
+    fillRect(60, 95, 61, 139, STONE);
+    fillRect(138, 95, 139, 139, STONE);
+    fillRect(60, 138, 139, 139, STONE);
+    fillRect(62, 110, 137, 137, WATER);
+    fillRect(90, 5, 109, 75, SAND);
+  };
+
+  let frameRequest: number | null = null;
+
+  const loop = () => {
+    // Keep pouring while the pointer is held still
+    if (isDrawing) paintCircle(pointer, material);
+    step();
+    render();
+    frameRequest = requestAnimationFrame(loop);
+  };
+
+  root.addEventListener('start', () => {
+    reset();
+    preset();
+    render();
+    frameRequest ??= requestAnimationFrame(loop);
+  });
+
+  root.addEventListener('stop', () => {
+    if (frameRequest !== null) cancelAnimationFrame(frameRequest);
+    frameRequest = null;
+    isDrawing = false;
+  });
+
+  // The initial state shows as a still frame until the visitor starts it
+  preset();
+  render();
+</script>
+
+<style>
+  .canvas {
+    border: 1px solid var(--pink);
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    /* Dragging on a touch screen draws instead of scrolling the page */
+    touch-action: none;
+  }
+
+  .canvas.erasing {
+    cursor: none;
+  }
+
+  .material-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 16px 0;
+  }
+
+  .material-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--fg);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .material-button:hover {
+    border-color: var(--pink);
+  }
+
+  /* A box-shadow thickens the border without changing the button's size, and leaves outline free for keyboard focus */
+  .material-button[aria-pressed='true'] {
+    border-color: var(--pink);
+    box-shadow: 0 0 0 1px var(--pink);
+  }
+
+  .swatch {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+  }
+
+  /* The script reads these backgrounds as the canvas colors */
+  .swatch.sand {
+    background: var(--peach);
+  }
+
+  .swatch.water {
+    background: var(--lavender);
+  }
+
+  .swatch.stone {
+    background: var(--muted);
+  }
+
+  /* The eraser paints nothing, so its swatch is an empty outline */
+  .swatch.empty {
+    border: 1px dashed var(--muted);
+  }
+</style>
