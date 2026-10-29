@@ -1,7 +1,7 @@
 ---
 title: Sand som faller
 date: 2026-10-29
-status: pågår
+status: ferdig
 tags: [Simulering]
 summary: En simulering av sand og vann som faller og legger seg rundt stein.
 ---
@@ -10,4 +10,4 @@ En simulering av sand, vann og stein i et rutenett på 200 × 150 celler. Du teg
 
 Bygget med ren TypeScript, uten bibliotek.
 
-Stegene i utviklingen kommer under.
+Under ser du stegene i utviklingen. Steg 1 til 7 har en demo av hvordan simuleringen så ut da, med feilene den hadde.

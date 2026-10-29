@@ -1,0 +1,506 @@
+---
+import Step1 from './steps/1-tyngdekraft.astro';
+import Step2 from './steps/2-hauger.astro';
+import Step3 from './steps/3-tegne.astro';
+import Step4 from './steps/4-vann.astro';
+import Step5 from './steps/5-en-flytting.astro';
+import Step6 from './steps/6-flatt-vann.astro';
+import Step7 from './steps/7-fart.astro';
+
+// All the visitor text for the steps. Backticks mark code, as in the summary. The caption sits under the demo
+// button and says what to do or watch for in the demo.
+const steps = [
+  {
+    title: 'Rutenett og tyngdekraft',
+    caption: 'Testkornene fra den første versjonen faller rett ned og legger seg oppå hverandre.',
+    plan: 'Målet var å få sandkorn til å falle på skjermen. Simuleringen er et rutenett der hver celle er tom eller har et sandkorn. Rutenettet tegnes på en canvas med én piksel per celle, og CSS skalerer den opp. Hver frame sjekkes alle cellene, og et korn med en tom celle under seg flytter seg ett hakk ned.',
+    challenge:
+      'En canvas kan ikke lese CSS-variabler, så sandfargen hentes fra et skjult element som har fargen. Den første versjonen brukte tallet i cellen som farge, og sanden ble `rgb(1, 1, 1)`, som ikke synes. Cellene ble også sjekket ovenfra og ned. Da flyttet et korn seg ned til neste rad, ble funnet igjen der og flyttet seg på nytt, helt til bunnen i én frame. Derfor sjekkes cellene nedenfra og opp.',
+    demo: Step1,
+  },
+  {
+    title: 'Hauger',
+    caption: 'Ett korn per frame faller fra samme celle og bygger en haug.',
+    plan: 'Målet var at sanden skulle legge seg i hauger, ikke i søyler. Et korn som lander på et annet, sklir ned på skrå til venstre eller høyre. Er begge sidene ledige, velger det tilfeldig.',
+    challenge:
+      'Den første regelen lot et korn flytte seg bare når begge sidene var tomme. Det ga et tårn, og korn som ble hengende i lufta. Etter det lente haugene mot én side. Cellene ble alltid sjekket fra venstre mot høyre, og når to korn ville til samme celle, vant det som ble sjekket først. Nå snur retningen hver frame. Haugen blir likevel en perfekt trekant med sider på 45 grader, og det tar steg 7 seg av.',
+    demo: Step2,
+  },
+  {
+    title: 'Tegne med pekeren',
+    caption: 'Tegn med mus eller finger.',
+    plan: 'Målet var at du skulle tegne sanden selv. Posisjonen til pekeren regnes om til en celle, og en liten pensel fyller de tomme cellene rundt den. Holder du pekeren i ro, renner det sand hele tiden.',
+    challenge:
+      'Penselen gikk rundt kanten. Rutenettet er én lang liste, så `x = -1` er siste celle i raden over, og sand du tegnet ved venstre kant, dukket opp ved høyre. Slapp du knappen utenfor tegneflaten, fortsatte du å tegne, fordi tegneflaten aldri fikk `pointerup`. Pointer capture løste det. Raske strøk ga hull, siden pointer events kommer omtrent én gang per frame. Nå stempler penselen langs linjen mellom to events.',
+    demo: Step3,
+  },
+  {
+    title: 'Vann, stein og viskelær',
+    caption: 'En kopp av stein med vann i og en søyle med sand over. Se på vannet.',
+    plan: 'Målet var flere materialer. Vann faller som sand, men renner sideveis når det ikke kommer lenger ned. Sand synker i vann ved å bytte plass med det. Stein står i ro, og viskelæret tegner tomme celler. Fargene hentes nå fra fargeprøvene på knappene.',
+    challenge:
+      'I demoen klatrer vannet opp sandsøylen. Et korn bytter plass med vannet under seg, vannet havner i raden over, og der bytter neste korn med det igjen, helt til toppen i samme frame. Vann som renner sideveis, farer også bortover raden i én frame. Cellene sjekkes i samme retning som vannet renner, så vannet blir funnet igjen i neste celle og flytter seg på nytt. Underveis krasjet simuleringen ved bunnen. Celler utenfor rutenettet leses som `FULL`, og et bytte med en slik celle skrev `FULL` inn i rutenettet. Nå gjør `swap` ingenting når en av cellene er utenfor.',
+    demo: Step4,
+  },
+  {
+    title: 'Én flytting per frame',
+    caption: 'Samme kopp som i steg 4. Vannet klatrer ikke lenger, og sanden synker gjennom det.',
+    plan: 'Målet var å rette begge feilene fra steg 4, så ingen celle flytter seg mer enn én gang per frame. Hver celle husker hvilken frame den sist flyttet seg i, og celler som allerede har flyttet seg, hoppes over. I samme steg fikk vannet renne flere celler om gangen, og hvert korn fikk en tilfeldig skygge.',
+    challenge:
+      'Vannet sluttet å klatre, men sanden sank i striper. Et korn kan ikke bytte med vann som allerede har flyttet seg i samme frame, så kornet over måtte vente en runde. Lagene sank i takt, med striper av vann imellom som aldri lukket seg. Løsningen ble tilfeldig motstand. Et korn over vann synker bare halvparten av gangene, og da brytes lagene opp. Telleren for frames hadde også en feil som først ble funnet senere. Den går fra 1 til 255 og begynner på 1 igjen. Rett etter at den har startet på nytt, ser en celle som flyttet seg nøyaktig 255 frames tidligere, ut som om den allerede har flyttet seg. Demoen har fortsatt den feilen, men den er for kort til at du ser den.',
+    demo: Step5,
+  },
+  {
+    title: 'Vann som legger seg flatt',
+    caption: 'Velg Viskelær og visk ut et hull under overflaten.',
+    plan: 'Målet var vann som legger seg flatt, og et hull under overflaten som fylles ovenfra, så overflaten synker over hullet. Vann jevner seg ut ved at en hel rad kan flytte seg i én frame, der hver celle går inn i cellen naboen nettopp forlot.',
+    challenge:
+      'Før dette rant vannet inn i hullet fra sidene, og overflaten ble stående igjen som en haug over hullet. Den samme kjeden som jevner ut vannet, sendte hullet bort til veggen i én frame, og overflaten sank der i stedet for over hullet. Under overflaten får kjeden derfor bare fortsette noen av gangene. Balansen ble valgt med automatiske tester i nettleseren, som målte hvor flatt vannet ble og hvor mye det dirret. Senere viste det seg at sjansen på 0,9 egentlig var 0,81, fordi den ble trukket to ganger. Demoen har fortsatt den feilen. Den ferdige versjonen trekker bare én gang, med 0,8.',
+    demo: Step6,
+  },
+  {
+    title: 'Fart og ru sand',
+    caption: 'En strøm heller ned på en hylle av stein. Den strekker seg ut når kornene får fart.',
+    plan: 'Målet var fall som får fart, og hauger som ser mer naturlige ut. Celler som faller, øker farten for hver frame og kan flytte seg flere celler om gangen. Noen korn er ru. Et ru korn blir liggende på et trinn på to celler, der et glatt korn sklir av, så haugene får ujevne sider som noen steder er brattere enn 45 grader.',
+    challenge:
+      'Første forsøk var tilfeldighet mens kornet sklir. Det endret ikke formen på haugen, for et korn i en skråning på 45 grader sklir helt ned uansett hvilken vei det tar. Tilfeldigheten måtte endre hvor kornet stopper, og slik ble de ru kornene til. 15 prosent av kornene er ru, og med 30 prosent ble haugen en vulkan. En annen idé var å la et korn som lander i fart, rulle videre. Det virket ikke. Holder du pekeren i ro, hoper sanden seg opp under den, og kornene treffer haugen med fart 0. Fram til nå har simuleringen oppdatert rutenettet én gang per frame, så på en skjerm med 120 Hz går alle demoene over dobbelt så fort.',
+    demo: Step7,
+  },
+  {
+    title: 'Finpuss',
+    plan: 'Den ferdige versjonen er demoen øverst på siden. Den oppdaterer rutenettet 60 ganger i sekundet uansett skjerm, så farten er lik på 60 og 120 Hz. Tøm-knappen tømmer tegneflaten. Simuleringen stopper når tegneflaten er utenfor skjermen, og den hopper over render når ingenting har endret seg. Tegneflaten har `role="img"` og en beskrivelse for skjermlesere.',
+    challenge:
+      'En visuell gjennomgang fant noen småting. Omrisset av viskelæret syntes ikke over sand, så over fylte celler tegnes det i bakgrunnsfargen. Sanden var for mørk i lys modus og blandes nå lysere med `color-mix()`. Koden fra steg 1 leste fargen med en regex, og den forstår ikke fargen som `color-mix()` gir. Nå males fargen inn i én piksel på en canvas og leses tilbake derfra. Da hele nettstedet gikk over til `box-sizing: border-box`, ble innholdet 32 px smalere, fordi padding ble trukket fra bredden. `max-width: 792px` løste det.',
+  },
+];
+---
+
+<section class="steps" aria-labelledby="steps-title">
+  <h2 id="steps-title">Stegene i utviklingen</h2>
+  <div class="stepper">
+    <ol class="timeline">
+      {steps.map(({ title }, index) => (
+        <li>
+          <button type="button" class="timeline-step" aria-current={index === 0 ? 'step' : undefined}>
+            <span class="dot">{index + 1}</span>
+            <span class="label">{title}</span>
+          </button>
+        </li>
+      ))}
+    </ol>
+    <div class="panels">
+      {steps.map(({ title, caption, plan, challenge, demo: Demo }, index) => (
+        <article class="step" hidden={index !== 0}>
+          <h3>
+            {index + 1}. {title}
+          </h3>
+          {Demo && (
+            <div class="step-stage">
+              <Demo />
+              <div class="start-overlay">
+                <button type="button" class="start-button">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M6 4.5v15a1 1 0 0 0 1.5.87l13-7.5a1 1 0 0 0 0-1.74l-13-7.5A1 1 0 0 0 6 4.5z" />
+                  </svg>
+                  Start
+                </button>
+              </div>
+              <div class="demo-bar">
+                <p class="caption">{caption}</p>
+                <button type="button" class="restart-button" hidden>
+                  Start på nytt
+                </button>
+              </div>
+            </div>
+          )}
+          {/* Backticks mark code, as in the summary on the front page */}
+          {[plan, challenge].map((text) => (
+            <p>{text.split('`').map((part, i) => (i % 2 ? <code>{part}</code> : part))}</p>
+          ))}
+        </article>
+      ))}
+      <div class="step-nav">
+        <button type="button" class="nav-button" data-direction="-1" aria-disabled="true">
+          Forrige
+        </button>
+        <button type="button" class="nav-button" data-direction="1">
+          Neste
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const root = document.querySelector<HTMLElement>('.steps')!;
+  const points = [...root.querySelectorAll<HTMLButtonElement>('.timeline-step')];
+  const panels = [...root.querySelectorAll<HTMLElement>('.step')];
+  const navButtons = [...root.querySelectorAll<HTMLButtonElement>('.nav-button')];
+
+  let current = 0;
+
+  // The snapshots listen for start and stop on their .step-demo root
+  const demoOf = (panel: HTMLElement) => panel.querySelector('.step-demo');
+
+  const show = (index: number) => {
+    if (index === current || index < 0 || index >= panels.length) return;
+
+    const previous = panels[current];
+    demoOf(previous)?.dispatchEvent(new Event('stop'));
+    // Back to the paused state, so the demo starts over from its initial state next time
+    const overlay = previous.querySelector<HTMLElement>('.start-overlay');
+    if (overlay) overlay.hidden = false;
+    const restartButton = previous.querySelector<HTMLElement>('.restart-button');
+    if (restartButton) restartButton.hidden = true;
+    previous.hidden = true;
+
+    current = index;
+    panels[current].hidden = false;
+    points.forEach((point, i) => {
+      if (i === current) point.setAttribute('aria-current', 'step');
+      else point.removeAttribute('aria-current');
+      // Colors the dots and the line up to the current step
+      point.parentElement!.classList.toggle('done', i < current);
+    });
+
+    // aria-disabled, not disabled, so the button keeps focus at the first and last step
+    for (const button of navButtons) {
+      const target = current + Number(button.dataset.direction);
+      button.setAttribute('aria-disabled', String(target < 0 || target >= panels.length));
+    }
+
+    // Forrige and Neste sit under the step, so a long step would otherwise open scrolled past its heading
+    if (panels[current].getBoundingClientRect().top < 0) panels[current].scrollIntoView();
+  };
+
+  points.forEach((point, index) => point.addEventListener('click', () => show(index)));
+
+  for (const button of navButtons) {
+    button.addEventListener('click', () => show(current + Number(button.dataset.direction)));
+  }
+
+  for (const panel of panels) {
+    const overlay = panel.querySelector<HTMLElement>('.start-overlay');
+    const restartButton = panel.querySelector<HTMLButtonElement>('.restart-button');
+    if (!overlay || !restartButton) continue;
+
+    const start = () => demoOf(panel)?.dispatchEvent(new Event('start'));
+
+    overlay.querySelector('.start-button')!.addEventListener('click', () => {
+      start();
+      overlay.hidden = true;
+      restartButton.hidden = false;
+      // The Start button disappears, so keyboard focus moves to the button that replaces it. Without preventScroll,
+      // the browser scrolls that button into view when it's below the screen.
+      restartButton.focus({ preventScroll: true });
+    });
+
+    restartButton.addEventListener('click', start);
+  }
+</script>
+
+<style>
+  .steps {
+    --dot: 28px;
+    --line-width: 2px;
+    --timeline-width: 200px;
+    --timeline-gap: 24px;
+    container: steps / inline-size;
+    margin-top: 48px;
+  }
+
+  .stepper {
+    margin-top: 24px;
+  }
+
+  /* --- Timeline. A row of dots when space is short, a column with titles when it fits beside the step. --- */
+
+  .timeline {
+    display: flex;
+    padding: 0;
+    list-style: none;
+  }
+
+  .timeline li {
+    position: relative;
+    flex: 1;
+  }
+
+  /* Each step draws the line on both sides of its dot, so the halves meet between two steps */
+  .timeline li::before,
+  .timeline li::after {
+    content: '';
+    position: absolute;
+    top: calc(22px - var(--line-width) / 2);
+    width: 50%;
+    height: var(--line-width);
+    background: var(--line);
+  }
+
+  .timeline li::before {
+    left: 0;
+  }
+
+  .timeline li::after {
+    right: 0;
+  }
+
+  .timeline li:first-child::before,
+  .timeline li:last-child::after {
+    display: none;
+  }
+
+  /* The line is pink up to the current step */
+  .timeline li.done::before,
+  .timeline li.done::after,
+  .timeline li:has([aria-current])::before {
+    background: var(--pink);
+  }
+
+  .timeline-step {
+    position: relative;
+    /* Above the line, which the li draws */
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .dot {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: var(--dot);
+    height: var(--dot);
+    margin-top: calc((44px - var(--dot)) / 2);
+    border: 2px solid var(--line);
+    border-radius: 50%;
+    background: var(--bg);
+    font-size: 0.8125rem;
+    line-height: 1;
+  }
+
+  .timeline-step:hover .dot {
+    border-color: var(--pink);
+  }
+
+  .timeline-step:hover {
+    color: var(--fg);
+  }
+
+  .done .dot {
+    border-color: var(--pink);
+    background: var(--pink);
+    color: var(--bg);
+  }
+
+  /* The same pressed look as the material buttons in the demo */
+  [aria-current='step'] {
+    color: var(--fg);
+  }
+
+  [aria-current='step'] .dot {
+    border-color: var(--pink);
+    box-shadow: 0 0 0 1px var(--pink);
+    background: color-mix(in oklch, var(--pink) 14%, var(--surface));
+    color: var(--fg);
+  }
+
+  /* On a phone the title shows as the heading of the step, so the label is for screen readers only */
+  .label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .panels {
+    container: panel / inline-size;
+    margin-top: 24px;
+  }
+
+  /* Query conditions can't read custom properties, so the sizes are spelled out: the timeline, its gap, and room for
+     a step of at least 26rem */
+  @container steps (width >= calc(200px + 24px + 26rem)) {
+    .stepper {
+      display: grid;
+      grid-template-columns: var(--timeline-width) minmax(0, 1fr);
+      gap: var(--timeline-gap);
+      align-items: start;
+    }
+
+    .timeline {
+      position: sticky;
+      top: 24px;
+      flex-direction: column;
+    }
+
+    /* The line runs down through the dot centers. The step gets the half above and below its dot. */
+    .timeline li::before,
+    .timeline li::after {
+      left: calc(var(--dot) / 2 - var(--line-width) / 2);
+      right: auto;
+      width: var(--line-width);
+      height: auto;
+    }
+
+    .timeline li::before {
+      top: 0;
+      bottom: calc(100% - 22px);
+    }
+
+    .timeline li::after {
+      top: 22px;
+      bottom: 0;
+    }
+
+    .timeline-step {
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 12px;
+      text-align: left;
+    }
+
+    .label {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip-path: none;
+      white-space: normal;
+      padding: 10px 0 6px;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+    }
+
+    .panels {
+      margin-top: 0;
+    }
+  }
+
+  /* When the page has room for the timeline and its gap on both sides of the column, the timeline moves out into
+     the margin and the step gets the full column. 792px is the max-width of main in Layout.astro. */
+  @container page (width >= calc(792px + 2 * (200px + 24px))) {
+    .stepper {
+      margin-left: calc(-1 * (var(--timeline-width) + var(--timeline-gap)));
+    }
+  }
+
+  /* --- The step --- */
+
+  .step > * + * {
+    margin-top: 1em;
+  }
+
+  .step-stage {
+    position: relative;
+  }
+
+  /* Covers the canvas, which is the first thing in every demo and always 4:3 at full width */
+  .start-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: color-mix(in oklch, var(--bg) 55%, transparent);
+  }
+
+  .start-overlay[hidden] {
+    display: none;
+  }
+
+  .demo-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px 16px;
+    margin-top: 12px;
+  }
+
+  .caption {
+    flex: 1;
+    color: var(--muted);
+  }
+
+  .start-button,
+  .restart-button,
+  .nav-button {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+
+  .start-button {
+    padding: 0 20px 0 16px;
+    border-color: var(--pink);
+    box-shadow: 0 0 0 1px var(--pink);
+  }
+
+  .start-button:hover {
+    background: color-mix(in oklch, var(--pink) 14%, var(--surface));
+  }
+
+  .restart-button[hidden] {
+    display: none;
+  }
+
+  .restart-button:hover,
+  .nav-button:hover {
+    border-color: var(--pink);
+  }
+
+  .nav-button[aria-disabled='true'] {
+    border-color: var(--line);
+    color: var(--muted);
+    cursor: default;
+  }
+
+  .step-nav {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 32px;
+  }
+
+  /* In a narrow column the buttons fill their row, like the material buttons in the demo */
+  @container panel (width < 26rem) {
+    .demo-bar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .nav-button {
+      flex: 1 0 auto;
+    }
+  }
+</style>

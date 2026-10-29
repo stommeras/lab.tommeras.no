@@ -62,14 +62,17 @@ const crumbs = [
     --peach: light-dark(#a2561c, #f3c29a);
   }
 
-  /* The browser's default ring disappears on the dark background */
   :focus-visible {
     outline: 2px solid var(--fg);
     outline-offset: 2px;
   }
 
-  body {
+  html {
     background: var(--bg);
+  }
+
+  body {
+    container: page / inline-size;
     color: var(--fg);
     font-family: var(--font-mono);
     font-size: 1.0625rem;
@@ -87,7 +90,6 @@ const crumbs = [
     color: var(--pink);
   }
 
-  /* Everything is monospace already, so inline code stands out by color */
   code {
     color: var(--mint);
     white-space: nowrap;
