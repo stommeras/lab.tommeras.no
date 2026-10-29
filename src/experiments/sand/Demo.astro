@@ -1,9 +1,9 @@
 ---
-// Grid size in cells. The canvas has one pixel per cell, and CSS scales it up.
+// Grid size in cells, one canvas pixel per cell
 const cols = 200;
 const rows = 150;
 
-// The script maps each name to a material number, and reads the canvas color from the swatch
+// Each name must match a key in MATERIALS in the script and a .swatch class
 const materials = [
   { name: 'sand', label: 'Sand' },
   { name: 'water', label: 'Vann' },
@@ -80,32 +80,27 @@ const materials = [
   const SAND = 1;
   const WATER = 2;
   const STONE = 3;
-  // Returned for cells outside the grid. No material uses it, so the edges act as walls.
+  // Returned for cells outside the grid, so the edges act as walls
   const FULL = 255;
 
   // The most cells water can flow sideways in one frame. Higher levels out faster.
   const WATER_SPREAD = 6;
-  // Chance that water under the surface may flow into a cell vacated this frame (see canFlowInto)
+  // Chance that water under the surface flows into a cell vacated this frame. Higher lets holes race to the wall.
   const UNDERWATER_CHAIN = 0.8;
-  // Chance per frame that a grain sinks into water, so sand falls slower in water than in air
+  // Chance per frame that a grain sinks into water. Lower makes sand sink slower.
   const SAND_SINK_CHANCE = 0.5;
-  // A cell starts falling at 1 cell per frame and gains GRAVITY each frame, up to MAX_SPEED. From the top
-  // of the grid it reaches the cap about 40 frames in, so the last part of a long fall runs at a steady speed.
+  // Speed gained per frame while falling, and its cap, in cells per frame
   const GRAVITY = 0.1;
   const MAX_SPEED = 5;
-  // The simulation runs this many steps per second whatever the screen's refresh rate, so every per-frame
-  // rate above means per step
+  // Fixed simulation rate. Every per-frame rate above means per step.
   const STEPS_PER_SECOND = 60;
-  // The most steps run before one render. A slow device then runs in slow motion and doesn't fall further
-  // and further behind.
+  // Step cap per render, so a slow device runs in slow motion instead of falling behind
   const MAX_STEPS_PER_RENDER = 4;
-  // Each grain gets a random darkening up to this, so piles have texture
+  // Most random darkening per grain. Higher gives piles more texture.
   const MAX_SHADE = 16;
-  // Share of grains that are rough. A rough grain rests on a step of two cells, where a smooth one slides
-  // off, so the sides of a pile come out uneven and steeper than 45 degrees in places.
+  // Share of rough grains. Higher makes pile sides steeper and more uneven.
   const ROUGH_CHANCE = 0.15;
 
-  // Maps the button's data-material to the material number
   const MATERIALS: Record<string, number> = { empty: EMPTY, sand: SAND, water: WATER, stone: STONE };
 
   // --- Grid ---
@@ -118,19 +113,14 @@ const materials = [
   const grid = new Uint8Array(COLS * ROWS);
   // The frame each cell last moved on, so nothing moves twice in one frame
   const movedOn = new Uint8Array(COLS * ROWS);
-  // Per-cell darkening, which travels with the grain
   const shades = new Uint8Array(COLS * ROWS);
-  // 1 for a rough grain of sand (see ROUGH_CHANCE). Set when painted and travels with the grain.
   const rough = new Uint8Array(COLS * ROWS);
-  // Falling speed in cells per frame. Reset to 0 on the cell's next step once the cell below isn't empty,
-  // so empty cells always hold 0.
+  // Falling speed in cells per frame. Empty cells always hold 0.
   const velocity = new Float32Array(COLS * ROWS);
 
-  // Counts 1 to 255 and wraps. Never 0, since a fresh movedOn is all zeros. movedOn is cleared on the wrap,
-  // or a cell that last moved exactly 255 frames ago would count as moved this frame.
+  // Runs 1 to 255, never 0, since a fresh movedOn is all zeros. step() clears movedOn on the wrap.
   let frame = 0;
 
-  // Set when the grid or the eraser outline changes, so the loop can skip render() when nothing did
   let changed = true;
 
   type Point = { x: number; y: number };
@@ -150,7 +140,7 @@ const materials = [
   };
   const isEmpty = (x: number, y: number) => getCell(x, y) === EMPTY;
   const hasMoved = (x: number, y: number) => inBounds(x, y) && movedOn[indexOf(x, y)] === frame;
-  // Sand can't take water that already moved, or the displaced water rides up a falling column in one frame
+  // Sand can't take water that already moved, or the water rides up a falling column in one frame
   const sandCanEnter = (x: number, y: number) => {
     const cell = getCell(x, y);
     return cell === EMPTY || (cell === WATER && !hasMoved(x, y));
@@ -173,11 +163,10 @@ const materials = [
 
   const randomSide = () => (Math.random() < 0.5 ? -1 : 1);
 
-  // Flips every frame so the scan order doesn't favor one side when grains compete for a cell
+  // Flips every frame so neither side wins when grains compete for a cell
   let leftToRight = true;
 
-  // Moves the cell straight down into empty cells. It speeds up every frame it keeps falling, and moves
-  // several cells at once when its speed allows. Callers check that the cell below is empty.
+  // Callers check that the cell below is empty
   const fall = (x: number, y: number) => {
     const i = indexOf(x, y);
     const speed = Math.min(Math.max(velocity[i], 1) + GRAVITY, MAX_SPEED);
@@ -187,8 +176,7 @@ const materials = [
     swap(x, y, x, y + distance);
   };
 
-  // Can the grain at (x, y) slide diagonally down to side dx? A rough grain only slides to a side where it
-  // would keep falling after the step.
+  // A rough grain only slides to a side where it would keep falling after the step
   const canSlide = (x: number, y: number, dx: number) =>
     sandCanEnter(x + dx, y) && sandCanEnter(x + dx, y + 1) && (!rough[indexOf(x, y)] || sandCanEnter(x + dx, y + 2));
 
@@ -197,10 +185,9 @@ const materials = [
       fall(x, y);
       return;
     }
-    // The fall is over. The cell it swaps with gets this 0, so empty cells stay at 0.
+    // Reset before any swap, so the empty cell it trades places with keeps 0
     velocity[indexOf(x, y)] = 0;
 
-    // The cell below isn't empty, so down here means sinking into water, one cell per frame at most
     const canDown = sandCanEnter(x, y + 1);
     const canLeft = !canDown && canSlide(x, y, -1);
     const canRight = !canDown && canSlide(x, y, 1);
@@ -218,21 +205,16 @@ const materials = [
       return;
     }
 
-    // Random drag breaks up sand layers that would otherwise sink in lockstep with water gaps between them
     if (getCell(x + dx, y + 1) === WATER && Math.random() >= SAND_SINK_CHANCE) return;
 
     swap(x, y, x + dx, y + 1);
   };
 
-  // Water flows sideways into empty cells, and a row can shift in one frame as each cell moves into the one
-  // its neighbor just left. That chain is what levels water out. Under the surface it's only allowed some of
-  // the time, or an erased hole travels to the wall in one frame and the surface sinks there, not above the hole.
+  // Limits the chain under the surface, or an erased hole races to the wall in one frame
   const canFlowInto = (x: number, y: number, atSurface: boolean) =>
     isEmpty(x, y) && (atSurface || !hasMoved(x, y) || Math.random() < UNDERWATER_CHAIN);
 
-  // How many cells in a row water can flow into next to (x, y) in direction dx, up to max. The caller has
-  // already checked the first cell, so it isn't checked again here: a second roll of UNDERWATER_CHAIN could
-  // fail and leave the water swapping with itself.
+  // Skips the first cell, which the caller checked, since a second roll could fail and swap water with itself
   const flowDistance = (x: number, y: number, dx: number, max: number, atSurface: boolean) => {
     let distance = 1;
     while (distance < max && canFlowInto(x + dx * (distance + 1), y, atSurface)) distance++;
@@ -274,8 +256,7 @@ const materials = [
       return;
     }
 
-    // Water flows several cells at once so it levels out quickly. A random reach per move keeps
-    // neighbors from moving in lockstep.
+    // A random reach per move keeps neighbors from moving in lockstep
     if (dy === 0) dx *= flowDistance(x, y, dx, 1 + Math.floor(Math.random() * WATER_SPREAD), atSurface);
 
     swap(x, y, x + dx, y + dy);
@@ -298,7 +279,6 @@ const materials = [
 
         if (hasMoved(x, y)) continue;
 
-        // Empty and stone never move, so they have no case
         switch (getCell(x, y)) {
           case SAND:
             stepSand(x, y);
@@ -315,10 +295,9 @@ const materials = [
 
   type Rgba = [number, number, number, number];
 
-  // Empty cells are transparent, so the page background shows through
   const TRANSPARENT: Rgba = [0, 0, 0, 0];
 
-  // Reads any CSS color, including oklch() and color-mix() results, by painting it into one pixel
+  // Resolves any CSS color, such as oklch() or color-mix(), to RGBA
   const probe = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
   const toRgba = (color: string): Rgba => {
     probe.clearRect(0, 0, 1, 1);
@@ -332,14 +311,11 @@ const materials = [
   const swatchColor = (name: string) =>
     toRgba(getComputedStyle(document.querySelector(`.swatch.${name}`)!).backgroundColor);
 
-  // Indexed by material number
   const colors: Rgba[] = [];
   for (const [name, material] of Object.entries(MATERIALS)) {
     colors[material] = material === EMPTY ? TRANSPARENT : swatchColor(name);
   }
 
-  // The eraser outline is the border color over empty cells and the page background over filled ones,
-  // since the border color is too close to sand and water to see
   const outlineColor = toRgba(getComputedStyle(canvas).borderTopColor);
   const outlineOnFilledColor = toRgba(getComputedStyle(document.body).backgroundColor);
 
@@ -352,12 +328,10 @@ const materials = [
     image.data.set(color, indexOf(point.x, point.y) * 4);
   };
 
-  // The grid and the image are in the same order, and each pixel takes 4 bytes (RGBA).
-  // image.data clamps to 0, so darkening never wraps around.
+  // image.data clamps to 0, so subtracting the shade never wraps around
   const render = () => {
     const data = image.data;
     for (let i = 0; i < grid.length; i++) {
-      // Indexed, not destructured, since this runs for every pixel every frame
       const color = colors[grid[i]];
       const shade = shades[i];
       const p = i * 4;
@@ -367,14 +341,12 @@ const materials = [
       data[p + 3] = color[3];
     }
 
-    // Drawn into the image only, so it never touches the grid. The next render paints over it.
     if (material === EMPTY && hover) {
       for (const point of brushOutline(hover, brushRadius(material))) drawOutlinePixel(point);
     }
 
     ctx.putImageData(image, 0, 0);
 
-    // The hint only shows on an empty canvas
     const hasContent = grid.some((cell) => cell !== EMPTY);
     hint.classList.toggle('hidden', hasContent);
   };
@@ -383,10 +355,8 @@ const materials = [
 
   const isInsideBrush = (dx: number, dy: number, r: number) => dx * dx + dy * dy <= (r + 0.5) * (r + 0.5);
 
-  // The eraser is bigger, since clearing an area takes more than drawing a line
   const brushRadius = (value: number) => (value === EMPTY ? 4 : 2);
 
-  // Fills empty cells only, so the brush never paints over what's there. The eraser clears everything.
   const paintCircle = (center: Point, value: number) => {
     const radius = brushRadius(value);
     for (let dy = -radius; dy <= radius; dy++) {
@@ -400,7 +370,6 @@ const materials = [
     }
   };
 
-  // The cells inside the brush that have a neighbor outside it, which makes a ring one cell wide
   const brushOutline = (center: Point, radius: number) => {
     const points: Point[] = [];
     for (let dy = -radius; dy <= radius; dy++) {
@@ -420,7 +389,7 @@ const materials = [
 
   const lerp = (from: number, to: number, t: number) => Math.round(from + (to - from) * t);
 
-  // Pointer events arrive about once per frame, so stamp along the line between them to avoid gaps
+  // Pointer events arrive about once per frame, so stamp between them to avoid gaps
   const paintLine = (from: Point, to: Point, value: number) => {
     const steps = Math.max(Math.abs(to.x - from.x), Math.abs(to.y - from.y));
     for (let i = 0; i <= steps; i++) {
@@ -440,9 +409,7 @@ const materials = [
 
   const selectMaterial = (selected: HTMLButtonElement) => {
     material = MATERIALS[selected.dataset.material!];
-    // The outline replaces the system cursor while erasing
     canvas.classList.toggle('erasing', material === EMPTY);
-    // Shows or hides the eraser outline
     changed = true;
     for (const button of materialButtons) {
       button.setAttribute('aria-pressed', String(button === selected));
@@ -469,7 +436,6 @@ const materials = [
   });
 
   canvas.addEventListener('pointerdown', (event) => {
-    // Keeps move and up events coming to the canvas when the pointer leaves it
     canvas.setPointerCapture(event.pointerId);
     isDrawing = true;
     pointer = toGridPosition(event);
@@ -498,10 +464,8 @@ const materials = [
 
   const STEP_MS = 1000 / STEPS_PER_SECOND;
   let lastTime: number | null = null;
-  // Time not yet simulated, in milliseconds
   let pending = 0;
 
-  // The pending requestAnimationFrame id, or null while the loop is paused
   let frameRequest: number | null = null;
 
   const loop = (now: number) => {
@@ -510,7 +474,7 @@ const materials = [
     lastTime = now;
 
     for (let steps = 0; pending >= STEP_MS && steps < MAX_STEPS_PER_RENDER; steps++) {
-      // Keep pouring while the pointer is held still. Once per step, so the pour rate is the same on every screen.
+      // Inside the step loop, so the pour rate doesn't depend on the refresh rate
       if (isDrawing) paintCircle(pointer, material);
       step();
       pending -= STEP_MS;
@@ -524,7 +488,6 @@ const materials = [
   };
 
   const startLoop = () => {
-    // Already running, so the observer firing twice doesn't start a second loop
     if (frameRequest !== null) return;
     // The time spent off screen isn't simulated
     lastTime = null;
@@ -537,7 +500,7 @@ const materials = [
     frameRequest = null;
   };
 
-  // Runs the loop only while the canvas is on screen. The observer reports the first state on its own, which starts it.
+  // The observer reports the initial state on its own, which starts the loop
   new IntersectionObserver((entries) => {
     for (const entry of entries) {
       if (entry.isIntersecting) startLoop();
@@ -547,12 +510,10 @@ const materials = [
 </script>
 
 <style>
-  /* Groups the canvas and its controls, with the same space around them as the sirkel demo */
   .demo {
     margin: 32px 0 48px;
   }
 
-  /* Lets the hint sit on top of the canvas */
   .canvas-frame {
     position: relative;
   }
@@ -571,7 +532,6 @@ const materials = [
     cursor: none;
   }
 
-  /* Clicks go through to the canvas */
   .hint {
     position: absolute;
     inset: 0;
@@ -613,20 +573,18 @@ const materials = [
     border-color: var(--pink);
   }
 
-  /* An action, not a material, so it sits apart at the end of the row */
   .clear-button {
     margin-left: auto;
   }
 
-  /* A box-shadow thickens the border without changing the button's size, and leaves outline free for keyboard focus.
-     The fill tells pressed apart from hover, which also turns the border pink. */
+  /* box-shadow thickens the border without resizing the button and leaves outline free for focus */
   .material-button[aria-pressed='true'] {
     border-color: var(--pink);
     box-shadow: 0 0 0 1px var(--pink);
     background: color-mix(in oklch, var(--pink) 14%, var(--surface));
   }
 
-  /* On a phone the buttons fill each row, so the rows line up with the canvas edges */
+  /* On a phone the buttons fill each row to line up with the canvas edges */
   @media (max-width: 600px) {
     .material-button,
     .clear-button {
@@ -640,8 +598,7 @@ const materials = [
     border-radius: 4px;
   }
 
-  /* The script reads these backgrounds as the canvas colors. The peach token is dark in light mode,
-     tuned for text, so sand is mixed lighter there. */
+  /* The script reads these as canvas colors. Peach is dark in light mode, so sand mixes it lighter. */
   .swatch.sand {
     background: light-dark(color-mix(in oklch, var(--peach) 70%, var(--surface)), var(--peach));
   }
