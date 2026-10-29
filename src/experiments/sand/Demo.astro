@@ -34,6 +34,13 @@ const materials = [
   // Returned for cells outside the grid. No material uses it, so the edges act as walls.
   const FULL = 255;
 
+  // How many cells water can flow sideways in one frame. Higher levels out faster.
+  const WATER_SPREAD = 4;
+  // Chance per frame that a grain sinks into water, so sand falls slower in water than in air
+  const SAND_SINK_CHANCE = 0.5;
+  // Each grain gets a random darkening up to this, so piles have texture
+  const MAX_SHADE = 16;
+
   // Maps the button's data-material to the material number
   const MATERIALS: Record<string, number> = { empty: EMPTY, sand: SAND, water: WATER, stone: STONE };
 
@@ -44,6 +51,13 @@ const materials = [
   const ROWS = canvas.height;
 
   const grid = new Uint8Array(COLS * ROWS);
+  // The frame each cell last moved on, so nothing moves twice in one frame
+  const movedOn = new Uint8Array(COLS * ROWS);
+  // Per-cell darkening, which travels with the grain
+  const shades = new Uint8Array(COLS * ROWS);
+
+  // Counts 1 to 255 and wraps. Never 0, since a fresh movedOn is all zeros.
+  let frame = 0;
 
   type Point = { x: number; y: number };
 
@@ -51,17 +65,26 @@ const materials = [
   const indexOf = (x: number, y: number) => y * COLS + x;
 
   const getCell = (x: number, y: number) => (inBounds(x, y) ? grid[indexOf(x, y)] : FULL);
-  const setCell = (x: number, y: number, value: number) => {
-    if (inBounds(x, y)) grid[indexOf(x, y)] = value;
+  const setCell = (x: number, y: number, value: number, shade: number) => {
+    if (inBounds(x, y)) {
+      grid[indexOf(x, y)] = value;
+      shades[indexOf(x, y)] = shade;
+    }
   };
   const isEmpty = (x: number, y: number) => getCell(x, y) === EMPTY;
-  const sandCanEnter = (x: number, y: number) => getCell(x, y) === EMPTY || getCell(x, y) === WATER;
+  const hasMoved = (x: number, y: number) => inBounds(x, y) && movedOn[indexOf(x, y)] === frame;
+  // Sand can't take water that already moved, or the displaced water rides up a falling column in one frame
+  const sandCanEnter = (x: number, y: number) =>
+    getCell(x, y) === EMPTY || (getCell(x, y) === WATER && !hasMoved(x, y));
   // Does nothing if either cell is outside the grid, so FULL never gets written into it
   const swap = (x1: number, y1: number, x2: number, y2: number) => {
     if (!inBounds(x1, y1) || !inBounds(x2, y2)) return;
-    const temp = getCell(x1, y1);
-    setCell(x1, y1, getCell(x2, y2));
-    setCell(x2, y2, temp);
+    const a = indexOf(x1, y1);
+    const b = indexOf(x2, y2);
+    [grid[a], grid[b]] = [grid[b], grid[a]];
+    [shades[a], shades[b]] = [shades[b], shades[a]];
+    movedOn[a] = frame;
+    movedOn[b] = frame;
   };
 
   // --- Simulation ---
@@ -89,7 +112,20 @@ const materials = [
       return;
     }
 
+    // Random drag breaks up sand layers that would otherwise sink in lockstep with water gaps between them
+    if (getCell(x + dx, y + 1) === WATER && Math.random() >= SAND_SINK_CHANCE) return;
+
     swap(x, y, x + dx, y + 1);
+  };
+
+  // How many empty cells in a row there are next to (x, y) in direction dx, up to max
+  const farthestEmpty = (x: number, y: number, dx: number, max: number) => {
+    let farthest = 0;
+    for (let i = 1; i <= max; i++) {
+      if (!isEmpty(x + dx * i, y)) break;
+      farthest = i;
+    }
+    return farthest;
   };
 
   const stepWater = (x: number, y: number) => {
@@ -123,15 +159,24 @@ const materials = [
       return;
     }
 
+    // Sideways, water flows several cells at once so the surface levels out quickly
+    if (dy === 0) dx *= farthestEmpty(x, y, dx, WATER_SPREAD);
+
     swap(x, y, x + dx, y + dy);
   };
 
   // Bottom-up, so a grain that falls lands in a row that's already done and moves once per frame
   const step = () => {
+    if (frame === 255) frame = 1;
+    else frame++;
+
     leftToRight = !leftToRight;
+
     for (let y = ROWS - 1; y >= 0; y--) {
       for (let i = 0; i < COLS; i++) {
         const x = leftToRight ? i : COLS - 1 - i;
+
+        if (hasMoved(x, y)) continue;
 
         // Empty and stone never move, so they have no case
         switch (getCell(x, y)) {
@@ -179,10 +224,18 @@ const materials = [
     if (inBounds(point.x, point.y)) image.data.set(color, indexOf(point.x, point.y) * 4);
   };
 
-  // The grid and the image are in the same order, and each pixel takes 4 bytes (RGBA)
+  // The grid and the image are in the same order, and each pixel takes 4 bytes (RGBA).
+  // image.data clamps to 0, so darkening never wraps around.
   const render = () => {
+    const data = image.data;
     for (let i = 0; i < grid.length; i++) {
-      image.data.set(colors[grid[i]], i * 4);
+      const [r, g, b, a] = colors[grid[i]];
+      const shade = shades[i];
+      const p = i * 4;
+      data[p] = r - shade;
+      data[p + 1] = g - shade;
+      data[p + 2] = b - shade;
+      data[p + 3] = a;
     }
 
     // Drawn into the image only, so it never touches the grid. The next frame paints over it.
@@ -209,7 +262,7 @@ const materials = [
 
         const x = center.x + dx;
         const y = center.y + dy;
-        if (value === EMPTY || isEmpty(x, y)) setCell(x, y, value);
+        if (value === EMPTY || isEmpty(x, y)) setCell(x, y, value, Math.floor(Math.random() * MAX_SHADE));
       }
     }
   };
