@@ -213,6 +213,9 @@ const steps = [
   .steps {
     --dot: 28px;
     --line-width: 2px;
+    --timeline-width: 200px;
+    --timeline-gap: 24px;
+    container: steps / inline-size;
     margin-top: 48px;
   }
 
@@ -220,7 +223,7 @@ const steps = [
     margin-top: 24px;
   }
 
-  /* --- Timeline. A row of dots on a phone, a column with titles from 700 px. --- */
+  /* --- Timeline. A row of dots when space is short, a column with titles when it fits beside the step. --- */
 
   .timeline {
     display: flex;
@@ -331,14 +334,17 @@ const steps = [
   }
 
   .panels {
+    container: panel / inline-size;
     margin-top: 24px;
   }
 
-  @media (min-width: 700px) {
+  /* Query conditions can't read custom properties, so the sizes are spelled out: the timeline, its gap, and room for
+     a step of at least 26rem */
+  @container steps (width >= calc(200px + 24px + 26rem)) {
     .stepper {
       display: grid;
-      grid-template-columns: 200px minmax(0, 1fr);
-      gap: 24px;
+      grid-template-columns: var(--timeline-width) minmax(0, 1fr);
+      gap: var(--timeline-gap);
       align-items: start;
     }
 
@@ -388,6 +394,14 @@ const steps = [
 
     .panels {
       margin-top: 0;
+    }
+  }
+
+  /* When the page has room for the timeline and its gap on both sides of the column, the timeline moves out into
+     the margin and the step gets the full column. 792px is the max-width of main in Layout.astro. */
+  @container page (width >= calc(792px + 2 * (200px + 24px))) {
+    .stepper {
+      margin-left: calc(-1 * (var(--timeline-width) + var(--timeline-gap)));
     }
   }
 
@@ -478,8 +492,8 @@ const steps = [
     margin-top: 32px;
   }
 
-  /* On a phone the buttons fill their row, like the material buttons in the demo */
-  @media (max-width: 600px) {
+  /* In a narrow column the buttons fill their row, like the material buttons in the demo */
+  @container panel (width < 26rem) {
     .demo-bar {
       flex-direction: column;
       align-items: stretch;

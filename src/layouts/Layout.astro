@@ -69,6 +69,9 @@ const crumbs = [
   }
 
   body {
+    /* A component can ask how wide the page is, without the scrollbar. The sand steps use it to put their timeline
+       in the margin when it fits. */
+    container: page / inline-size;
     background: var(--bg);
     color: var(--fg);
     font-family: var(--font-mono);
