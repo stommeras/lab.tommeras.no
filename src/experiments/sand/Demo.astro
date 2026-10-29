@@ -40,8 +40,14 @@ const materials = [
   const UNDERWATER_CHAIN = 0.9;
   // Chance per frame that a grain sinks into water, so sand falls slower in water than in air
   const SAND_SINK_CHANCE = 0.5;
+  // Cells per frame added to a falling cell's speed, and the most cells it can fall in one frame
+  const GRAVITY = 0.1;
+  const MAX_SPEED = 6;
   // Each grain gets a random darkening up to this, so piles have texture
   const MAX_SHADE = 16;
+  // Share of grains that are rough. A rough grain rests on a step of two cells, where a smooth one slides
+  // off, so the sides of a pile come out uneven and steeper than 45 degrees in places.
+  const ROUGH_CHANCE = 0.15;
 
   // Maps the button's data-material to the material number
   const MATERIALS: Record<string, number> = { empty: EMPTY, sand: SAND, water: WATER, stone: STONE };
@@ -57,6 +63,10 @@ const materials = [
   const movedOn = new Uint8Array(COLS * ROWS);
   // Per-cell darkening, which travels with the grain
   const shades = new Uint8Array(COLS * ROWS);
+  // 1 for a rough grain (see ROUGH_CHANCE). Set when painted and travels with the grain.
+  const rough = new Uint8Array(COLS * ROWS);
+  // Falling speed in cells per frame. 0 for any cell that isn't falling freely.
+  const velocity = new Float32Array(COLS * ROWS);
 
   // Counts 1 to 255 and wraps. Never 0, since a fresh movedOn is all zeros.
   let frame = 0;
@@ -71,6 +81,8 @@ const materials = [
     if (inBounds(x, y)) {
       grid[indexOf(x, y)] = value;
       shades[indexOf(x, y)] = shade;
+      rough[indexOf(x, y)] = Math.random() < ROUGH_CHANCE ? 1 : 0;
+      velocity[indexOf(x, y)] = 0;
     }
   };
   const isEmpty = (x: number, y: number) => getCell(x, y) === EMPTY;
@@ -85,6 +97,8 @@ const materials = [
     const b = indexOf(x2, y2);
     [grid[a], grid[b]] = [grid[b], grid[a]];
     [shades[a], shades[b]] = [shades[b], shades[a]];
+    [rough[a], rough[b]] = [rough[b], rough[a]];
+    [velocity[a], velocity[b]] = [velocity[b], velocity[a]];
     movedOn[a] = frame;
     movedOn[b] = frame;
   };
@@ -96,10 +110,32 @@ const materials = [
   // Flips every frame so the scan order doesn't favor one side when grains compete for a cell
   let leftToRight = true;
 
+  // Moves the cell straight down into empty cells. It speeds up every frame it keeps falling, and moves
+  // several cells at once when its speed allows. Callers check that the cell below is empty.
+  const fall = (x: number, y: number) => {
+    const i = indexOf(x, y);
+    const speed = Math.min(velocity[i] + GRAVITY, MAX_SPEED);
+    let distance = 1;
+    while (distance < Math.floor(speed) && isEmpty(x, y + distance + 1)) distance++;
+    velocity[i] = speed;
+    swap(x, y, x, y + distance);
+  };
+
   const stepSand = (x: number, y: number) => {
+    if (isEmpty(x, y + 1)) {
+      fall(x, y);
+      return;
+    }
+    // The fall is over. The cell it swaps with gets this 0, so empty cells stay at 0.
+    velocity[indexOf(x, y)] = 0;
+
+    // A rough grain only slides to a side where it would keep falling after the step
+    const canSlide = (dx: number) =>
+      sandCanEnter(x + dx, y) && sandCanEnter(x + dx, y + 1) && (!rough[indexOf(x, y)] || sandCanEnter(x + dx, y + 2));
+    // The cell below isn't empty, so down here means sinking into water, one cell per frame at most
     const canDown = sandCanEnter(x, y + 1);
-    const canLeft = sandCanEnter(x - 1, y) && sandCanEnter(x - 1, y + 1);
-    const canRight = sandCanEnter(x + 1, y) && sandCanEnter(x + 1, y + 1);
+    const canLeft = canSlide(-1);
+    const canRight = canSlide(1);
 
     let dx;
     if (canDown) {
@@ -134,8 +170,13 @@ const materials = [
   };
 
   const stepWater = (x: number, y: number) => {
+    if (isEmpty(x, y + 1)) {
+      fall(x, y);
+      return;
+    }
+    velocity[indexOf(x, y)] = 0;
+
     const atSurface = getCell(x, y - 1) !== WATER;
-    const canDown = isEmpty(x, y + 1);
     const canDownLeft = isEmpty(x - 1, y) && isEmpty(x - 1, y + 1);
     const canDownRight = isEmpty(x + 1, y) && isEmpty(x + 1, y + 1);
     const canLeft = canFlowInto(x - 1, y, atSurface);
@@ -144,9 +185,7 @@ const materials = [
     let dx;
     let dy = 1;
 
-    if (canDown) {
-      dx = 0;
-    } else if (canDownLeft && canDownRight) {
+    if (canDownLeft && canDownRight) {
       dx = randomSide();
     } else if (canDownLeft) {
       dx = -1;
