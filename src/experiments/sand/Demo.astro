@@ -1,0 +1,72 @@
+---
+// Grid size in cells. The canvas has one pixel per cell, and CSS scales it up.
+const cols = 400;
+const rows = 300;
+---
+
+<div>
+  <canvas class="canvas" width={cols} height={rows}></canvas>
+  <div class="sand-color" hidden aria-hidden="true"></div>
+</div>
+
+<script>
+  const canvas = document.querySelector<HTMLCanvasElement>('.canvas')!;
+  const canvasWidth = canvas.width;
+  const canvasHeight = canvas.height;
+
+  const EMPTY = 0;
+  const SAND = 1;
+
+  const toRgb = (selector: string) => {
+    const color = getComputedStyle(document.querySelector(selector)!).color;
+    const [r, g, b] = color.match(/\d+/g)!.map(Number);
+    return [r, g, b, 255];
+  };
+
+  const colors = [[0, 0, 0, 0], toRgb('.sand-color')];
+
+  const pixels = new Uint8Array(canvasWidth * canvasHeight);
+  const getPixel = (x: number, y: number) => pixels[y * canvasWidth + x];
+  const setPixel = (x: number, y: number, value: number) => (pixels[y * canvasWidth + x] = value);
+
+  const ctx = canvas.getContext('2d')!;
+  const image = ctx.createImageData(canvasWidth, canvasHeight);
+
+  const render = () => {
+    for (let y = 0; y < canvasHeight; y++) {
+      for (let x = 0; x < canvasWidth; x++) {
+        const [r, g, b, a] = colors[getPixel(x, y)];
+        const index = (y * canvasWidth + x) * 4;
+        image.data[index] = r;
+        image.data[index + 1] = g;
+        image.data[index + 2] = b;
+        image.data[index + 3] = a;
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+  };
+
+  // Test grains for step 1
+  setPixel(10, 10, SAND);
+  setPixel(200, 150, SAND);
+  setPixel(201, 150, SAND);
+  setPixel(200, 151, SAND);
+  setPixel(399, 299, SAND);
+
+  render();
+
+  setInterval(render, 1000 / 60);
+</script>
+
+<style>
+  .canvas {
+    border: 1px solid var(--pink);
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+  }
+
+  .sand-color {
+    color: var(--peach);
+  }
+</style>
