@@ -2,6 +2,7 @@
 import { getCollection, render } from 'astro:content';
 import type { AstroComponentFactory } from 'astro/runtime/server/index.js';
 import Layout from '../layouts/Layout.astro';
+import { STATUS_COLORS } from '../content.config';
 
 // Each experiment's Demo.astro, keyed by its folder name
 const demos = import.meta.glob<{ default: AstroComponentFactory }>('../experiments/*/Demo.astro', { eager: true });
@@ -25,7 +26,8 @@ const date = entry.data.date.toISOString().slice(0, 10);
 <Layout title={`${entry.data.title} | Lab`} description={entry.data.summary.replaceAll('`', '')}>
   <h1>{entry.data.title}</h1>
   <p class="meta">
-    <time datetime={date}>{date}</time> · {entry.data.status}
+    <time datetime={date}>{date}</time> ·{' '}
+    <span style={{ color: STATUS_COLORS[entry.data.status] }}>{entry.data.status}</span> · {entry.data.language}
   </p>
   {Demo && <Demo />}
   <div class="note">

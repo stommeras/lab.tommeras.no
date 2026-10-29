@@ -2,7 +2,8 @@
 title: En sirkel som teller seg selv
 date: 2026-10-28
 status: ferdig
-tags: [CSS]
+language: CSS
+tags: [Layout, Animasjon]
 summary: Prikker som fordeler seg i en sirkel med ren CSS, ved hjelp av `sibling-index()` og `sibling-count()`.
 ---
 
