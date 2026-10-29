@@ -23,15 +23,27 @@ const date = entry.data.date.toISOString().slice(0, 10);
     <time datetime={date}>{date}</time> · {entry.data.status}
   </p>
   {Demo && <Demo />}
-  <Content />
+  <div class="note">
+    <Content />
+  </div>
 </Layout>
 
 <style>
-  h1 {
-    margin: 0;
+  .meta {
+    margin-top: 1em;
+    color: var(--muted);
   }
 
-  .meta {
-    color: var(--muted);
+  .note {
+    margin-top: 1em;
+  }
+
+  /* The Markdown note comes from another component, so these rules need :global to reach it */
+  .note > :global(* + *) {
+    margin-top: 1em;
+  }
+
+  .note > :global(:is(h2, h3)) {
+    margin-top: 2em;
   }
 </style>

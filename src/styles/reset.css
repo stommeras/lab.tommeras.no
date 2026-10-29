@@ -1,0 +1,61 @@
+/*
+  Based on Josh Comeau's custom CSS reset: https://www.joshwcomeau.com/css/custom-css-reset/
+  Left out: line-height and font smoothing (Layout.astro sets both on body),
+  interpolate-size (an experiment that uses it should set it itself),
+  and the #root isolation rule (Astro has no root element).
+*/
+
+/* Sizes include padding and border, so a bordered element with width: 100% stays inside its column */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Spacing is set where it's needed. A dialog keeps margin: auto, which centers it. */
+*:not(dialog) {
+  margin: 0;
+}
+
+/* No gap under inline media, and nothing wider than its column */
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* Form controls default to a small system font */
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+/* Long words break instead of overflowing */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap: break-word;
+}
+
+/* No single word alone on the last line of a paragraph, and even line lengths in headings */
+p {
+  text-wrap: pretty;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  text-wrap: balance;
+}
