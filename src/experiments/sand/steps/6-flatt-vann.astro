@@ -368,7 +368,6 @@ const materials = [
     frame = 0;
     leftToRight = true;
     isDrawing = false;
-    selectMaterial(materialButtons[0]);
   };
 
   // A pool of water over the bottom half, for erasing a hole under the surface
@@ -395,10 +394,15 @@ const materials = [
     frameRequest ??= requestAnimationFrame(loop);
   });
 
+  // Back to the still frame from before the first start, so a step looks the same each time you open it
   root.addEventListener('stop', () => {
     if (frameRequest !== null) cancelAnimationFrame(frameRequest);
     frameRequest = null;
-    isDrawing = false;
+    reset();
+    preset();
+    render();
+    // Here and not in reset, so a material picked before Start is kept
+    selectMaterial(materialButtons[0]);
   });
 
   // The initial state shows as a still frame until the visitor starts it
