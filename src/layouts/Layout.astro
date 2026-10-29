@@ -61,6 +61,19 @@ const crumbs = [
     --peach: light-dark(#a2561c, #f3c29a);
   }
 
+  /* Sizes include padding and border, so a bordered element with width: 100% stays inside its column */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  /* The browser's default ring disappears on the dark background */
+  :focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
+  }
+
   body {
     margin: 0;
     background: var(--bg);
@@ -97,7 +110,8 @@ const crumbs = [
 <style>
   header,
   main {
-    max-width: 760px;
+    /* 760 px of content plus the padding */
+    max-width: 792px;
     margin: 0 auto;
     padding: 24px 16px;
   }
