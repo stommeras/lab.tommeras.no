@@ -10,4 +10,4 @@ En simulering av sand, vann og stein i et rutenett på 200 × 150 celler. Du teg
 
 Bygget med ren TypeScript, uten bibliotek.
 
-Under ser du stegene i utviklingen. Hvert steg har en demo av hvordan simuleringen så ut da, med feilene den hadde.
+Under ser du stegene i utviklingen. Steg 1 til 7 har en demo av hvordan simuleringen så ut da, med feilene den hadde.

@@ -13,64 +13,64 @@ const steps = [
   {
     title: 'Rutenett og tyngdekraft',
     caption: 'Testkornene fra den første versjonen faller rett ned og legger seg oppå hverandre.',
-    plan: 'Simuleringen er et rutenett der hver celle er tom eller har et sandkorn. En canvas tegner rutenettet med én piksel per celle, og CSS skalerer den opp. Hver frame går løkken gjennom alle cellene, og et korn med en tom celle under seg flytter seg ett hakk ned.',
+    plan: 'Målet var å få sandkorn til å falle på skjermen. Simuleringen er et rutenett der hver celle er tom eller har et sandkorn. Rutenettet tegnes på en canvas med én piksel per celle, og CSS skalerer den opp. Hver frame sjekkes alle cellene, og et korn med en tom celle under seg flytter seg ett hakk ned.',
     challenge:
-      'En canvas kan ikke lese CSS-variabler, så sandfargen leses fra et skjult element med fargen fra designet. Den første versjonen brukte verdien i cellen som farge, og sanden ble `rgb(1, 1, 1)`, som ikke synes. Løkken gikk ovenfra og ned først. Da flyttet et korn seg ned til neste rad, ble funnet igjen der og flyttet seg på nytt, helt til bunnen i én frame. Derfor går løkken nedenfra og opp.',
+      'En canvas kan ikke lese CSS-variabler, så sandfargen hentes fra et skjult element som har fargen. Den første versjonen brukte tallet i cellen som farge, og sanden ble `rgb(1, 1, 1)`, som ikke synes. Cellene ble også sjekket ovenfra og ned. Da flyttet et korn seg ned til neste rad, ble funnet igjen der og flyttet seg på nytt, helt til bunnen i én frame. Derfor sjekkes cellene nedenfra og opp.',
     demo: Step1,
   },
   {
     title: 'Hauger',
     caption: 'Ett korn per frame faller fra samme celle og bygger en haug.',
-    plan: 'Et korn som lander på et annet, sklir ned på skrå til venstre eller høyre. Er begge sidene ledige, velger det tilfeldig. Da legger sanden seg i hauger.',
+    plan: 'Målet var at sanden skulle legge seg i hauger, ikke i søyler. Et korn som lander på et annet, sklir ned på skrå til venstre eller høyre. Er begge sidene ledige, velger det tilfeldig.',
     challenge:
-      'Den første regelen for hjørnene la all bevegelse inni en sjekk på at begge sidene var tomme. Det ga et tårn, og korn som ble hengende i lufta. Etter det lente haugene mot én side. Løkken gikk alltid fra venstre mot høyre, og når to korn ville til samme celle, vant det løkken kom til først. Nå snur retningen hver frame. Haugen blir likevel en perfekt trekant med sider på 45 grader, og det tar steg 7 seg av.',
+      'Den første regelen lot et korn flytte seg bare når begge sidene var tomme. Det ga et tårn, og korn som ble hengende i lufta. Etter det lente haugene mot én side. Cellene ble alltid sjekket fra venstre mot høyre, og når to korn ville til samme celle, vant det som ble sjekket først. Nå snur retningen hver frame. Haugen blir likevel en perfekt trekant med sider på 45 grader, og det tar steg 7 seg av.',
     demo: Step2,
   },
   {
     title: 'Tegne med pekeren',
     caption: 'Tegn med mus eller finger.',
-    plan: 'Nå tegner du sanden selv. Posisjonen til pekeren regnes om til en celle, og en liten pensel fyller de tomme cellene rundt den. Holder du pekeren i ro, renner det sand hele tiden.',
+    plan: 'Målet var at du skulle tegne sanden selv. Posisjonen til pekeren regnes om til en celle, og en liten pensel fyller de tomme cellene rundt den. Holder du pekeren i ro, renner det sand hele tiden.',
     challenge:
-      'Penselen gikk rundt kanten. Rutenettet er én lang liste, så `x = -1` er siste celle i raden over, og sand du tegnet ved venstre kant, dukket opp ved høyre. Slapp du knappen utenfor canvasen, fortsatte du å tegne, fordi canvasen aldri fikk `pointerup`. Det løste pointer capture. Raske strøk ga hull, siden pointer events kommer omtrent én gang per frame. Nå stempler penselen langs linjen mellom to events.',
+      'Penselen gikk rundt kanten. Rutenettet er én lang liste, så `x = -1` er siste celle i raden over, og sand du tegnet ved venstre kant, dukket opp ved høyre. Slapp du knappen utenfor tegneflaten, fortsatte du å tegne, fordi tegneflaten aldri fikk `pointerup`. Pointer capture løste det. Raske strøk ga hull, siden pointer events kommer omtrent én gang per frame. Nå stempler penselen langs linjen mellom to events.',
     demo: Step3,
   },
   {
     title: 'Vann, stein og viskelær',
     caption: 'En kopp av stein med vann i og en søyle med sand over. Se på vannet.',
-    plan: 'Vann faller som sand, men renner sideveis når det ikke kommer lenger ned. Sand synker i vann ved å bytte plass med det. Stein står i ro, og viskelæret tegner tomme celler.',
+    plan: 'Målet var flere materialer. Vann faller som sand, men renner sideveis når det ikke kommer lenger ned. Sand synker i vann ved å bytte plass med det. Stein står i ro, og viskelæret tegner tomme celler. Fargene hentes nå fra fargeprøvene på knappene.',
     challenge:
-      'I demoen klatrer vannet opp sandsøylen. Et korn bytter plass med vannet under seg, vannet havner i raden over, og der bytter neste korn med det igjen, helt til toppen i samme frame. Vann som renner sideveis, farer også bortover raden i én frame, fordi løkken går samme vei som vannet og finner det igjen i neste celle. Underveis krasjet spillet ved bunnen. Celler utenfor rutenettet leses som `FULL`, og et bytte med en slik celle skrev `FULL` inn i rutenettet. Nå gjør `swap` ingenting når en av cellene er utenfor.',
+      'I demoen klatrer vannet opp sandsøylen. Et korn bytter plass med vannet under seg, vannet havner i raden over, og der bytter neste korn med det igjen, helt til toppen i samme frame. Vann som renner sideveis, farer også bortover raden i én frame. Cellene sjekkes i samme retning som vannet renner, så vannet blir funnet igjen i neste celle og flytter seg på nytt. Underveis krasjet simuleringen ved bunnen. Celler utenfor rutenettet leses som `FULL`, og et bytte med en slik celle skrev `FULL` inn i rutenettet. Nå gjør `swap` ingenting når en av cellene er utenfor.',
     demo: Step4,
   },
   {
     title: 'Én flytting per frame',
     caption: 'Samme kopp som i steg 4. Vannet klatrer ikke lenger, og sanden synker gjennom det.',
-    plan: 'Hver celle husker hvilken frame den sist flyttet seg i, og løkken hopper over celler som allerede har flyttet seg. Telleren går fra 1 til 255 og begynner på 1 igjen, aldri på 0, siden en ny liste bare har nuller. Vann renner flere celler om gangen, og hvert korn får en tilfeldig skygge.',
+    plan: 'Målet var å rette begge feilene fra steg 4, så ingen celle flytter seg mer enn én gang per frame. Hver celle husker hvilken frame den sist flyttet seg i, og celler som allerede har flyttet seg, hoppes over. I samme steg fikk vannet renne flere celler om gangen, og hvert korn fikk en tilfeldig skygge.',
     challenge:
-      'Vannet sluttet å klatre, men sanden sank i striper. Lagene sank i takt, med striper av vann mellom seg som aldri lukket seg. Løsningen ble tilfeldig motstand. Et korn over vann synker bare i halvparten av framene, og da brytes lagene opp.',
+      'Vannet sluttet å klatre, men sanden sank i striper. Et korn kan ikke bytte med vann som allerede har flyttet seg i samme frame, så kornet over måtte vente en runde. Lagene sank i takt, med striper av vann imellom som aldri lukket seg. Løsningen ble tilfeldig motstand. Et korn over vann synker bare halvparten av gangene, og da brytes lagene opp. Telleren for frames hadde også en feil som først ble funnet senere. Den går fra 1 til 255 og begynner på 1 igjen. Rett etter at den har startet på nytt, ser en celle som flyttet seg nøyaktig 255 frames tidligere, ut som om den allerede har flyttet seg. Demoen har fortsatt den feilen, men den er for kort til at du ser den.',
     demo: Step5,
   },
   {
     title: 'Vann som legger seg flatt',
     caption: 'Velg Viskelær og visk ut et hull under overflaten.',
-    plan: 'Et hull under overflaten fylles nå ovenfra, og overflaten synker over hullet.',
+    plan: 'Målet var vann som legger seg flatt, og et hull under overflaten som fylles ovenfra, så overflaten synker over hullet. Vann jevner seg ut ved at en hel rad kan flytte seg i én frame, der hver celle går inn i cellen naboen nettopp forlot.',
     challenge:
-      'Før dette rant vannet inn fra sidene og lot en haug stå igjen midt i hullet. Vann jevner seg ut ved at en hel rad flytter seg i én frame, der hver celle går inn i cellen naboen nettopp forlot. Den samme kjeden sendte hullet bort til veggen i én frame. Balansen ble valgt med automatiske tester i nettleseren, som målte hvor flatt vannet ble og hvor mye det dirret. Under overflaten får kjeden bare fortsette noen av gangene. Senere viste det seg at sjansen på 0,9 egentlig var 0,81, fordi den ble trukket to ganger. Nå er den 0,8, sjekket med tall.',
+      'Før dette rant vannet inn i hullet fra sidene, og overflaten ble stående igjen som en haug over hullet. Den samme kjeden som jevner ut vannet, sendte hullet bort til veggen i én frame, og overflaten sank der i stedet for over hullet. Under overflaten får kjeden derfor bare fortsette noen av gangene. Balansen ble valgt med automatiske tester i nettleseren, som målte hvor flatt vannet ble og hvor mye det dirret. Senere viste det seg at sjansen på 0,9 egentlig var 0,81, fordi den ble trukket to ganger. Demoen har fortsatt den feilen. Den ferdige versjonen trekker bare én gang, med 0,8.',
     demo: Step6,
   },
   {
     title: 'Fart og ru sand',
     caption: 'En strøm heller ned på en hylle av stein. Den strekker seg ut når kornene får fart.',
-    plan: 'Celler som faller, øker farten for hver frame og kan flytte seg flere celler om gangen. Noen korn er ru. Et ru korn blir liggende på et trinn på to celler, der et glatt korn sklir av, så haugene får ujevne sider som noen steder er brattere enn 45 grader.',
+    plan: 'Målet var fall som får fart, og hauger som ser mer naturlige ut. Celler som faller, øker farten for hver frame og kan flytte seg flere celler om gangen. Noen korn er ru. Et ru korn blir liggende på et trinn på to celler, der et glatt korn sklir av, så haugene får ujevne sider som noen steder er brattere enn 45 grader.',
     challenge:
-      'Tilfeldighet mens kornet sklir, endret ikke formen på haugen. Et korn i en skråning på 45 grader sklir helt ned uansett hvilken vei det tar. Tilfeldigheten måtte endre hvor kornet stopper, og slik ble de ru kornene til. 15 prosent av kornene er ru. Med 30 prosent ble haugen en vulkan. Å la kornene rulle videre med farten de hadde, virket ikke. Holder du pekeren i ro, hoper sanden seg opp under den, og kornene treffer haugen med fart 0. Til nå har simuleringen tatt ett steg per frame, så på en skjerm med 120 Hz går alle demoene over dobbelt så fort. Den ferdige versjonen tar 60 steg i sekundet uansett skjerm.',
+      'Første forsøk var tilfeldighet mens kornet sklir. Det endret ikke formen på haugen, for et korn i en skråning på 45 grader sklir helt ned uansett hvilken vei det tar. Tilfeldigheten måtte endre hvor kornet stopper, og slik ble de ru kornene til. 15 prosent av kornene er ru, og med 30 prosent ble haugen en vulkan. En annen idé var å la et korn som lander i fart, rulle videre. Det virket ikke. Holder du pekeren i ro, hoper sanden seg opp under den, og kornene treffer haugen med fart 0. Fram til nå har simuleringen oppdatert rutenettet én gang per frame, så på en skjerm med 120 Hz går alle demoene over dobbelt så fort.',
     demo: Step7,
   },
   {
     title: 'Finpuss',
-    plan: 'Den ferdige versjonen er demoen øverst på siden. Tøm-knappen tømmer canvasen. Løkken stopper når canvasen er utenfor skjermen, og den tegner ikke på nytt når ingenting har endret seg. Canvasen har `role="img"` og en beskrivelse for skjermlesere.',
+    plan: 'Den ferdige versjonen er demoen øverst på siden. Den oppdaterer rutenettet 60 ganger i sekundet uansett skjerm, så farten er lik på 60 og 120 Hz. Tøm-knappen tømmer tegneflaten. Simuleringen stopper når tegneflaten er utenfor skjermen, og den hopper over render når ingenting har endret seg. Tegneflaten har `role="img"` og en beskrivelse for skjermlesere.',
     challenge:
-      'En visuell gjennomgang fant noen småting. Omrisset av viskelæret syntes ikke over sand, så over fylte celler tegnes det i bakgrunnsfargen. Da hele nettstedet gikk over til `box-sizing: border-box`, ble hver side 32 px smalere, fordi padding ble trukket fra bredden. Det løste `max-width: 792px`.',
+      'En visuell gjennomgang fant noen småting. Omrisset av viskelæret syntes ikke over sand, så over fylte celler tegnes det i bakgrunnsfargen. Sanden var for mørk i lys modus og blandes nå lysere med `color-mix()`. Koden fra steg 1 leste fargen med en regex, og den forstår ikke fargen som `color-mix()` gir. Nå males fargen inn i én piksel på en canvas og leses tilbake derfra. Da hele nettstedet gikk over til `box-sizing: border-box`, ble innholdet 32 px smalere, fordi padding ble trukket fra bredden. `max-width: 792px` løste det.',
   },
 ];
 ---
@@ -82,9 +82,7 @@ const steps = [
       {steps.map(({ title }, index) => (
         <li>
           <button type="button" class="timeline-step" aria-current={index === 0 ? 'step' : undefined}>
-            <span class="dot" aria-hidden="true">
-              {index + 1}
-            </span>
+            <span class="dot">{index + 1}</span>
             <span class="label">{title}</span>
           </button>
         </li>
