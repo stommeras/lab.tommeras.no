@@ -18,7 +18,8 @@ const materials = [
     width={cols}
     height={rows}
     role="img"
-    aria-label="Tegneflate med sand, vann og stein. Tegn med mus eller finger."></canvas>
+    aria-label="Tegneflate med sand, vann og stein. Tegn med mus eller finger."
+  ></canvas>
   <div class="material-picker">
     {materials.map(({ name, label }, index) => (
       <button type="button" class="material-button" data-material={name} aria-pressed={index === 0 ? 'true' : 'false'}>
