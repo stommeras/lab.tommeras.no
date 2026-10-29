@@ -34,7 +34,8 @@ const experiments = defineCollection({
   schema: z.object({
     title: z.string(),
     // A YAML date, optionally with a time (2026-10-29T21:30:00) to order entries from the same day. YAML reads a time
-    // without an offset as UTC, so the shown date never shifts. Without seconds it's a string, which z.date() rejects.
+    // without an offset as UTC, so the shown date matches the file. An offset like +02:00 can move it to the day
+    // before, so leave it out. Without seconds it's a string, which z.date() rejects.
     date: z.date(),
     status: z.enum(STATUSES),
     summary: z.string(),

@@ -9,6 +9,6 @@ summary: Conways Livets spill skrevet i Zig og kompilert til WebAssembly, uten g
 
 Planen er å skrive Conways Livets spill i Zig og kjøre det i nettleseren som WebAssembly. Reglene får plass på ti linjer, så det meste av arbeidet går med til å lære Zig og hvordan JavaScript og WebAssembly snakker sammen: lineært minne, exports og piksler som tegnes rett fra en peker.
 
-Celler som dør, falmer ut over noen generasjoner i stedet for å forsvinne med en gang, så du ser sporene etter mønstrene.
+Celler som dør, skal falme ut over noen generasjoner i stedet for å forsvinne med en gang, så du ser sporene etter mønstrene.
 
 Ikke bygget enda.
