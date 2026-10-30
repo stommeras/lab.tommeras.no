@@ -92,6 +92,18 @@ const source = slug ? `${repo}/tree/main/src/experiments/${slug}` : repo;
     --peach: light-dark(#a2561c, #f3c29a);
   }
 
+  /* Both pages opt in, so navigation between them animates. With reduced motion the page swaps like before. */
+  @media (prefers-reduced-motion: no-preference) {
+    @view-transition {
+      navigation: auto;
+    }
+  }
+
+  /* An experiment title growing into the page header, or back, set by index.astro and [slug].astro */
+  ::view-transition-group(.title) {
+    animation-duration: 0.4s;
+  }
+
   :focus-visible {
     outline: 2px solid var(--fg);
     outline-offset: 2px;

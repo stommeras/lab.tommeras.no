@@ -23,7 +23,7 @@ const { Content } = await render(entry);
 ---
 
 <Layout title={`${entry.data.title} | Lab`} description={entry.data.summary.replaceAll('`', '')} slug={entry.id}>
-  <h1>{entry.data.title}</h1>
+  <h1 style={`view-transition-name: title-${entry.id}`}>{entry.data.title}</h1>
   <div class="byline">
     <EntryMeta data={entry.data} />
   </div>
@@ -35,6 +35,12 @@ const { Content } = await render(entry);
 </Layout>
 
 <style>
+  /* As a full-width block, the view transition would stretch the small link snapshot to the column width */
+  h1 {
+    width: fit-content;
+    view-transition-class: title;
+  }
+
   .byline {
     margin-top: 1em;
   }

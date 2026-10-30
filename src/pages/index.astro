@@ -14,7 +14,10 @@ const experiments = (await getCollection('experiments')).sort((a, b) => b.data.d
     <ol>
       {experiments.map(({ id, data }) => (
         <li>
-          <a href={`/${id}/`}>{data.title}</a>
+          {/* Same name as the h1 on the experiment page, so the title grows into it on navigation */}
+          <a href={`/${id}/`} style={`view-transition-name: title-${id}`}>
+            {data.title}
+          </a>
           <EntryMeta data={data} />
           <p>
             <CodeText text={data.summary} />
@@ -57,5 +60,6 @@ const experiments = (await getCollection('experiments')).sort((a, b) => b.data.d
 
   li > a {
     font-weight: 700;
+    view-transition-class: title;
   }
 </style>
