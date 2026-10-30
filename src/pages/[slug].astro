@@ -3,7 +3,7 @@ import { getCollection, render } from 'astro:content';
 import type { AstroComponentFactory } from 'astro/runtime/server/index.js';
 import Layout from '../layouts/Layout.astro';
 import EntryMeta from '../components/EntryMeta.astro';
-import { sharedEntryStyle } from '../shared-entry';
+import { sharedEntryStyle } from '../lib/shared-entry';
 
 // Each experiment's Demo.astro, keyed by its folder name
 const demos = import.meta.glob<{ default: AstroComponentFactory }>('../experiments/*/Demo.astro', { eager: true });

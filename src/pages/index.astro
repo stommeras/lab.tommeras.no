@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import EntryMeta from '../components/EntryMeta.astro';
 import CodeText from '../components/CodeText.astro';
-import { sharedEntryStyle } from '../shared-entry';
+import { sharedEntryStyle } from '../lib/shared-entry';
 
 const experiments = (await getCollection('experiments')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 ---
