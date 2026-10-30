@@ -1,8 +1,16 @@
+---
+// must match W and H in life.zig. JS reads the real size from the wasm exports
+const width = 256;
+const height = 192;
+---
+
 <div class="demo">
-  <button type="button" id="life-start">
-    Start
-  </button>
-  <output id="life-out"></output>
+  <div class="canvas-frame">
+    <canvas class="canvas" width={width} height={height} role="img" aria-label="Rutenett for Livets Spill"></canvas>
+    <button type="button" class="start-button">
+      Start
+    </button>
+  </div>
 </div>
 
 <script>
@@ -10,31 +18,71 @@
 
   type LifeExports = {
     memory: WebAssembly.Memory;
-    helloPtr: () => number;
-    helloLen: () => number;
+    seed: (s: number) => void;
+    randomize: (density: number) => void;
+    pixelsPtr: () => number;
+    width: () => number;
+    height: () => number;
   };
 
-  const button = document.querySelector<HTMLButtonElement>('#life-start')!;
-  const out = document.querySelector<HTMLOutputElement>('#life-out')!;
+  const canvas = document.querySelector<HTMLCanvasElement>('.demo .canvas')!;
+  const startButton = document.querySelector<HTMLButtonElement>('.demo .start-button')!;
+  const ctx = canvas.getContext('2d')!;
 
-  button.addEventListener(
+  async function loadLife(): Promise<LifeExports> {
+    const { instance } = await WebAssembly.instantiateStreaming(fetch(wasmUrl));
+    return instance.exports as unknown as LifeExports;
+  }
+
+  startButton.addEventListener(
     'click',
     async () => {
-      button.disabled = true;
-      const { instance } = await WebAssembly.instantiateStreaming(fetch(wasmUrl));
-      const { memory, helloPtr, helloLen } = instance.exports as unknown as LifeExports;
-      const bytes = new Uint8Array(memory.buffer, helloPtr(), helloLen());
-      out.textContent = new TextDecoder().decode(bytes);
+      startButton.disabled = true;
+      const life = await loadLife();
+
+      const w = life.width();
+      const h = life.height();
+      canvas.width = w;
+      canvas.height = h;
+
+      const bytes = new Uint8ClampedArray(life.memory.buffer, life.pixelsPtr(), w * h * 4);
+      const image = new ImageData(bytes, w, h);
+
+      life.seed(crypto.getRandomValues(new Uint32Array(1))[0]!);
+      life.randomize(0.25);
+      ctx.putImageData(image, 0, 0);
+
+      startButton.hidden = true;
     },
-    { once: true },
+    {
+      once: true,
+    },
   );
 </script>
 
 <style>
   .demo {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
     margin: 32px 0 48px;
+  }
+
+  .canvas-frame {
+    position: relative;
+  }
+
+  .canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    background: var(--surface);
+    border: 2px solid var(--pink);
+  }
+
+  .start-button {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: fit-content;
+    height: fit-content;
   }
 </style>
