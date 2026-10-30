@@ -1,6 +1,6 @@
 ---
 title: Livets spill i Zig
-date: 2026-10-29T21:30:00
+date: 2026-10-30T09:00:00
 status: ferdig
 language: Zig
 tags: [Simulering, WebAssembly]
