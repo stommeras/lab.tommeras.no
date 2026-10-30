@@ -1,0 +1,40 @@
+<div class="demo">
+  <button type="button" id="life-start">
+    Start
+  </button>
+  <output id="life-out"></output>
+</div>
+
+<script>
+  import wasmUrl from './life.wasm?url';
+
+  type LifeExports = {
+    memory: WebAssembly.Memory;
+    helloPtr: () => number;
+    helloLen: () => number;
+  };
+
+  const button = document.querySelector<HTMLButtonElement>('#life-start')!;
+  const out = document.querySelector<HTMLOutputElement>('#life-out')!;
+
+  button.addEventListener(
+    'click',
+    async () => {
+      button.disabled = true;
+      const { instance } = await WebAssembly.instantiateStreaming(fetch(wasmUrl));
+      const { memory, helloPtr, helloLen } = instance.exports as unknown as LifeExports;
+      const bytes = new Uint8Array(memory.buffer, helloPtr(), helloLen());
+      out.textContent = new TextDecoder().decode(bytes);
+    },
+    { once: true },
+  );
+</script>
+
+<style>
+  .demo {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    margin: 32px 0 48px;
+  }
+</style>

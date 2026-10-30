@@ -1,7 +1,7 @@
 ---
 title: Livets spill i Zig
 date: 2026-10-29T21:30:00
-status: skisse
+status: pågår
 language: Zig
 tags: [Simulering, WebAssembly]
 summary: Conways Livets spill skrevet i Zig og kompilert til WebAssembly, uten glue-kode fra en generator.
