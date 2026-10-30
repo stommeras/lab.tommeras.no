@@ -14,16 +14,25 @@ const height = 192;
     <button type="button" class="button step-button">Steg</button>
     <output class="generation" aria-live="off">Generasjon: 0</output>
   </div>
+  <!-- JS reads the grid colors from the theme tokens through these swatches -->
+  <div hidden>
+    <span class="swatch swatch-alive"></span>
+    <span class="swatch swatch-dying"></span>
+    <span class="swatch swatch-dead"></span>
+  </div>
 </div>
 
 <script>
   import wasmUrl from './life.wasm?url';
+  import { toRgba } from '../../lib/color';
 
   type LifeExports = {
     memory: WebAssembly.Memory;
     seed: (s: number) => void;
     randomize: (density: number) => void;
     step: () => void;
+    paint: () => void;
+    setPalette: (alive: number, dying: number, dead: number) => void;
     generation: () => number;
     pixelsPtr: () => number;
     width: () => number;
@@ -40,12 +49,29 @@ const height = 192;
   const playButton = document.querySelector<HTMLButtonElement>('.demo .play-button')!;
   const stepButton = document.querySelector<HTMLButtonElement>('.demo .step-button')!;
   const generationOutput = document.querySelector<HTMLOutputElement>('.demo .generation')!;
+  const swatches = [
+    document.querySelector<HTMLElement>('.demo .swatch-alive')!,
+    document.querySelector<HTMLElement>('.demo .swatch-dying')!,
+    document.querySelector<HTMLElement>('.demo .swatch-dead')!,
+  ] as const;
+  const darkScheme = matchMedia('(prefers-color-scheme: dark)');
   const ctx = canvas.getContext('2d')!;
 
   let loading: Promise<Sim> | undefined;
   let sim: Sim | undefined;
   let running = false;
   let rafId = 0;
+
+  // Packs a swatch's computed color as 0xAABBGGRR, the byte order wasm writes pixels in
+  function swatchColor(el: HTMLElement): number {
+    const [r, g, b, a] = toRgba(getComputedStyle(el).color);
+    return ((a << 24) | (b << 16) | (g << 8) | r) >>> 0;
+  }
+
+  function applyPalette(life: LifeExports) {
+    const [alive, dying, dead] = swatches;
+    life.setPalette(swatchColor(alive), swatchColor(dying), swatchColor(dead));
+  }
 
   async function instantiate(): Promise<Sim> {
     const { instance } = await WebAssembly.instantiateStreaming(fetch(wasmUrl));
@@ -62,6 +88,7 @@ const height = 192;
     const image = new ImageData(bytes, w, h);
 
     life.seed(crypto.getRandomValues(new Uint32Array(1))[0]!);
+    applyPalette(life);
     life.randomize(0.25);
 
     return { life, image };
@@ -141,6 +168,13 @@ const height = 192;
   stepButton.addEventListener('click', () => {
     stepOnce().catch(showError);
   });
+  // The tokens use light-dark(), so the colors change with the system theme
+  darkScheme.addEventListener('change', () => {
+    if (!sim) return;
+    applyPalette(sim.life);
+    sim.life.paint();
+    draw(sim);
+  });
 </script>
 
 <style>
@@ -180,5 +214,24 @@ const height = 192;
   .generation {
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Forced colors would turn every swatch into the same system color, and the canvas pixels aren't forced */
+  .swatch {
+    forced-color-adjust: none;
+  }
+
+  /* Alive matches the canvas border, and dead matches the canvas background */
+  .swatch-alive {
+    color: var(--pink);
+  }
+
+  /* Mixed toward the background, so a cell that just died is lighter or darker than a live one, not only another hue */
+  .swatch-dying {
+    color: color-mix(in oklch, var(--lavender) 55%, var(--surface));
+  }
+
+  .swatch-dead {
+    color: var(--surface);
   }
 </style>

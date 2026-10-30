@@ -11,4 +11,6 @@ Conways Livets spill skrevet i Zig og kompilert til WebAssembly. Rutenettet er 2
 
 Zig eier rutenettet og skriver én piksel per celle rett inn i minnet. JavaScript får en peker til pikslene og tegner dem på canvas. Det er ingen glue-kode i mellom, bare noen få exports.
 
-Neste steg er celler som falmer ut over noen generasjoner i stedet for å forsvinne med en gang, og knapper for å tegne og plassere mønstre.
+Celler som dør, forsvinner ikke med en gang. De falmer til bakgrunnsfargen over sju generasjoner, så du ser sporene etter det som har levd.
+
+Neste steg er knapper for å tegne og plassere mønstre.

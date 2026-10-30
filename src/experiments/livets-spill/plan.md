@@ -39,8 +39,8 @@ Use `-rdynamic` or one `--export=name` per function. The Zig guide I found used 
 ## Zig side
 
 - `const W = 256; const H = 192;` at comptime, with `var cells: [2][W*H]u8` for double buffering and `var pixels: [W*H]u32`. Globals live in linear memory, so you need no allocator.
-- Wasm is little-endian, so a `u32` pixel reads as bytes in reverse order. Pack colors as `a << 24 | b << 16 | g << 8 | r` to get RGBA in the `Uint8ClampedArray`. `setPalette` takes colors in that form, or packs them itself from four bytes.
-- Exports: `seed(u32)`, `randomize(density)`, `step()`, `toggle(x, y)`, `stamp(pattern, x, y)`, `setPalette(alive, dying, dead)`, `pixelsPtr()`.
+- Wasm is little-endian, so a `u32` pixel reads as bytes in reverse order. Pack colors as `a << 24 | b << 16 | g << 8 | r` to get RGBA in the `Uint8ClampedArray`. `setPalette` takes colors in that form, and JS packs them from the computed swatch colors.
+- Exports: `seed(u32)`, `randomize(density)`, `step()`, `paint()`, `generation()`, `width()`, `height()`, `toggle(x, y)`, `stamp(pattern, x, y)`, `setPalette(alive, dying, dead)`, `pixelsPtr()`. `paint()` is exported so JS can repaint after a theme change without stepping.
 - Edges wrap with `@mod` (a torus), so gliders loop around.
 - For a visual twist, store an age per cell instead of a bool. New cells get a bright color and dead ones fade over a few generations. The trails make it much nicer to watch than plain black and white.
 
