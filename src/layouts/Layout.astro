@@ -91,9 +91,20 @@ const crumbs = [
     color: var(--pink);
   }
 
-  code {
+  :not(pre) > code {
     color: var(--mint);
     white-space: nowrap;
+  }
+
+  pre {
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  /* Shiki sets the theme's background inline, so only !important can swap it for the site's surface color */
+  pre.astro-code {
+    background-color: var(--surface) !important;
   }
 
   @media (max-width: 600px) {

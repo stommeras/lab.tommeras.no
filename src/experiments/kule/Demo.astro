@@ -1,0 +1,311 @@
+---
+const count = 200;
+---
+
+<div class="stage" role="img" aria-label="En kule av punkter. Dra for å rotere.">
+  <p class="loading">Laster …</p>
+</div>
+<div class="controls" hidden>
+  <input type="range" min="10" max="1000" step="10" value={count} aria-label="Antall punkter" aria-valuetext={`${count} punkter`} />
+  <!-- Hidden from screen readers: an output is a live region and would read every step on top of the slider -->
+  <output aria-hidden="true">{count} punkter</output>
+  <div class="layout">
+    <span class="fibonacci">Fibonacci</span>
+    <label class="switch">
+      <input type="checkbox" role="switch" />
+      <span class="grid">Rutenett</span>
+    </label>
+  </div>
+</div>
+<p class="unsupported" hidden>
+  Nettleseren din støtter ikke WebGL.
+</p>
+<span class="probe" hidden></span>
+
+<script>
+  import type { WebGLRenderer } from 'three';
+  import { tokenRgba } from '../../lib/color';
+
+  const stage = document.querySelector<HTMLElement>('.stage')!;
+  const controlsRow = document.querySelector<HTMLElement>('.controls')!;
+  const slider = controlsRow.querySelector('input')!;
+  const output = controlsRow.querySelector('output')!;
+  const toggle = controlsRow.querySelector<HTMLInputElement>('[role="switch"]')!;
+  const probe = document.querySelector<HTMLElement>('.probe')!;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+
+  new IntersectionObserver((entries, observer) => {
+    if (!entries[0].isIntersecting) return;
+    observer.disconnect();
+    load().catch(() => {
+      stage.replaceChildren();
+      stage.hidden = true;
+      controlsRow.hidden = true;
+      const message = document.querySelector<HTMLElement>('.unsupported')!;
+      message.textContent = 'Kulen ville ikke laste. Prøv å laste inn siden på nytt.';
+      message.hidden = false;
+    });
+  }).observe(stage);
+
+  async function load() {
+    const THREE = await import('three');
+    const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+
+    let renderer: WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    } catch {
+      stage.hidden = true;
+      document.querySelector<HTMLElement>('.unsupported')!.hidden = false;
+      return;
+    }
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    stage.replaceChildren(renderer.domElement);
+    controlsRow.hidden = false;
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    // Above the equator, so the north pole and its crowded grid rows stay in view while the sphere turns
+    camera.position.set(0, 1.2, 2.9);
+    // Fades the back half toward the page background, so it doesn't blend into the front. The front stays clear and
+    // the back fades about halfway. Zoom is off, so the camera distance never changes.
+    const distance = camera.position.length();
+    const fog = new THREE.Fog(0, distance - 0.5, distance + 2.5);
+    scene.fog = fog;
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.enablePan = false;
+    // The wheel scrolls the page instead of zooming, so the sphere doesn't trap a visitor scrolling past
+    controls.enableZoom = false;
+    // OrbitControls sets touch-action: none, which traps vertical swipes on a phone. pan-y gives them back to the page
+    // and keeps sideways drags for rotating.
+    renderer.domElement.style.touchAction = 'pan-y';
+    // OrbitControls sets an inline cursor, so CSS can't, and grab switches to grabbing while dragging
+    controls.cursorStyle = 'grab';
+
+    const max = Number(slider.max);
+    const mesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshBasicMaterial(), max);
+    scene.add(mesh);
+
+    const position = Array.from({ length: max }, () => new THREE.Vector3());
+    const targetPosition = Array.from({ length: max }, () => new THREE.Vector3());
+    const radius = new Float32Array(max);
+    const targetRadius = new Float32Array(max);
+    let shown = 0;
+    // Firefox restores the checkbox on reload, so start from it
+    let grid = toggle.checked;
+
+    const golden = Math.PI * (3 - Math.sqrt(5));
+    function fibonacciPoint(i: number, n: number) {
+      return { y: 1 - (2 * (i + 0.5)) / n, angle: golden * i };
+    }
+
+    const equatorPerMeridian = 2;
+    function gridPoint(i: number, n: number) {
+      const rows = Math.round(Math.sqrt(n / equatorPerMeridian));
+      // Spread n over the rows, so each row gets floor or ceil of n / rows and no row is left with a gap
+      const row = Math.floor((i * rows) / n);
+      const start = Math.ceil((row * n) / rows);
+      const end = Math.ceil(((row + 1) * n) / rows);
+      return { y: Math.cos((Math.PI * (row + 0.5)) / rows), angle: (2 * Math.PI * (i - start)) / (end - start) };
+    }
+
+    function layout(n: number) {
+      // Capped so a few points don't turn into big, angular balls that clip the frame
+      const pointRadius = Math.min(0.1, 0.5 / Math.sqrt(n));
+      for (let i = 0; i < n; i++) {
+        const { y, angle } = grid ? gridPoint(i, n) : fibonacciPoint(i, n);
+        const r = Math.sqrt(1 - y * y);
+        targetPosition[i].set(Math.cos(angle) * r, y, Math.sin(angle) * r);
+        targetRadius[i] = pointRadius;
+        if (i >= shown) {
+          position[i].copy(targetPosition[i]);
+          radius[i] = 0;
+        }
+      }
+      shown = n;
+      mesh.count = n;
+      output.textContent = `${n} punkter`;
+      slider.setAttribute('aria-valuetext', `${n} punkter`);
+      paint();
+    }
+
+    function token(name: string) {
+      const [r, g, b] = tokenRgba(name, probe);
+      return new THREE.Color().setRGB(r / 255, g / 255, b / 255, THREE.SRGBColorSpace);
+    }
+
+    function paint() {
+      const [low, mid, high] = ['--mint', '--lavender', '--pink'].map(token);
+      fog.color = token('--bg');
+      const color = new THREE.Color();
+      for (let i = 0; i < shown; i++) {
+        const t = (targetPosition[i].y + 1) / 2;
+        if (t < 0.5) color.lerpColors(low, mid, t * 2);
+        else color.lerpColors(mid, high, t * 2 - 1);
+        mesh.setColorAt(i, color);
+      }
+      mesh.instanceColor!.needsUpdate = true;
+    }
+
+    layout(Number(slider.value));
+    slider.addEventListener('input', () => layout(Number(slider.value)));
+    toggle.addEventListener('change', () => {
+      grid = toggle.checked;
+      layout(Number(slider.value));
+    });
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paint);
+
+    new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      renderer.setSize(width, height, false);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }).observe(stage);
+
+    const matrix = new THREE.Matrix4();
+    let last = 0;
+    function frame(time: number) {
+      // Capped, so a frame after a background tab doesn't count as one long step
+      const dt = Math.min(time - last, 100);
+      last = time;
+      const glideMs = 150;
+      const step = reduce.matches ? 1 : 1 - Math.exp(-dt / glideMs);
+      for (let i = 0; i < shown; i++) {
+        // Normalized, so points slide along the surface instead of cutting through the sphere
+        position[i].lerp(targetPosition[i], step).normalize();
+        radius[i] += (targetRadius[i] - radius[i]) * step;
+        matrix.makeScale(radius[i], radius[i], radius[i]).setPosition(position[i]);
+        mesh.setMatrixAt(i, matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      controls.autoRotate = !reduce.matches;
+      // With a delta, auto-rotate turns at the same speed on a 60 Hz and a 120 Hz screen
+      controls.update(dt / 1000);
+      renderer.render(scene, camera);
+    }
+
+    // Renders only while the sphere is on screen. The observer reports the initial state on its own, which starts the
+    // loop.
+    new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        // Starts at now, so the first points grow in and the time off screen doesn't count as one long step
+        last = performance.now();
+        renderer.setAnimationLoop(frame);
+      } else {
+        renderer.setAnimationLoop(null);
+      }
+    }).observe(stage);
+  }
+</script>
+
+<style>
+  .loading {
+    color: var(--muted);
+  }
+
+  .stage {
+    display: grid;
+    place-items: center;
+    width: min(100%, 560px);
+    aspect-ratio: 1;
+    margin: 32px auto;
+  }
+
+  .stage :global(canvas) {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 48px;
+  }
+
+  .stage[hidden],
+  .controls[hidden] {
+    display: none;
+  }
+
+  input[type='range'] {
+    width: min(60%, 240px);
+    accent-color: var(--pink);
+  }
+
+  output {
+    min-width: 12ch;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .layout,
+  .switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    color: var(--muted);
+  }
+
+  .switch {
+    cursor: pointer;
+  }
+
+  /* The active layout's name stands out, so the switch reads without looking at the knob */
+  .layout:not(:has(:checked)) .fibonacci,
+  .layout:has(:checked) .grid {
+    color: var(--fg);
+  }
+
+  [role='switch'] {
+    appearance: none;
+    position: relative;
+    width: 44px;
+    height: 24px;
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    cursor: pointer;
+  }
+
+  [role='switch']::before {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--pink);
+    transition: translate 0.2s ease;
+  }
+
+  [role='switch']:checked::before {
+    translate: 20px 0;
+  }
+
+  [role='switch']:focus-visible {
+    outline: 2px solid var(--pink);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [role='switch']::before {
+      transition: none;
+    }
+  }
+
+  .unsupported {
+    margin-top: 1em;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--peach);
+  }
+</style>
