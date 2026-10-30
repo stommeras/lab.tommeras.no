@@ -1,6 +1,6 @@
 # lab.tommeras.no
 
-Eksperimenter av Steffen Tømmerås: skisser, demoer og ting som kanskje ikke virker ennå. Hovedsiden er [tommeras.no](https://tommeras.no).
+Eksperimenter av Steffen Tømmerås: skisser, demoer og ting som kanskje ikke virker enda. Hovedsiden er [tommeras.no](https://tommeras.no).
 
 Laget med [Astro](https://astro.build). Vercel bygger og publiserer `main`.
 

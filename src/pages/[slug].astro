@@ -2,7 +2,7 @@
 import { getCollection, render } from 'astro:content';
 import type { AstroComponentFactory } from 'astro/runtime/server/index.js';
 import Layout from '../layouts/Layout.astro';
-import { STATUS_COLORS } from '../content.config';
+import EntryMeta from '../components/EntryMeta.astro';
 
 // Each experiment's Demo.astro, keyed by its folder name
 const demos = import.meta.glob<{ default: AstroComponentFactory }>('../experiments/*/Demo.astro', { eager: true });
@@ -20,15 +20,13 @@ const { entry } = Astro.props;
 const Demo = demos[`../experiments/${entry.id}/Demo.astro`]?.default;
 const Steps = stepsComponents[`../experiments/${entry.id}/Steps.astro`]?.default;
 const { Content } = await render(entry);
-const date = entry.data.date.toISOString().slice(0, 10);
 ---
 
-<Layout title={`${entry.data.title} | Lab`} description={entry.data.summary.replaceAll('`', '')}>
+<Layout title={`${entry.data.title} | Lab`} description={entry.data.summary.replaceAll('`', '')} slug={entry.id}>
   <h1>{entry.data.title}</h1>
-  <p class="meta">
-    <time datetime={date}>{date}</time> ·{' '}
-    <span style={{ color: STATUS_COLORS[entry.data.status] }}>{entry.data.status}</span> · {entry.data.language}
-  </p>
+  <div class="byline">
+    <EntryMeta data={entry.data} />
+  </div>
   {Demo && <Demo />}
   <div class="note">
     <Content />
@@ -37,9 +35,8 @@ const date = entry.data.date.toISOString().slice(0, 10);
 </Layout>
 
 <style>
-  .meta {
+  .byline {
     margin-top: 1em;
-    color: var(--muted);
   }
 
   .note {
