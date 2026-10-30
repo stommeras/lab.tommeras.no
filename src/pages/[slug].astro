@@ -3,6 +3,7 @@ import { getCollection, render } from 'astro:content';
 import type { AstroComponentFactory } from 'astro/runtime/server/index.js';
 import Layout from '../layouts/Layout.astro';
 import EntryMeta from '../components/EntryMeta.astro';
+import { sharedEntryStyle } from '../shared-entry';
 
 // Each experiment's Demo.astro, keyed by its folder name
 const demos = import.meta.glob<{ default: AstroComponentFactory }>('../experiments/*/Demo.astro', { eager: true });
@@ -23,7 +24,7 @@ const { Content } = await render(entry);
 ---
 
 <Layout title={`${entry.data.title} | Lab`} description={entry.data.summary.replaceAll('`', '')} slug={entry.id}>
-  <h1 style={`view-transition-name: title-${entry.id}`}>{entry.data.title}</h1>
+  <h1 style={sharedEntryStyle('title', entry.id)}>{entry.data.title}</h1>
   <div class="byline">
     <EntryMeta id={entry.id} data={entry.data} />
   </div>
@@ -38,7 +39,6 @@ const { Content } = await render(entry);
   /* As a full-width block, the view transition would stretch the small link snapshot to the column width */
   h1 {
     width: fit-content;
-    view-transition-class: entry;
   }
 
   .byline {

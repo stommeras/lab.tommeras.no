@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import Layout from '../layouts/Layout.astro';
 import EntryMeta from '../components/EntryMeta.astro';
 import CodeText from '../components/CodeText.astro';
+import { sharedEntryStyle } from '../shared-entry';
 
 const experiments = (await getCollection('experiments')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 ---
@@ -14,8 +15,7 @@ const experiments = (await getCollection('experiments')).sort((a, b) => b.data.d
     <ol>
       {experiments.map(({ id, data }) => (
         <li>
-          {/* Same name as the h1 on the experiment page, so the title grows into it on navigation */}
-          <a href={`/${id}/`} style={`view-transition-name: title-${id}`}>
+          <a href={`/${id}/`} style={sharedEntryStyle('title', id)}>
             {data.title}
           </a>
           <EntryMeta id={id} data={data} />
@@ -60,6 +60,5 @@ const experiments = (await getCollection('experiments')).sort((a, b) => b.data.d
 
   li > a {
     font-weight: 700;
-    view-transition-class: entry;
   }
 </style>
