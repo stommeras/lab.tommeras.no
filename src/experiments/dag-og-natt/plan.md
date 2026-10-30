@@ -24,19 +24,21 @@ Back to front:
 
 1. Sky gradient and stars.
 2. Sun and moon on an arc. They come before the mountains in the markup, so the sun sets behind the ridge.
-3. Far mountains, pale and close to the sky color. The blue range on the right horizon, 5 to 10 triangles.
-4. Mid mountains, the massif on the left and the jagged ridge behind the main peak. 15 to 25 triangles each, with most of the effort on the outline.
-5. Near mountains, the main peak and the green slope at its foot. 30 to 50 low-poly faces lit by the sun.
+3. Far mountains, pale and close to the sky color. The hazy ranges in the gap in the middle of the photo, 5 to 10 triangles each.
+4. Mid mountains, the range on the left and the snowy massif on the right. 15 to 25 triangles each, with most of the effort on the outline.
+5. Near mountains, the needle and its shoulder. 30 to 50 low-poly faces lit by the sun. The needle's clean left and right faces carry the morning-to-evening light swap.
 6. Fjord, with a mirrored `<use>` of the mountain groups as the reflection, `scaleY(-1)` and lower opacity. Its `clip-path` is in the `<use>` element's own coordinates, before the flip, so the clip rectangle sits just above the waterline, not below it.
-7. Shore, the rocky point as a few dark low-poly rocks, with one or two cabins and some trees.
+7. Shore, a strip of dark low-poly rocks with one red cabin and some trees. Skip the boats, docks and the rest of the village.
 
-The SVG is a wide landscape, roughly 16:9, with `preserveAspectRatio="xMidYMax slice"`. A phone in portrait keeps only about the middle third, so the main peak and the cabin have to be in that band. In the photo the cabins sit further right, so move the cabin left toward the foot of the peak.
+The SVG is a wide landscape, roughly 16:9, with `preserveAspectRatio="xMidYMax slice"`. A phone in portrait keeps only about the middle third, so the needle and the cabin have to be in that band. The needle goes in the horizontal center of the page. The photo's shore with houses is far left, so put the cabin center-left instead.
 
 ## Drawing it
 
-- Reference: the view from Hamnøy bridge in Lofoten, [Street View, September 2022](https://www.google.com/maps/@67.9453534,13.1304688,24a,75y,2.02h,98.09t/data=!3m7!1e1!3m5!1sMbV6AOCtotyrJ1ZpRivwYQ!2e0!6shttps:%2F%2Fstreetviewpixels-pa.clients6.google.com%2Fv1%2Fthumbnail%3Fcb_client%3Dmaps_sv.tactile%26w%3D900%26h%3D600%26pitch%3D-8.09132355247128%26panoid%3DMbV6AOCtotyrJ1ZpRivwYQ%26yaw%3D2.017964767070359!7i16384!8i8192). Keep the screenshot and the Inkscape working file with the reference layer out of the repo, since the image is Google's. Commit only the clean SVG.
+- Reference: [Hamnøy](https://commons.wikimedia.org/wiki/File:Hamn%C3%B8y.jpg) by Jon Olav Eikenes, [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/), from Wikimedia Commons. A 1600×512 panorama from 2009. The license allows committing it to the repo, for example as `reference.jpg` in this folder, and showing it in the note next to the drawing. Either way the note credits the photographer, links the license and says the drawing is traced from it.
 - Inkscape. It saves SVG as its own format, and its node snapping makes neighboring triangles share corners exactly.
-- Put the screenshot on a locked bottom layer at about 40% opacity, scaled so the waterline lands about 70% down the 1920×1080 page. Trace triangles over it, one `<path>` per face. Turn on snapping to nodes, or the triangles won't meet. Skip the bridge railing, the lamp post, the clouds and the water.
+- Import the photo as a link, not embedded, so the drawing doesn't carry a copy. Put it on a locked bottom layer at about 40% opacity.
+- The panorama is too wide and the mountains too low for 16:9. Start at 150% width and 200 to 250% height, with the needle at the page's horizontal center and the waterline about 70% down the 1920×1080 page. That keeps the middle gap and part of both side ranges in frame. Stretching the height makes the peaks steeper than they are, which is fine for a painting. Adjust by eye.
+- Trace triangles over it, one `<path>` per face. Turn on snapping to nodes, or the triangles won't meet. Skip the clouds, the water, the boats and the power lines.
 - One Inkscape layer per scene layer, named so the export gets usable group ids: `reference`, `far-mountains`, `mid-mountains`, `near-mountains`, `shore`, `cabin`, `trees`.
 - Shortcuts: `Ctrl+Shift+D` for the page size, `Ctrl+Shift+L` for layers, `%` toggles snapping, `B` is the pen tool, `Alt+D` makes a clone.
 
