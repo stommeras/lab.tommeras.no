@@ -12,7 +12,8 @@ Ideen er én scene, en fjord med fjell, en hytte og noen trær, der hele dagen l
 Alt styres av ett tall. En scroll-driven animation flytter en `@property --time` fra 6 til 24, altså fra klokka seks om morgenen til midnatt, og resten av scenen regner seg ut fra den:
 
 - Sola og månen går i en bue over himmelen med `sin()` og `cos()`.
-- Skyggene snur seg og blir lengre når sola står lavt.
+- Fjellsidene som vender mot sola lyser opp, og lyset flytter seg fra den ene siden til den andre utover dagen.
+- Skyggene fra hytta og trærne snur seg og blir lengre når sola står lavt.
 - Himmelen går fra morgengry via dagslys og solnedgang til natt.
 - Stjernene kommer frem, og vinduene i hytta lyser opp ett og ett, med forsinkelse fra `sibling-index()`.
 
