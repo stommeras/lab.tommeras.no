@@ -283,6 +283,17 @@ export fn generation() u32 {
     return generation_count;
 }
 
+// The number of live cells. Fading cells don't count. Counting all 49k cells
+// on each call is cheap next to a step, so there is no running count to keep
+// in sync with every edit
+export fn population() u32 {
+    var count: u32 = 0;
+    for (&cells[current]) |cell| {
+        if (cell == ALIVE) count += 1;
+    }
+    return count;
+}
+
 // ----------------------------------------------------------------
 // Tests. Run with `bun run test:life`
 // ----------------------------------------------------------------
@@ -601,6 +612,29 @@ test "stamp places the R-pentomino, and it grows" {
     try expectOnly(&.{ .{ W / 2, H / 2 - 1 }, .{ W / 2 + 1, H / 2 - 1 }, .{ W / 2 - 1, H / 2 }, .{ W / 2, H / 2 }, .{ W / 2, H / 2 + 1 } });
     for (0..100) |_| step();
     try std.testing.expect(liveCount() > 5);
+}
+
+test "population counts live cells after steps and edits, but not fading ones" {
+    reset();
+    try expectEqual(@as(u32, 0), population());
+
+    stamp(1, W / 2, H / 4);
+    try expectEqual(@as(u32, 36), population());
+    for (0..30) |_| step();
+    try expectEqual(@as(u32, 36 + 5), population());
+
+    set(0, 0, true);
+    try expectEqual(@as(u32, 42), population());
+    _ = toggle(0, 0);
+    try expectEqual(@as(u32, 41), population());
+
+    cells[current][0] = 100;
+    try expectEqual(@as(u32, 41), population());
+
+    randomize(1.0);
+    try expectEqual(@as(u32, N), population());
+    clear();
+    try expectEqual(@as(u32, 0), population());
 }
 
 test "clear empties the grid and resets the generation" {

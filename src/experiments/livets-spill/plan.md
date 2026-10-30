@@ -40,15 +40,19 @@ Use `-rdynamic` or one `--export=name` per function. The Zig guide I found used 
 
 - `const W = 256; const H = 192;` at comptime, with `var cells: [2][W*H]u8` for double buffering and `var pixels: [W*H]u32`. Globals live in linear memory, so you need no allocator.
 - Wasm is little-endian, so a `u32` pixel reads as bytes in reverse order. Pack colors as `a << 24 | b << 16 | g << 8 | r` to get RGBA in the `Uint8ClampedArray`. `setPalette` takes colors in that form, and JS packs them from the computed swatch colors.
-- Exports: `seed(u32)`, `randomize(density)`, `step()`, `paint()`, `generation()`, `width()`, `height()`, `set(x, y, alive)`, `toggle(x, y)`, `stamp(pattern, x, y)`, `clear()`, `setPalette(alive, dying, dead)`, `pixelsPtr()`. `paint()` is exported so JS can repaint after a theme change without stepping. Every export that changes cells also repaints the pixels it changed, so JS only has to draw.
+- Exports: `seed(u32)`, `randomize(density)`, `step()`, `paint()`, `generation()`, `population()`, `width()`, `height()`, `set(x, y, alive)`, `toggle(x, y)`, `stamp(pattern, x, y)`, `clear()`, `setPalette(alive, dying, dead)`, `pixelsPtr()`. `paint()` is exported so JS can repaint after a theme change without stepping. Every export that changes cells also repaints the pixels it changed, so JS only has to draw. `population()` counts the live cells on each call, which is cheap next to a step and needs no running count.
 - Edges wrap with `@mod` (a torus), so gliders loop around.
-- For a visual twist, store an age per cell instead of a bool. New cells get a bright color and dead ones fade over a few generations. The trails make it much nicer to watch than plain black and white.
+- Each cell stores an age instead of a bool. A live cell is `ALIVE` (255), and a dead one loses `FADE = 40` per step, so its trail fades out over 7 generations. A fading cell never counts as a neighbor. `paint()` uses the alive color for live cells and blends fading ones from the dying color to the dead color.
+- The palette comes from the theme tokens through hidden swatches: alive is `--pink`, like the canvas border, dying is `--lavender` mixed 55% toward `--surface`, so a cell that just died is lighter or darker than a live one and not only another hue, and dead is `--surface`. A theme change calls `setPalette` and `paint()` again.
+- Patterns are drawn as text pictures and parsed at comptime. `stamp` clears the pattern's bounding box plus a 1-cell margin first, and wraps around the edges.
 
 ## Page
 
-- Pattern buttons that stamp a glider, a Gosper glider gun and an R-pentomino.
-- Play/pause, single step, a speed slider and a generation counter.
-- Click or drag on the canvas to toggle cells.
+- A Start button over the still canvas loads the wasm, fills the grid at random and starts the loop.
+- Start/Pause, Steg, and a Fart slider for 1 to 60 generations per second, 20 by default. The `requestAnimationFrame` loop keeps a time accumulator and steps while it holds a whole step, give or take 1 ms for rounded frame timestamps, so the speed doesn't depend on the refresh rate. It runs at most 4 steps per frame and clamps the accumulator to that, so a tab coming back from the background doesn't run a burst of generations. It draws once per frame, after the steps.
+- Counters for Generasjon and Levende (the population), updated after every step and edit.
+- Pattern buttons that stamp a glider, a Gosper glider gun and an R-pentomino where the visitor last clicked, or in the middle. Tilfeldig fills the grid at random, and Tøm empties it.
+- Click or drag on the canvas to toggle cells. A drag that starts on a live cell erases.
 
 ## Stretch goals
 

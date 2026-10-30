@@ -1,13 +1,13 @@
 ---
 title: Livets spill i Zig
 date: 2026-10-29T21:30:00
-status: pågår
+status: ferdig
 language: Zig
 tags: [Simulering, WebAssembly]
 summary: Conways Livets spill skrevet i Zig og kompilert til WebAssembly, uten glue-kode fra en generator.
 ---
 
-Conways Livets spill skrevet i Zig og kompilert til WebAssembly. Rutenettet er 256 × 192 celler, og kantene henger sammen, så en glider som forsvinner ut til høyre kommer inn igjen fra venstre. Trykk Start for å kjøre, eller Steg for å gå én generasjon om gangen.
+Conways Livets spill skrevet i Zig og kompilert til WebAssembly. Rutenettet er 256 × 192 celler, og kantene henger sammen, så en glider som forsvinner ut til høyre kommer inn igjen fra venstre. Trykk Start for å kjøre, eller Steg for å gå én generasjon om gangen. Fart bestemmer hvor mange generasjoner som går i sekundet.
 
 Zig eier rutenettet og skriver én piksel per celle rett inn i minnet. JavaScript får en peker til pikslene og tegner dem på canvas. Det er ingen glue-kode i mellom, bare noen få exports.
 
@@ -15,6 +15,6 @@ Celler som dør, forsvinner ikke med en gang. De falmer til bakgrunnsfargen over
 
 En glider er fem celler som flytter seg ett hakk på skrå hver fjerde generasjon. Gosper-kanonen står i ro og skyter ut en ny glider hver 30. generasjon. Kantene henger sammen, så gliderne kan komme rundt og treffe kanonen igjen. R-pentominoen er også bare fem celler, men den holder på i over tusen generasjoner før den roer seg.
 
-Tegningen fungerer best på desktop, for på mobil er cellene for små til å treffe.
+Å tegne fungerer best på desktop, for på mobil er cellene små og vanskelige å treffe.
 
-Neste steg er en slider for farten.
+Mest av alt handlet dette om å lære Zig, og om hvordan minne og pekere fungerer når JavaScript og WebAssembly deler minne. Zig skriver, JavaScript leser, og begge må være enige om hvor ting ligger og hvor store de er.
