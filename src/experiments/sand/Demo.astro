@@ -297,12 +297,24 @@ const materials = [
     toRgba(getComputedStyle(demo.querySelector(`.swatch.${name}`)!).backgroundColor);
 
   const colors: Rgba[] = [];
-  for (const [name, material] of Object.entries(MATERIALS)) {
-    colors[material] = material === EMPTY ? TRANSPARENT : swatchColor(name);
-  }
+  let outlineColor: Rgba;
+  let outlineOnFilledColor: Rgba;
 
-  const outlineColor = toRgba(getComputedStyle(canvas).borderTopColor);
-  const outlineOnFilledColor = toRgba(getComputedStyle(document.body).backgroundColor);
+  const readColors = () => {
+    for (const [name, material] of Object.entries(MATERIALS)) {
+      colors[material] = material === EMPTY ? TRANSPARENT : swatchColor(name);
+    }
+    outlineColor = toRgba(getComputedStyle(canvas).borderTopColor);
+    outlineOnFilledColor = toRgba(getComputedStyle(document.body).backgroundColor);
+  };
+  readColors();
+
+  // The tokens use light-dark(), so the colors change with the system theme. Off screen the loop is stopped, and it
+  // renders the new colors when it starts again.
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    readColors();
+    changed = true;
+  });
 
   const ctx = canvas.getContext('2d')!;
   const image = ctx.createImageData(COLS, ROWS);
