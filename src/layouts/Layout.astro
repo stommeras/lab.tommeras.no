@@ -142,6 +142,9 @@ const source = slug ? `${repo}/tree/main/src/experiments/${slug}` : repo;
 
   html {
     background: var(--bg);
+    /* Short pages have no scrollbar. Without the reserved space they center 7.5 px off from the rest, and the
+       title and meta line shift sideways in the view transition. */
+    scrollbar-gutter: stable;
   }
 
   body {
