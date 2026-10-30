@@ -1,7 +1,8 @@
 ---
 title: Sand som faller
-date: 2026-10-29
+date: 2026-10-29T16:21:00
 status: ferdig
+language: TypeScript
 tags: [Simulering]
 summary: En simulering av sand og vann som faller og legger seg rundt stein.
 ---
