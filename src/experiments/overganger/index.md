@@ -27,7 +27,21 @@ Den alene gir en crossfade av hele siden. For at tittelen skal vokse, får lenke
 <h1 style={`view-transition-name: title-${entry.id}`}>{entry.data.title}</h1>
 ```
 
-Nettleseren tar et bilde av den gamle tittelen og den nye, og animerer plassering og størrelse fra den ene til den andre. Navnet må være unikt på siden, så slugen er med i det.
+Nettleseren tar et bilde av den gamle tittelen og den nye, og animerer plassering og størrelse fra den ene til den andre. Navnet må være unikt på siden, så slugen er med i det. Linja med dato, status og tags under tittelen får sitt eget navn på samme måte og flytter seg sammen med tittelen.
+
+Med standard crossfade dukket teksten på den nye siden opp mens tittelen fortsatt var på vei. Nå fades den gamle siden ut først, og den nye fades inn når tittelen nesten er framme:
+
+```css
+::view-transition-old(root) {
+  animation: 0.15s ease-in both vt-fade-out;
+}
+
+::view-transition-new(root) {
+  animation: 0.25s ease-out 0.25s both vt-fade-in;
+}
+```
+
+Alle eksperimentene i lista har navn, men bare det du klikker på har noe å flytte seg til. De andre poppet inn før resten av lista når du gikk tilbake. Et bilde uten partner er alene i sin `::view-transition-image-pair`, så `:only-child` finner dem, og de får samme fade som resten av siden.
 
 Bildet strekkes til bredden av elementet. En `h1` er en block og fyller hele kolonnen, så den lille lenken ble dratt ut til 760 px midt i overgangen. `width: fit-content` på overskriften gjør den like bred som teksten, og da vokser tittelen jevnt.
 

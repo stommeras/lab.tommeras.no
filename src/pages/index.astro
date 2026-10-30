@@ -18,7 +18,7 @@ const experiments = (await getCollection('experiments')).sort((a, b) => b.data.d
           <a href={`/${id}/`} style={`view-transition-name: title-${id}`}>
             {data.title}
           </a>
-          <EntryMeta data={data} />
+          <EntryMeta id={id} data={data} />
           <p>
             <CodeText text={data.summary} />
           </p>
@@ -60,6 +60,6 @@ const experiments = (await getCollection('experiments')).sort((a, b) => b.data.d
 
   li > a {
     font-weight: 700;
-    view-transition-class: title;
+    view-transition-class: entry;
   }
 </style>

@@ -3,17 +3,19 @@ import type { CollectionEntry } from 'astro:content';
 import { STATUS_COLORS, TAGS, type Tag } from '../content.config';
 
 interface Props {
+  id: string;
   data: CollectionEntry<'experiments'>['data'];
 }
 
-const { data } = Astro.props;
+const { id, data } = Astro.props;
 const date = data.date.toISOString().slice(0, 10);
 
 const LAVENDER_HUE = 288;
 const tagHue = (tag: Tag) => (LAVENDER_HUE + (360 / TAGS.length) * TAGS.indexOf(tag)) % 360;
 ---
 
-<p class="meta">
+{/* The same name on the front page and the experiment page, so the line moves with the title on navigation */}
+<p class="meta" style={`view-transition-name: meta-${id}`}>
   <time datetime={date}>{date}</time>
   <span class="item">
     <span aria-hidden="true">·</span>
@@ -59,6 +61,7 @@ const tagHue = (tag: Tag) => (LAVENDER_HUE + (360 / TAGS.length) * TAGS.indexOf(
     color: var(--muted);
     font-size: 0.9375rem;
     justify-self: stretch;
+    view-transition-class: entry;
   }
 
   .item {

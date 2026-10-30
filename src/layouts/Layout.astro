@@ -99,9 +99,40 @@ const source = slug ? `${repo}/tree/main/src/experiments/${slug}` : repo;
     }
   }
 
-  /* An experiment title growing into the page header, or back, set by index.astro and [slug].astro */
-  ::view-transition-group(.title) {
+  /* An experiment's title and meta line moving between the list and the page header, set by index.astro, [slug].astro
+     and EntryMeta.astro */
+  ::view-transition-group(.entry) {
     animation-duration: 0.4s;
+  }
+
+  /* The rest of the old page fades out before the title moves, and the new page fades in as it lands. With the
+     default crossfade, the new content showed up under the title while it was still moving. The other experiments in
+     the list have names too but nothing to move to, so they fade with the rest of the page. */
+  ::view-transition {
+    background: var(--bg);
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-old(.entry):only-child {
+    animation: 0.15s ease-in both vt-fade-out;
+  }
+
+  ::view-transition-new(root),
+  ::view-transition-new(.entry):only-child {
+    animation: 0.25s ease-out 0.25s both vt-fade-in;
+  }
+
+  @keyframes vt-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes vt-fade-in {
+    from {
+      opacity: 0;
+      translate: 0 8px;
+    }
   }
 
   :focus-visible {
@@ -170,6 +201,8 @@ const source = slug ? `${repo}/tree/main/src/experiments/${slug}` : repo;
     justify-content: space-between;
     align-items: baseline;
     gap: 0 24px;
+    /* Out of the root snapshot, so it stays put while the page around it fades */
+    view-transition-name: site-header;
   }
 
   .source {
