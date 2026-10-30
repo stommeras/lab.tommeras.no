@@ -1,19 +1,21 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import { STATUS_COLORS, TAGS, type Tag } from '../content.config';
+import { sharedEntryStyle } from '../lib/shared-entry';
 
 interface Props {
+  id: string;
   data: CollectionEntry<'experiments'>['data'];
 }
 
-const { data } = Astro.props;
+const { id, data } = Astro.props;
 const date = data.date.toISOString().slice(0, 10);
 
 const LAVENDER_HUE = 288;
 const tagHue = (tag: Tag) => (LAVENDER_HUE + (360 / TAGS.length) * TAGS.indexOf(tag)) % 360;
 ---
 
-<p class="meta">
+<p class="meta" style={sharedEntryStyle('meta', id)}>
   <time datetime={date}>{date}</time>
   <span class="item">
     <span aria-hidden="true">·</span>

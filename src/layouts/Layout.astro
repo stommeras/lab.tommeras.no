@@ -92,6 +92,43 @@ const source = slug ? `${repo}/tree/main/src/experiments/${slug}` : repo;
     --peach: light-dark(#a2561c, #f3c29a);
   }
 
+  @media (prefers-reduced-motion: no-preference) {
+    @view-transition {
+      navigation: auto;
+    }
+  }
+
+  ::view-transition-group(.shared-entry) {
+    animation-duration: 0.4s;
+  }
+
+  ::view-transition {
+    background: var(--bg);
+  }
+
+  ::view-transition-old(root),
+  ::view-transition-old(.shared-entry):only-child {
+    animation: 0.15s ease-in both vt-fade-out;
+  }
+
+  ::view-transition-new(root),
+  ::view-transition-new(.shared-entry):only-child {
+    animation: 0.25s ease-out 0.25s both vt-fade-in;
+  }
+
+  @keyframes vt-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes vt-fade-in {
+    from {
+      opacity: 0;
+      translate: 0 8px;
+    }
+  }
+
   :focus-visible {
     outline: 2px solid var(--fg);
     outline-offset: 2px;
@@ -99,6 +136,7 @@ const source = slug ? `${repo}/tree/main/src/experiments/${slug}` : repo;
 
   html {
     background: var(--bg);
+    scrollbar-gutter: stable;
   }
 
   body {
@@ -158,6 +196,7 @@ const source = slug ? `${repo}/tree/main/src/experiments/${slug}` : repo;
     justify-content: space-between;
     align-items: baseline;
     gap: 0 24px;
+    view-transition-name: site-header;
   }
 
   .source {
