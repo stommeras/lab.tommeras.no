@@ -1,0 +1,664 @@
+---
+// must match W and H in life.zig. JS reads the real size from the wasm exports
+const width = 256;
+const height = 192;
+
+// id is the pattern's index in patterns in life.zig
+const patterns = [
+  { id: 0, label: 'Glider' },
+  { id: 1, label: 'Gosper-kanon' },
+  { id: 2, label: 'R-pentomino' },
+];
+
+const defaultSpeed = 30;
+
+const icon = {
+  xmlns: 'http://www.w3.org/2000/svg',
+  width: 18,
+  height: 18,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  'stroke-width': 2,
+  'stroke-linecap': 'round',
+  'stroke-linejoin': 'round',
+  'aria-hidden': 'true',
+} as const;
+const playPath = 'M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z';
+---
+
+<div class="demo">
+  <div class="canvas-frame">
+    <canvas class="canvas" width={width} height={height} role="img" aria-label="Rutenett for Livets spill"></canvas>
+    <button type="button" class="button start-button">
+      <svg {...icon}>
+        <path d={playPath} />
+      </svg>
+      Start
+    </button>
+  </div>
+  <p class="stats">
+    <output class="generation" aria-live="off">
+      Generasjon: 0
+    </output>
+    <output class="population" aria-live="off">
+      Levende: 0
+    </output>
+  </p>
+  <div class="controls playback">
+    <div class="button-group">
+      <button type="button" class="button play-button">
+        <svg {...icon} data-icon="play">
+          <path d={playPath} />
+        </svg>
+        <svg {...icon} data-icon="pause">
+          <rect x="14" y="3" width="5" height="18" rx="1" />
+          <rect x="5" y="3" width="5" height="18" rx="1" />
+        </svg>
+        <span class="play-label">Start</span>
+      </button>
+      <button type="button" class="button step-button">
+        <svg {...icon}>
+          <path d="M21 4v16" />
+          <path d="M6.029 4.285A2 2 0 0 0 3 6v12a2 2 0 0 0 3.029 1.715l9.997-5.998a2 2 0 0 0 .003-3.432z" />
+        </svg>
+        Steg
+      </button>
+    </div>
+    <div class="speed">
+      <label class="speed-label" for="life-speed">
+        Fart
+      </label>
+      <input
+        type="range"
+        id="life-speed"
+        class="speed-input"
+        min="1"
+        max="60"
+        value={defaultSpeed}
+        aria-valuetext={`${defaultSpeed} generasjoner per sekund`}
+      />
+      <output class="speed-value" for="life-speed" aria-hidden="true">
+        {defaultSpeed} per sekund
+      </output>
+    </div>
+  </div>
+  <div class="controls groups">
+    <div class="control-group" role="group" aria-labelledby="life-patterns-title">
+      <p class="group-title" id="life-patterns-title">
+        Sett inn mønster
+      </p>
+      <div class="button-group">
+        {patterns.map(({ id, label }) => (
+          <button type="button" class="button pattern-button" data-pattern={id}>
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+    <div class="control-group board-buttons" role="group" aria-labelledby="life-board-title">
+      <p class="group-title" id="life-board-title">
+        Hele rutenettet
+      </p>
+      <div class="button-group">
+        <button type="button" class="button randomize-button">
+          <svg {...icon}>
+            <rect width="12" height="12" x="2" y="10" rx="2" ry="2" />
+            <path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6" />
+            <path d="M6 18h.01" />
+            <path d="M10 14h.01" />
+            <path d="M15 6h.01" />
+            <path d="M18 9h.01" />
+          </svg>
+          Tilfeldig
+        </button>
+        <!-- The same broom as Tøm in sand/Demo.astro -->
+        <button type="button" class="button clear-button">
+          <svg {...icon}>
+            <path d="m16 22-1-4" />
+            <path d="M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1" />
+            <path d="M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z" />
+            <path d="m8 22 1-4" />
+          </svg>
+          Tøm
+        </button>
+      </div>
+    </div>
+  </div>
+  <p class="hint">
+    Klikk eller dra på rutenettet for å tegne. Starter du på en levende celle, visker du ut. Mønstrene havner der du
+    sist klikket.
+  </p>
+  <div hidden>
+    <span class="swatch swatch-alive"></span>
+    <span class="swatch swatch-dying"></span>
+    <span class="swatch swatch-dead"></span>
+  </div>
+</div>
+
+<script>
+  import wasmUrl from './life.wasm?url';
+  import { toRgba } from '../../lib/color';
+
+  type LifeExports = {
+    memory: WebAssembly.Memory;
+    seed: (s: number) => void;
+    randomize: (density: number) => void;
+    step: () => void;
+    paint: () => void;
+    setPalette: (alive: number, dying: number, dead: number) => void;
+    set: (x: number, y: number, alive: boolean) => void;
+    // wasm returns a bool as 0 or 1
+    toggle: (x: number, y: number) => number;
+    stamp: (pattern: number, x: number, y: number) => void;
+    clear: () => void;
+    generation: () => number;
+    population: () => number;
+    pixelsPtr: () => number;
+    width: () => number;
+    height: () => number;
+  };
+
+  type Sim = {
+    life: LifeExports;
+    image: ImageData;
+  };
+
+  type Cell = { x: number; y: number };
+
+  // Share of cells that start alive, also used by Tilfeldig
+  const DENSITY = 0.25;
+  // Step cap per frame, so a tab that comes back from the background doesn't run a burst of catch-up generations
+  const MAX_STEPS_PER_FRAME = 4;
+  // A step due within this many milliseconds runs now. Browsers round frame timestamps, so a step that
+  // falls on a frame boundary would otherwise slip a frame at random. pending can go slightly negative and pays it back
+  const SLACK_MS = 1;
+
+  const canvas = document.querySelector<HTMLCanvasElement>('.demo .canvas')!;
+  const startButton = document.querySelector<HTMLButtonElement>('.demo .start-button')!;
+  const playButton = document.querySelector<HTMLButtonElement>('.demo .play-button')!;
+  const playLabel = document.querySelector<HTMLElement>('.demo .play-label')!;
+  const stepButton = document.querySelector<HTMLButtonElement>('.demo .step-button')!;
+  const speedInput = document.querySelector<HTMLInputElement>('.demo .speed-input')!;
+  const speedValue = document.querySelector<HTMLOutputElement>('.demo .speed-value')!;
+  const patternButtons = document.querySelectorAll<HTMLButtonElement>('.demo .pattern-button');
+  const randomizeButton = document.querySelector<HTMLButtonElement>('.demo .randomize-button')!;
+  const clearButton = document.querySelector<HTMLButtonElement>('.demo .clear-button')!;
+  const generationOutput = document.querySelector<HTMLOutputElement>('.demo .generation')!;
+  const populationOutput = document.querySelector<HTMLOutputElement>('.demo .population')!;
+  const swatches = [
+    document.querySelector<HTMLElement>('.demo .swatch-alive')!,
+    document.querySelector<HTMLElement>('.demo .swatch-dying')!,
+    document.querySelector<HTMLElement>('.demo .swatch-dead')!,
+  ] as const;
+  const darkScheme = matchMedia('(prefers-color-scheme: dark)');
+  const ctx = canvas.getContext('2d')!;
+  const numberFormat = new Intl.NumberFormat('nb-NO');
+
+  let loading: Promise<Sim> | undefined;
+  let sim: Sim | undefined;
+  let running = false;
+  let rafId = 0;
+  let speed = Number(speedInput.value);
+  let lastFrame: number | undefined;
+  let pending = 0;
+  let lastClicked: Cell | undefined;
+  let drawingPointer: number | undefined;
+  let pointerCell: Cell | undefined;
+  let drawAlive = true;
+
+  // Packs a swatch's computed color as 0xAABBGGRR, the byte order wasm writes pixels in
+  function swatchColor(el: HTMLElement): number {
+    const [r, g, b, a] = toRgba(getComputedStyle(el).color);
+    return ((a << 24) | (b << 16) | (g << 8) | r) >>> 0;
+  }
+
+  function applyPalette(life: LifeExports) {
+    const [alive, dying, dead] = swatches;
+    life.setPalette(swatchColor(alive), swatchColor(dying), swatchColor(dead));
+  }
+
+  async function instantiate(): Promise<Sim> {
+    const { instance } = await WebAssembly.instantiateStreaming(fetch(wasmUrl));
+    const life = instance.exports as unknown as LifeExports;
+
+    const w = life.width();
+    const h = life.height();
+    canvas.width = w;
+    canvas.height = h;
+
+    // A view straight into wasm memory. Create it after instantiating, and
+    // keep memory from growing, or the view detaches
+    const bytes = new Uint8ClampedArray(life.memory.buffer, life.pixelsPtr(), w * h * 4);
+    const image = new ImageData(bytes, w, h);
+
+    life.seed(crypto.getRandomValues(new Uint32Array(1))[0]!);
+    applyPalette(life);
+    life.randomize(DENSITY);
+
+    return { life, image };
+  }
+
+  // Every control loads the wasm on first use, and later calls reuse the same promise
+  function load(): Promise<Sim> {
+    loading ??= instantiate()
+      .then((loaded) => {
+        sim = loaded;
+        // Hiding a focused button drops focus to <body>, so hand it to the play button
+        if (document.activeElement === startButton) playButton.focus();
+        startButton.hidden = true;
+        canvas.classList.add('loaded');
+        draw(loaded);
+        return loaded;
+      })
+      .catch((err: unknown) => {
+        loading = undefined;
+        startButton.disabled = false;
+        throw err;
+      });
+    return loading;
+  }
+
+  function draw({ life, image }: Sim) {
+    ctx.putImageData(image, 0, 0);
+    generationOutput.textContent = `Generasjon: ${numberFormat.format(life.generation())}`;
+    populationOutput.textContent = `Levende: ${numberFormat.format(life.population())}`;
+    populationOutput.hidden = false;
+  }
+
+  // Steps by elapsed time instead of once per frame, so the speed doesn't depend on the screen's refresh rate
+  function tick(now: number) {
+    if (!sim || !running) return;
+    const stepMs = 1000 / speed;
+    // Clamped, so a tab coming back from the background or a jump to a higher speed runs at most a few steps
+    pending = Math.min(pending + now - (lastFrame ?? now), MAX_STEPS_PER_FRAME * stepMs);
+    lastFrame = now;
+    let steps = 0;
+    for (; pending >= stepMs - SLACK_MS && steps < MAX_STEPS_PER_FRAME; steps++) {
+      sim.life.step();
+      pending -= stepMs;
+    }
+    if (steps > 0) draw(sim);
+    rafId = requestAnimationFrame(tick);
+  }
+
+  async function play() {
+    await load();
+    if (running) return;
+    running = true;
+    lastFrame = undefined;
+    // One step's worth, so the first generation shows on the first frame, even at the slowest speed
+    pending = 1000 / speed;
+    rafId = requestAnimationFrame(tick);
+    updateControls();
+  }
+
+  function pause() {
+    if (!running) return;
+    running = false;
+    cancelAnimationFrame(rafId);
+    updateControls();
+  }
+
+  async function stepOnce() {
+    const loaded = await load();
+    if (running) return;
+    loaded.life.step();
+    draw(loaded);
+  }
+
+  // getBoundingClientRect includes the border, so step past it with clientLeft and clientTop, and scale by
+  // the size inside the border. clientWidth is rounded to whole pixels, so take the size from the rect, which
+  // works because the border is the same on every side. The result can fall outside the grid, and the wasm
+  // ignores those cells
+  function toCell(event: PointerEvent): Cell {
+    const rect = canvas.getBoundingClientRect();
+    const contentWidth = rect.width - 2 * canvas.clientLeft;
+    const contentHeight = rect.height - 2 * canvas.clientTop;
+    return {
+      x: Math.floor(((event.clientX - rect.left - canvas.clientLeft) / contentWidth) * canvas.width),
+      y: Math.floor(((event.clientY - rect.top - canvas.clientTop) / contentHeight) * canvas.height),
+    };
+  }
+
+  // Bresenham's line, so a fast drag that skips cells between pointer events leaves no gaps
+  function drawLine(life: LifeExports, from: Cell, to: Cell, alive: boolean) {
+    const dx = Math.abs(to.x - from.x);
+    const dy = -Math.abs(to.y - from.y);
+    const sx = from.x < to.x ? 1 : -1;
+    const sy = from.y < to.y ? 1 : -1;
+    let { x, y } = from;
+    let err = dx + dy;
+    for (;;) {
+      life.set(x, y, alive);
+      if (x === to.x && y === to.y) return;
+      const e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        x += sx;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        y += sy;
+      }
+    }
+  }
+
+  function startDrawing(loaded: Sim, cell: Cell) {
+    drawAlive = loaded.life.toggle(cell.x, cell.y) === 1;
+    draw(loaded);
+  }
+
+  function continueDrawing(cell: Cell) {
+    if (!sim || !pointerCell) return;
+    if (cell.x === pointerCell.x && cell.y === pointerCell.y) return;
+    drawLine(sim.life, pointerCell, cell, drawAlive);
+    pointerCell = cell;
+    draw(sim);
+  }
+
+  async function stampPattern(pattern: number) {
+    const loaded = await load();
+    const { life } = loaded;
+    const target = lastClicked ?? { x: Math.floor(life.width() / 2), y: Math.floor(life.height() / 2) };
+    life.stamp(pattern, target.x, target.y);
+    draw(loaded);
+  }
+
+  async function randomizeGrid() {
+    const loaded = await load();
+    loaded.life.randomize(DENSITY);
+    draw(loaded);
+  }
+
+  async function clearGrid() {
+    const loaded = await load();
+    loaded.life.clear();
+    if (running) pause();
+    draw(loaded);
+  }
+
+  function updateControls() {
+    playLabel.textContent = running ? 'Pause' : 'Start';
+    playButton.classList.toggle('running', running);
+    stepButton.disabled = running;
+  }
+
+  function updateSpeed() {
+    speed = Number(speedInput.value);
+    speedValue.textContent = `${speed} per sekund`;
+    speedInput.setAttribute('aria-valuetext', `${speed} ${speed === 1 ? 'generasjon' : 'generasjoner'} per sekund`);
+  }
+
+  function showError(err: unknown) {
+    console.error(err);
+    generationOutput.textContent = 'Klarte ikke å laste WebAssembly';
+    populationOutput.hidden = true;
+  }
+
+  startButton.addEventListener('click', () => {
+    startButton.disabled = true;
+    play().catch(showError);
+  });
+  playButton.addEventListener('click', () => {
+    if (running) pause();
+    else play().catch(showError);
+  });
+  stepButton.addEventListener('click', () => {
+    stepOnce().catch(showError);
+  });
+  // The loop reads speed on every frame, so a change takes effect at once
+  speedInput.addEventListener('input', updateSpeed);
+  // A browser can restore the slider's value on a reload, so match the text to it
+  updateSpeed();
+  for (const button of patternButtons) {
+    button.addEventListener('click', () => {
+      stampPattern(Number(button.dataset.pattern)).catch(showError);
+    });
+  }
+  randomizeButton.addEventListener('click', () => {
+    randomizeGrid().catch(showError);
+  });
+  clearButton.addEventListener('click', () => {
+    clearGrid().catch(showError);
+  });
+
+  canvas.addEventListener('pointerdown', (event) => {
+    // Only the Start button loads the wasm, so the canvas does nothing until then
+    if (!sim) return;
+    // One drag at a time
+    if (drawingPointer !== undefined) return;
+    // Only the main button, so a right click still opens the context menu
+    if (event.button !== 0) return;
+    const cell = toCell(event);
+    // A press on the border lands outside the grid
+    if (cell.x < 0 || cell.y < 0 || cell.x >= canvas.width || cell.y >= canvas.height) return;
+    canvas.setPointerCapture(event.pointerId);
+    drawingPointer = event.pointerId;
+    pointerCell = cell;
+    lastClicked = cell;
+    startDrawing(sim, cell);
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== drawingPointer) return;
+    continueDrawing(toCell(event));
+  });
+  const stopDrawing = (event: PointerEvent) => {
+    if (event.pointerId !== drawingPointer) return;
+    drawingPointer = undefined;
+    pointerCell = undefined;
+  };
+  canvas.addEventListener('pointerup', stopDrawing);
+  canvas.addEventListener('pointercancel', stopDrawing);
+  // The tokens use light-dark(), so the colors change with the system theme
+  darkScheme.addEventListener('change', () => {
+    if (!sim) return;
+    applyPalette(sim.life);
+    sim.life.paint();
+    draw(sim);
+  });
+</script>
+
+<style>
+  .demo {
+    margin: 32px 0 48px;
+  }
+
+  .canvas-frame {
+    position: relative;
+  }
+
+  .canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    background: var(--surface);
+    border: 2px solid var(--pink);
+  }
+
+  /* Drawing starts once the wasm has loaded. From then on, dragging on a touch screen draws instead of
+     scrolling the page, and before that a swipe still scrolls */
+  .canvas.loaded {
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  /* Matches the buttons in sand/Demo.astro */
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+
+  /* An icon has empty space around its strokes, so the icon side gets less padding, like in sand */
+  .button:has(svg) {
+    padding-left: 12px;
+  }
+
+  .button:hover:not(:disabled) {
+    border-color: var(--pink);
+  }
+
+  /* Without the surface background the button sinks into the page, so it reads as off, not only as gray text */
+  .button:disabled {
+    background: transparent;
+    color: var(--muted);
+    cursor: default;
+  }
+
+  /* The display rules here would otherwise win over the hidden attribute */
+  .demo [hidden] {
+    display: none;
+  }
+
+  .play-button [data-icon='pause'],
+  .play-button.running [data-icon='play'] {
+    display: none;
+  }
+
+  .play-button.running [data-icon='pause'] {
+    display: block;
+  }
+
+  .start-button {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: fit-content;
+    height: fit-content;
+  }
+
+  .stats,
+  .speed-label,
+  .speed-value,
+  .group-title,
+  .hint {
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .stats,
+  .speed-value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 24px;
+    margin-top: 8px;
+  }
+
+  /* Room for a five-digit generation, so Levende doesn't move when the count gains a digit */
+  .generation {
+    min-width: 18ch;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    align-items: center;
+  }
+
+  .playback {
+    margin-top: 8px;
+  }
+
+  .groups {
+    align-items: flex-start;
+    margin-top: 24px;
+  }
+
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* min-width 0 here and on the slider lets the slider shrink below its default width, so the row fits a 320px screen */
+  .speed {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .speed-input {
+    flex: 1 1 160px;
+    min-width: 0;
+    max-width: 240px;
+    min-height: 44px;
+    accent-color: var(--pink);
+    cursor: pointer;
+  }
+
+  /* Room for the longest value, 60 per sekund */
+  .speed-value {
+    min-width: 13ch;
+  }
+
+  .group-title {
+    margin: 0 0 6px;
+  }
+
+  .board-buttons {
+    margin-left: auto;
+  }
+
+  .hint {
+    margin: 16px 0 0;
+  }
+
+  /* On a phone the groups take a row each, and the buttons sit in two equal columns that line up with the canvas edges */
+  @media (max-width: 600px) {
+    .control-group,
+    .playback .button-group {
+      flex: 1 1 100%;
+    }
+
+    .board-buttons {
+      margin-left: 0;
+    }
+
+    .button-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* Less padding keeps Gosper-kanon on one line in a column at 320px */
+    .button-group .button {
+      padding: 0 12px;
+      white-space: nowrap;
+    }
+  }
+
+  /* Forced colors would turn every swatch into the same system color, and the canvas pixels aren't forced */
+  .swatch {
+    forced-color-adjust: none;
+  }
+
+  /* Alive matches the canvas border, and dead matches the canvas background */
+  .swatch-alive {
+    color: var(--pink);
+  }
+
+  /* Mixed toward the background, so a cell that just died is lighter or darker than a live one, not only another hue */
+  .swatch-dying {
+    color: color-mix(in oklch, var(--lavender) 55%, var(--surface));
+  }
+
+  .swatch-dead {
+    color: var(--surface);
+  }
+</style>
