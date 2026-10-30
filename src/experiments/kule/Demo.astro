@@ -6,7 +6,15 @@ const count = 200;
   <p class="loading">Laster …</p>
 </div>
 <div class="controls" hidden>
-  <input type="range" min="10" max="1000" step="10" value={count} aria-label="Antall punkter" aria-valuetext={`${count} punkter`} />
+  <input
+    type="range"
+    min="10"
+    max="1000"
+    step="10"
+    value={count}
+    aria-label="Antall punkter"
+    aria-valuetext={`${count} punkter`}
+  />
   <!-- Hidden from screen readers: an output is a live region and would read every step on top of the slider -->
   <output aria-hidden="true">{count} punkter</output>
   <div class="layout">

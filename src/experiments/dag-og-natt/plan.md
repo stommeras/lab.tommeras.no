@@ -56,6 +56,7 @@ Cabin and trees:
 - A low-poly spruce is a few stacked tiers, each split into a left and a right triangle. Draw two or three variants and place the rest with `Alt+D`. Inkscape saves clones as `<use>`, which the shadows need anyway.
 
 Cleanup:
+
 - Export as Plain SVG. If SVGO runs on it, turn off `mergePaths` and `cleanupIds`, since the defaults merge the faces into one path and strip the ids.
 - After export: remove every `fill`, give each face a class and a `--face` value (see Light), and paste it inline in `Demo.astro`.
 - Neighboring triangles show hairline seams from anti-aliasing. Fix with a thin stroke in the same color as the fill, `stroke: var(--fill); stroke-width: 0.5`.
