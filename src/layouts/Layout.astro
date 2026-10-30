@@ -5,9 +5,10 @@ import '../styles/reset.css';
 interface Props {
   title?: string;
   description?: string;
+  slug?: string;
 }
 
-const { title = 'Lab | Tømmerås', description = 'Eksperimenter av Steffen Tømmerås.' } = Astro.props;
+const { title = 'Lab | Tømmerås', description = 'Eksperimenter av Steffen Tømmerås.', slug } = Astro.props;
 
 // A path like tommeras.no / lab / sirkel, built from the URL. The last part is the current page.
 const parts = Astro.url.pathname.split('/').filter(Boolean);
@@ -16,6 +17,9 @@ const crumbs = [
   { label: 'lab', href: '/' },
   ...parts.map((part, i) => ({ label: part, href: `/${parts.slice(0, i + 1).join('/')}/` })),
 ];
+
+const repo = 'https://github.com/stommeras/lab.tommeras.no';
+const source = slug ? `${repo}/tree/main/src/experiments/${slug}` : repo;
 ---
 
 <!doctype html>
@@ -39,12 +43,37 @@ const crumbs = [
           ))}
         </ol>
       </nav>
+      <a class="source" href={source}>
+        kildekode
+      </a>
     </header>
     <main>
       <slot />
     </main>
   </body>
 </html>
+
+<script>
+  const source = document.querySelector<HTMLAnchorElement>('header .source')!.href.replace('https://', '');
+  const lines = [
+    '',
+    'Velkommen, utvikler!',
+    '',
+    'Nettsiden er designet og laget av',
+    'Steffen Tømmerås',
+    '',
+    'Se kildekoden på:',
+    source,
+    '',
+  ];
+  const padding = 5;
+  const width = Math.max(...lines.map((line) => line.length)) + 2 * padding;
+  const center = (line: string) => {
+    const left = Math.floor((width - line.length) / 2);
+    return `║${' '.repeat(left)}${line}${' '.repeat(width - line.length - left)}║`;
+  };
+  console.log(['', `╔${'═'.repeat(width)}╗`, ...lines.map(center), `╚${'═'.repeat(width)}╝`, ''].join('\n'));
+</script>
 
 <style is:global>
   /* Copied from src/layouts/Layout.astro in tommeras.no. Update both when one changes. */
@@ -121,6 +150,22 @@ const crumbs = [
     max-width: 792px;
     margin: 0 auto;
     padding: 24px 16px;
+  }
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0 24px;
+  }
+
+  .source {
+    font-size: 0.9375rem;
+  }
+
+  .source::after {
+    content: ' ↗' / '';
   }
 
   ol {

@@ -1,0 +1,103 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import { STATUS_COLORS, TAGS, type Tag } from '../content.config';
+
+interface Props {
+  data: CollectionEntry<'experiments'>['data'];
+}
+
+const { data } = Astro.props;
+const date = data.date.toISOString().slice(0, 10);
+
+const LAVENDER_HUE = 288;
+const tagHue = (tag: Tag) => (LAVENDER_HUE + (360 / TAGS.length) * TAGS.indexOf(tag)) % 360;
+---
+
+<p class="meta">
+  <time datetime={date}>{date}</time>
+  <span class="item">
+    <span aria-hidden="true">·</span>
+    <span style={{ color: STATUS_COLORS[data.status] }}>{data.status}</span>
+  </span>
+  <span class="item">
+    <span aria-hidden="true">·</span>
+    <span class="language">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="1em"
+        height="1em"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="m18 16 4-4-4-4" />
+        <path d="m6 8-4 4 4 4" />
+        <path d="m14.5 4-5 16" />
+      </svg>
+      {data.language}
+    </span>
+  </span>
+  <span class="tags">
+    {data.tags.map((tag) => (
+      <span class="tag" style={{ '--hue': tagHue(tag) }}>
+        {tag}
+      </span>
+    ))}
+  </span>
+</p>
+
+<style>
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 8px;
+    color: var(--muted);
+    font-size: 0.9375rem;
+    justify-self: stretch;
+  }
+
+  .item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    white-space: nowrap;
+  }
+
+  .language {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    color: var(--fg);
+  }
+
+  .language svg {
+    align-self: center;
+    color: var(--muted);
+  }
+
+  .tags {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    margin-left: auto;
+  }
+
+  @media (max-width: 600px) {
+    .tags {
+      margin-left: 0;
+    }
+  }
+
+  .tag {
+    padding: 0 8px;
+    border: 1px solid color-mix(in oklch, currentColor 35%, transparent);
+    border-radius: 999px;
+    color: light-dark(oklch(48% 0.12 var(--hue)), oklch(82% 0.09 var(--hue)));
+    line-height: 1.4;
+  }
+</style>
