@@ -6,10 +6,13 @@ const height = 192;
 
 <div class="demo">
   <div class="canvas-frame">
-    <canvas class="canvas" width={width} height={height} role="img" aria-label="Rutenett for Livets Spill"></canvas>
-    <button type="button" class="start-button">
-      Start
-    </button>
+    <canvas class="canvas" width={width} height={height} role="img" aria-label="Rutenett for Livets spill"></canvas>
+    <button type="button" class="button start-button">Start</button>
+  </div>
+  <div class="controls">
+    <button type="button" class="button play-button">Start</button>
+    <button type="button" class="button step-button">Steg</button>
+    <output class="generation" aria-live="off">Generasjon: 0</output>
   </div>
 </div>
 
@@ -20,44 +23,124 @@ const height = 192;
     memory: WebAssembly.Memory;
     seed: (s: number) => void;
     randomize: (density: number) => void;
+    step: () => void;
+    generation: () => number;
     pixelsPtr: () => number;
     width: () => number;
     height: () => number;
   };
 
+  type Sim = {
+    life: LifeExports;
+    image: ImageData;
+  };
+
   const canvas = document.querySelector<HTMLCanvasElement>('.demo .canvas')!;
   const startButton = document.querySelector<HTMLButtonElement>('.demo .start-button')!;
+  const playButton = document.querySelector<HTMLButtonElement>('.demo .play-button')!;
+  const stepButton = document.querySelector<HTMLButtonElement>('.demo .step-button')!;
+  const generationOutput = document.querySelector<HTMLOutputElement>('.demo .generation')!;
   const ctx = canvas.getContext('2d')!;
 
-  async function loadLife(): Promise<LifeExports> {
+  let loading: Promise<Sim> | undefined;
+  let sim: Sim | undefined;
+  let running = false;
+  let rafId = 0;
+
+  async function instantiate(): Promise<Sim> {
     const { instance } = await WebAssembly.instantiateStreaming(fetch(wasmUrl));
-    return instance.exports as unknown as LifeExports;
+    const life = instance.exports as unknown as LifeExports;
+
+    const w = life.width();
+    const h = life.height();
+    canvas.width = w;
+    canvas.height = h;
+
+    // A view straight into wasm memory. Create it after instantiating, and
+    // keep memory from growing, or the view detaches
+    const bytes = new Uint8ClampedArray(life.memory.buffer, life.pixelsPtr(), w * h * 4);
+    const image = new ImageData(bytes, w, h);
+
+    life.seed(crypto.getRandomValues(new Uint32Array(1))[0]!);
+    life.randomize(0.25);
+
+    return { life, image };
   }
 
-  startButton.addEventListener(
-    'click',
-    async () => {
-      startButton.disabled = true;
-      const life = await loadLife();
+  // Every control loads the wasm on first use, and later calls reuse the same promise
+  function load(): Promise<Sim> {
+    loading ??= instantiate()
+      .then((loaded) => {
+        sim = loaded;
+        // Hiding a focused button drops focus to <body>, so hand it to the play button
+        if (document.activeElement === startButton) playButton.focus();
+        startButton.hidden = true;
+        draw(loaded);
+        return loaded;
+      })
+      .catch((err: unknown) => {
+        loading = undefined;
+        startButton.disabled = false;
+        throw err;
+      });
+    return loading;
+  }
 
-      const w = life.width();
-      const h = life.height();
-      canvas.width = w;
-      canvas.height = h;
+  function draw({ life, image }: Sim) {
+    ctx.putImageData(image, 0, 0);
+    generationOutput.textContent = `Generasjon: ${life.generation()}`;
+  }
 
-      const bytes = new Uint8ClampedArray(life.memory.buffer, life.pixelsPtr(), w * h * 4);
-      const image = new ImageData(bytes, w, h);
+  function tick() {
+    if (!sim || !running) return;
+    sim.life.step();
+    draw(sim);
+    rafId = requestAnimationFrame(tick);
+  }
 
-      life.seed(crypto.getRandomValues(new Uint32Array(1))[0]!);
-      life.randomize(0.25);
-      ctx.putImageData(image, 0, 0);
+  async function play() {
+    await load();
+    if (running) return;
+    running = true;
+    rafId = requestAnimationFrame(tick);
+    updateControls();
+  }
 
-      startButton.hidden = true;
-    },
-    {
-      once: true,
-    },
-  );
+  function pause() {
+    if (!running) return;
+    running = false;
+    cancelAnimationFrame(rafId);
+    updateControls();
+  }
+
+  async function stepOnce() {
+    const loaded = await load();
+    if (running) return;
+    loaded.life.step();
+    draw(loaded);
+  }
+
+  function updateControls() {
+    playButton.textContent = running ? 'Pause' : 'Start';
+    stepButton.disabled = running;
+  }
+
+  function showError(err: unknown) {
+    console.error(err);
+    generationOutput.textContent = 'Klarte ikke å laste WebAssembly';
+  }
+
+  startButton.addEventListener('click', () => {
+    startButton.disabled = true;
+    play().catch(showError);
+  });
+  playButton.addEventListener('click', () => {
+    if (running) pause();
+    else play().catch(showError);
+  });
+  stepButton.addEventListener('click', () => {
+    stepOnce().catch(showError);
+  });
 </script>
 
 <style>
@@ -84,5 +167,18 @@ const height = 192;
     margin: auto;
     width: fit-content;
     height: fit-content;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-top: 12px;
+  }
+
+  .generation {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
 </style>

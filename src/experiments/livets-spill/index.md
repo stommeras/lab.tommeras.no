@@ -7,8 +7,8 @@ tags: [Simulering, WebAssembly]
 summary: Conways Livets spill skrevet i Zig og kompilert til WebAssembly, uten glue-kode fra en generator.
 ---
 
-Planen er å skrive Conways Livets spill i Zig og kjøre det i nettleseren som WebAssembly. Reglene får plass på ti linjer, så det meste av arbeidet går med til å lære Zig og hvordan JavaScript og WebAssembly snakker sammen: lineært minne, exports og piksler som tegnes rett fra en peker.
+Conways Livets spill skrevet i Zig og kompilert til WebAssembly. Rutenettet er 256 × 192 celler, og kantene henger sammen, så en glider som forsvinner ut til høyre kommer inn igjen fra venstre. Trykk Start for å kjøre, eller Steg for å gå én generasjon om gangen.
 
-Celler som dør, skal falme ut over noen generasjoner i stedet for å forsvinne med en gang, så du ser sporene etter mønstrene.
+Zig eier rutenettet og skriver én piksel per celle rett inn i minnet. JavaScript får en peker til pikslene og tegner dem på canvas. Det er ingen glue-kode i mellom, bare noen få exports.
 
-Ikke bygget enda.
+Neste steg er celler som falmer ut over noen generasjoner i stedet for å forsvinne med en gang, og knapper for å tegne og plassere mønstre.

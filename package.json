@@ -7,7 +7,8 @@
     "build": "astro check && astro build",
     "preview": "astro preview",
     "format": "prettier --write .",
-    "build:wasm:life": "zig build-exe src/experiments/livets-spill/life.zig -target wasm32-freestanding -O ReleaseSmall -fno-entry -rdynamic -femit-bin=src/experiments/livets-spill/life.wasm"
+    "build:wasm:life": "zig build-exe src/experiments/livets-spill/life.zig -target wasm32-freestanding -O ReleaseSmall -fno-entry -rdynamic -femit-bin=src/experiments/livets-spill/life.wasm",
+    "test:life": "zig test src/experiments/livets-spill/life.zig"
   },
   "dependencies": {
     "astro": "^7.4.2",
