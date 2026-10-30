@@ -13,4 +13,8 @@ Zig eier rutenettet og skriver én piksel per celle rett inn i minnet. JavaScrip
 
 Celler som dør, forsvinner ikke med en gang. De falmer til bakgrunnsfargen over sju generasjoner, så du ser sporene etter det som har levd.
 
-Neste steg er knapper for å tegne og plassere mønstre.
+En glider er fem celler som flytter seg ett hakk på skrå hver fjerde generasjon. Gosper-kanonen står i ro og skyter ut en ny glider hver 30. generasjon. Kantene henger sammen, så gliderne kan komme rundt og treffe kanonen igjen. R-pentominoen er også bare fem celler, men den holder på i over tusen generasjoner før den roer seg.
+
+Tegningen fungerer best på desktop, for på mobil er cellene for små til å treffe.
+
+Neste steg er en slider for farten.

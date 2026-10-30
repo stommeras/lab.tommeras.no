@@ -2,6 +2,13 @@
 // must match W and H in life.zig. JS reads the real size from the wasm exports
 const width = 256;
 const height = 192;
+
+// id is the pattern's index in patterns in life.zig
+const patterns = [
+  { id: 0, label: 'Glider' },
+  { id: 1, label: 'Gosper-kanon' },
+  { id: 2, label: 'R-pentomino' },
+];
 ---
 
 <div class="demo">
@@ -14,6 +21,31 @@ const height = 192;
     <button type="button" class="button step-button">Steg</button>
     <output class="generation" aria-live="off">Generasjon: 0</output>
   </div>
+  <div class="controls groups">
+    <div class="control-group" role="group" aria-labelledby="life-patterns-title">
+      <p class="group-title" id="life-patterns-title">Sett inn mønster</p>
+      <div class="button-group">
+        {
+          patterns.map(({ id, label }) => (
+            <button type="button" class="button pattern-button" data-pattern={id}>
+              {label}
+            </button>
+          ))
+        }
+      </div>
+    </div>
+    <div class="control-group board-buttons" role="group" aria-labelledby="life-board-title">
+      <p class="group-title" id="life-board-title">Hele rutenettet</p>
+      <div class="button-group">
+        <button type="button" class="button randomize-button">Tilfeldig</button>
+        <button type="button" class="button clear-button">Tøm</button>
+      </div>
+    </div>
+  </div>
+  <p class="hint">
+    Klikk eller dra på rutenettet for å tegne. Starter du på en levende celle, visker du ut. Mønstrene havner der du
+    sist klikket.
+  </p>
   <!-- JS reads the grid colors from the theme tokens through these swatches -->
   <div hidden>
     <span class="swatch swatch-alive"></span>
@@ -33,6 +65,11 @@ const height = 192;
     step: () => void;
     paint: () => void;
     setPalette: (alive: number, dying: number, dead: number) => void;
+    set: (x: number, y: number, alive: boolean) => void;
+    // wasm returns a bool as 0 or 1
+    toggle: (x: number, y: number) => number;
+    stamp: (pattern: number, x: number, y: number) => void;
+    clear: () => void;
     generation: () => number;
     pixelsPtr: () => number;
     width: () => number;
@@ -44,10 +81,18 @@ const height = 192;
     image: ImageData;
   };
 
+  type Cell = { x: number; y: number };
+
+  // Share of cells that start alive, also used by Tilfeldig
+  const DENSITY = 0.25;
+
   const canvas = document.querySelector<HTMLCanvasElement>('.demo .canvas')!;
   const startButton = document.querySelector<HTMLButtonElement>('.demo .start-button')!;
   const playButton = document.querySelector<HTMLButtonElement>('.demo .play-button')!;
   const stepButton = document.querySelector<HTMLButtonElement>('.demo .step-button')!;
+  const patternButtons = document.querySelectorAll<HTMLButtonElement>('.demo .pattern-button');
+  const randomizeButton = document.querySelector<HTMLButtonElement>('.demo .randomize-button')!;
+  const clearButton = document.querySelector<HTMLButtonElement>('.demo .clear-button')!;
   const generationOutput = document.querySelector<HTMLOutputElement>('.demo .generation')!;
   const swatches = [
     document.querySelector<HTMLElement>('.demo .swatch-alive')!,
@@ -61,6 +106,14 @@ const height = 192;
   let sim: Sim | undefined;
   let running = false;
   let rafId = 0;
+  // Where patterns are stamped. Undefined until the visitor clicks the canvas
+  let lastClicked: Cell | undefined;
+  // The pointer that is drawing. A drag follows only this one, so a second finger or the mouse can't join in
+  let drawingPointer: number | undefined;
+  // The cell under the pointer while drawing, undefined when the pointer is up
+  let pointerCell: Cell | undefined;
+  // What a drag writes: the state the first cell was toggled to
+  let drawAlive = true;
 
   // Packs a swatch's computed color as 0xAABBGGRR, the byte order wasm writes pixels in
   function swatchColor(el: HTMLElement): number {
@@ -89,7 +142,7 @@ const height = 192;
 
     life.seed(crypto.getRandomValues(new Uint32Array(1))[0]!);
     applyPalette(life);
-    life.randomize(0.25);
+    life.randomize(DENSITY);
 
     return { life, image };
   }
@@ -102,6 +155,7 @@ const height = 192;
         // Hiding a focused button drops focus to <body>, so hand it to the play button
         if (document.activeElement === startButton) playButton.focus();
         startButton.hidden = true;
+        canvas.classList.add('loaded');
         draw(loaded);
         return loaded;
       })
@@ -147,6 +201,76 @@ const height = 192;
     draw(loaded);
   }
 
+  // getBoundingClientRect includes the border, so step past it with clientLeft and clientTop, and scale by
+  // the size inside the border. clientWidth is rounded to whole pixels, so take the size from the rect, which
+  // works because the border is the same on every side. The result can fall outside the grid, and the wasm
+  // ignores those cells
+  function toCell(event: PointerEvent): Cell {
+    const rect = canvas.getBoundingClientRect();
+    const contentWidth = rect.width - 2 * canvas.clientLeft;
+    const contentHeight = rect.height - 2 * canvas.clientTop;
+    return {
+      x: Math.floor(((event.clientX - rect.left - canvas.clientLeft) / contentWidth) * canvas.width),
+      y: Math.floor(((event.clientY - rect.top - canvas.clientTop) / contentHeight) * canvas.height),
+    };
+  }
+
+  // Bresenham's line, so a fast drag that skips cells between pointer events leaves no gaps
+  function drawLine(life: LifeExports, from: Cell, to: Cell, alive: boolean) {
+    const dx = Math.abs(to.x - from.x);
+    const dy = -Math.abs(to.y - from.y);
+    const sx = from.x < to.x ? 1 : -1;
+    const sy = from.y < to.y ? 1 : -1;
+    let { x, y } = from;
+    let err = dx + dy;
+    for (;;) {
+      life.set(x, y, alive);
+      if (x === to.x && y === to.y) return;
+      const e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        x += sx;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        y += sy;
+      }
+    }
+  }
+
+  function startDrawing(loaded: Sim, cell: Cell) {
+    drawAlive = loaded.life.toggle(cell.x, cell.y) === 1;
+    draw(loaded);
+  }
+
+  function continueDrawing(cell: Cell) {
+    if (!sim || !pointerCell) return;
+    if (cell.x === pointerCell.x && cell.y === pointerCell.y) return;
+    drawLine(sim.life, pointerCell, cell, drawAlive);
+    pointerCell = cell;
+    draw(sim);
+  }
+
+  async function stampPattern(pattern: number) {
+    const loaded = await load();
+    const { life } = loaded;
+    const target = lastClicked ?? { x: Math.floor(life.width() / 2), y: Math.floor(life.height() / 2) };
+    life.stamp(pattern, target.x, target.y);
+    draw(loaded);
+  }
+
+  async function randomizeGrid() {
+    const loaded = await load();
+    loaded.life.randomize(DENSITY);
+    draw(loaded);
+  }
+
+  async function clearGrid() {
+    const loaded = await load();
+    loaded.life.clear();
+    draw(loaded);
+  }
+
   function updateControls() {
     playButton.textContent = running ? 'Pause' : 'Start';
     stepButton.disabled = running;
@@ -168,6 +292,45 @@ const height = 192;
   stepButton.addEventListener('click', () => {
     stepOnce().catch(showError);
   });
+  for (const button of patternButtons) {
+    button.addEventListener('click', () => {
+      stampPattern(Number(button.dataset.pattern)).catch(showError);
+    });
+  }
+  randomizeButton.addEventListener('click', () => {
+    randomizeGrid().catch(showError);
+  });
+  clearButton.addEventListener('click', () => {
+    clearGrid().catch(showError);
+  });
+
+  canvas.addEventListener('pointerdown', (event) => {
+    // Only the Start button loads the wasm, so the canvas does nothing until then
+    if (!sim) return;
+    // One drag at a time
+    if (drawingPointer !== undefined) return;
+    // Only the main button, so a right click still opens the context menu
+    if (event.button !== 0) return;
+    const cell = toCell(event);
+    // A press on the border lands outside the grid
+    if (cell.x < 0 || cell.y < 0 || cell.x >= canvas.width || cell.y >= canvas.height) return;
+    canvas.setPointerCapture(event.pointerId);
+    drawingPointer = event.pointerId;
+    pointerCell = cell;
+    lastClicked = cell;
+    startDrawing(sim, cell);
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    if (event.pointerId !== drawingPointer) return;
+    continueDrawing(toCell(event));
+  });
+  const stopDrawing = (event: PointerEvent) => {
+    if (event.pointerId !== drawingPointer) return;
+    drawingPointer = undefined;
+    pointerCell = undefined;
+  };
+  canvas.addEventListener('pointerup', stopDrawing);
+  canvas.addEventListener('pointercancel', stopDrawing);
   // The tokens use light-dark(), so the colors change with the system theme
   darkScheme.addEventListener('change', () => {
     if (!sim) return;
@@ -195,6 +358,53 @@ const height = 192;
     border: 2px solid var(--pink);
   }
 
+  /* Drawing starts once the wasm has loaded. From then on, dragging on a touch screen draws instead of
+     scrolling the page, and before that a swipe still scrolls */
+  .canvas.loaded {
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .button {
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+
+  .button:hover:not(:disabled) {
+    border-color: var(--pink);
+  }
+
+  .button:disabled {
+    color: var(--muted);
+    cursor: default;
+  }
+
+  .button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* The titles sit above the buttons, so line the groups up at the top */
+  .controls.groups {
+    align-items: flex-start;
+  }
+
+  .group-title {
+    margin: 0 0 6px;
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .board-buttons {
+    margin-left: auto;
+  }
+
   .start-button {
     position: absolute;
     inset: 0;
@@ -214,6 +424,12 @@ const height = 192;
   .generation {
     color: var(--muted);
     font-variant-numeric: tabular-nums;
+  }
+
+  .hint {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 0.9375rem;
   }
 
   /* Forced colors would turn every swatch into the same system color, and the canvas pixels aren't forced */
