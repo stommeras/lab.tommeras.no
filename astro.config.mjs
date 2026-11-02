@@ -11,6 +11,8 @@ export default defineConfig({
       styleDirective: { resources: ["'self'", { resource: "'unsafe-inline'", kind: 'attribute' }] },
     },
   },
+  // Vite inlines small assets as data: URIs, which default-src 'self' blocks (life.wasm is under the 4 KB limit)
+  vite: { build: { assetsInlineLimit: 0 } },
   // A light and a dark theme, joined with light-dark() so code blocks follow the color scheme like the tokens do
   markdown: {
     shikiConfig: {
