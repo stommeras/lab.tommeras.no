@@ -2,6 +2,15 @@ import { defineConfig, fontProviders } from 'astro/config';
 
 export default defineConfig({
   site: 'https://lab.tommeras.no',
+  // Hashes every inline script and style into a CSP <meta>. vercel.json sends the directives a <meta> can't carry.
+  // WebAssembly experiments need 'wasm-unsafe-eval', and style attributes (view transition names, tag hues, Shiki) need 'unsafe-inline' on style-src-attr
+  security: {
+    csp: {
+      directives: ["default-src 'self'"],
+      scriptDirective: { resources: ["'self'", "'wasm-unsafe-eval'"] },
+      styleDirective: { resources: ["'self'", { resource: "'unsafe-inline'", kind: 'attribute' }] },
+    },
+  },
   // A light and a dark theme, joined with light-dark() so code blocks follow the color scheme like the tokens do
   markdown: {
     shikiConfig: {

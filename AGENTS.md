@@ -22,6 +22,7 @@ Each experiment is a folder `src/experiments/<slug>/`. The folder name is the UR
 - Prebuilt exports, such as a Godot web build, go in `public/<slug>/` and load in an `<iframe>` from `Demo.astro`.
 - Anything heavy loads after the page, never in its initial bundle. A 3D scene loads with a dynamic `import()` when it scrolls into view. Wasm, Pyodide and games wait for the visitor to click a start button.
 - Mobile support is optional. Say "fungerer best på desktop" in the note when it doesn't work on a phone.
+- `security.csp` in `astro.config.mjs` sets the Content Security Policy as a `<meta>` with hashes. Everything loads from the same origin. An experiment that needs another origin, a `blob:` worker or an `is:inline` script needs a matching change there first. `vercel.json` sends `frame-ancestors` and the other directives a `<meta>` can't carry.
 - An experiment that needs `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` (a threaded Godot build, `SharedArrayBuffer`) gets them for its own path only, in `vercel.json`.
 - When an experiment breaks after an upgrade and isn't worth fixing, freeze it: commit its built output to `public/<slug>/`, remove its dependencies, and point `Demo.astro` at the frozen build.
 
