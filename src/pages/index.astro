@@ -4,11 +4,13 @@ import Layout from '../layouts/Layout.astro';
 import EntryMeta from '../components/EntryMeta.astro';
 import CodeText from '../components/CodeText.astro';
 import { sharedEntryStyle } from '../lib/shared-entry';
+import LifeBackdrop from '../components/LifeBackdrop.astro';
 
 const experiments = (await getCollection('experiments')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 ---
 
 <Layout>
+  <LifeBackdrop />
   <h1>Lab</h1>
   <p class="intro">Eksperimenter, skisser og ting som kanskje ikke virker enda.</p>
   {experiments.length ? (
