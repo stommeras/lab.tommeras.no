@@ -9,7 +9,7 @@
   const COLUMN = 396; // half of the 792 px content column
   const MARGIN = 32; // px kept clear on each side of the column
   const FADE = 5; // cells over which the opacity rises to full
-  const MAX_ALPHA = 0.5;
+  const MAX_ALPHA = 0.35;
   const KEY = 'life-backdrop';
   // Generations at which a cell's color reaches each token: newborn mint, then lavender, then pink
   const AGES: [number, string][] = [
@@ -39,6 +39,8 @@
   let last = 0;
   let frame = 0;
   let quiet = 0;
+  // True once the frame at the end of a fade is on screen. Nothing changes after that until the next generation
+  let settled = false;
 
   function readColor() {
     const stops = AGES.map(([age, token]) => [age, tokenRgba(token, canvas)] as [number, Rgba]);
@@ -74,7 +76,7 @@
     for (let y = 0; y < rows; y++) {
       for (let x = 0; x < cols; x++) {
         const inside = y < sourceRows && x < sourceCols;
-        ages[y * cols + x] = inside ? source[y * sourceCols + x] : Math.random() < 0.25 ? 1 : 0;
+        ages[y * cols + x] = inside ? source[y * sourceCols + x] : Math.random() < 0.2 ? 1 : 0;
       }
     }
     cells = ages.map((age) => (age ? 1 : 0));
@@ -132,6 +134,7 @@
     cells[i] = 1;
     previous[i] = 0;
     ages[i] = 0;
+    settled = false;
   }
 
   // A random 10 by 10 patch somewhere in a gutter, where it is visible
@@ -172,8 +175,13 @@
     while (time - last >= TICK) {
       step();
       last += TICK;
+      settled = false;
     }
-    draw(Math.min(1, (time - last) / (TICK * 0.8)));
+    if (!settled) {
+      const t = Math.min(1, (time - last) / (TICK * 0.8));
+      draw(t);
+      settled = t === 1;
+    }
     frame = requestAnimationFrame(loop);
   }
 
@@ -213,6 +221,7 @@
   addEventListener('resize', () => {
     if (!wide.matches || !cols) return;
     resize();
+    settled = false;
     if (still.matches) draw(1);
   });
 
@@ -230,6 +239,7 @@
   wide.addEventListener('change', () => (wide.matches ? start() : stop()));
   dark.addEventListener('change', () => {
     readColor();
+    settled = false;
     if (still.matches && wide.matches) draw(1);
   });
 
