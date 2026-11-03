@@ -1,0 +1,250 @@
+<canvas class="life" aria-hidden="true"></canvas>
+
+<script>
+  import { tokenRgba, type Rgba } from '../lib/color';
+
+  const CELL = 12; // px per cell
+  const DOT = 4; // px, the square drawn in each live cell
+  const TICK = 250; // ms per generation
+  const COLUMN = 396; // half of the 792 px content column
+  const MARGIN = 32; // px kept clear on each side of the column
+  const FADE = 5; // cells over which the opacity rises to full
+  const MAX_ALPHA = 0.5;
+  const KEY = 'life-backdrop';
+  // Generations at which a cell's color reaches each token: newborn mint, then lavender, then pink
+  const AGES: [number, string][] = [
+    [1, '--mint'],
+    [20, '--lavender'],
+    [60, '--pink'],
+  ];
+
+  const canvas = document.querySelector<HTMLCanvasElement>('canvas.life')!;
+  const context = canvas.getContext('2d')!;
+  const wide = matchMedia('(min-width: 900px)');
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+  const dark = matchMedia('(prefers-color-scheme: dark)');
+
+  let cols = 0;
+  let rows = 0;
+  // The previous and current generation, plus a scratch buffer for the next one
+  let previous = new Uint8Array(0);
+  let cells = new Uint8Array(0);
+  let scratch = new Uint8Array(0);
+  // Generations each cell has been alive. A dead cell keeps its last age, so it fades out in its own color
+  let ages = new Uint8Array(0);
+  // Opacity per column: 0 near the content, stepping up to 1 towards the window edge
+  let weight = new Float32Array(0);
+  // One color per age, from 0 to the last entry in AGES
+  let palette: string[] = [];
+  let last = 0;
+  let frame = 0;
+  let quiet = 0;
+
+  function readColor() {
+    const stops = AGES.map(([age, token]) => [age, tokenRgba(token, canvas)] as [number, Rgba]);
+    palette = [];
+    for (let age = 0; age <= stops.at(-1)![0]; age++) {
+      const end = Math.max(
+        1,
+        stops.findIndex(([at]) => at >= age),
+      );
+      const [a0, c0] = stops[end - 1];
+      const [a1, c1] = stops[end];
+      const t = Math.min(1, Math.max(0, (age - a0) / (a1 - a0)));
+      const [r, g, b] = c0.map((c, i) => Math.round(c + (c1[i] - c) * t));
+      palette.push(`rgb(${r} ${g} ${b})`);
+    }
+  }
+
+  // Ages of the live cells and 0 for dead ones. This is what resize copies and what sessionStorage keeps
+  const state = () => cells.map((live, i) => (live ? Math.max(1, ages[i]) : 0));
+
+  // Sizes the grid to the window, keeping the overlapping part of the old grid (or of a saved one).
+  // Any new area, and the whole grid on the first visit, starts random
+  function resize(source = state(), sourceCols = cols, sourceRows = rows) {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    canvas.width = width * devicePixelRatio;
+    canvas.height = height * devicePixelRatio;
+    context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+
+    cols = Math.ceil(width / CELL);
+    rows = Math.ceil(height / CELL);
+    ages = new Uint8Array(cols * rows);
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const inside = y < sourceRows && x < sourceCols;
+        ages[y * cols + x] = inside ? source[y * sourceCols + x] : Math.random() < 0.25 ? 1 : 0;
+      }
+    }
+    cells = ages.map((age) => (age ? 1 : 0));
+    previous = cells.slice();
+    scratch = new Uint8Array(cells.length);
+
+    weight = new Float32Array(cols);
+    for (let x = 0; x < cols; x++) {
+      const distance = Math.abs((x + 0.5) * CELL - width / 2) - COLUMN - MARGIN;
+      weight[x] = Math.min(1, Math.max(0, Math.ceil(distance / CELL) / FADE));
+    }
+  }
+
+  // One generation on a torus, so patterns leaving one gutter come back from the other side
+  function step() {
+    let changed = 0;
+    let alive = 0;
+    for (let y = 0; y < rows; y++) {
+      const up = ((y + rows - 1) % rows) * cols;
+      const row = y * cols;
+      const down = ((y + 1) % rows) * cols;
+      for (let x = 0; x < cols; x++) {
+        const left = (x + cols - 1) % cols;
+        const right = (x + 1) % cols;
+        const n =
+          cells[up + left] +
+          cells[up + x] +
+          cells[up + right] +
+          cells[row + left] +
+          cells[row + right] +
+          cells[down + left] +
+          cells[down + x] +
+          cells[down + right];
+        const live = n === 3 || (n === 2 && cells[row + x] === 1) ? 1 : 0;
+        scratch[row + x] = live;
+        if (live) ages[row + x] = cells[row + x] ? Math.min(255, ages[row + x] + 1) : 0;
+        alive += live;
+        changed += live ^ cells[row + x];
+      }
+    }
+    [previous, cells, scratch] = [cells, scratch, previous];
+
+    // Life settles into still lifes and blinkers, so drop in fresh cells once it has been quiet for a while
+    quiet = changed < cells.length * 0.002 || alive < cells.length * 0.02 ? quiet + 1 : 0;
+    if (quiet > 20) {
+      seed();
+      quiet = 0;
+    }
+  }
+
+  // Brings a cell to life as newborn, so it fades in on the next frames
+  function birth(x: number, y: number) {
+    const i = ((y + rows) % rows) * cols + ((x + cols) % cols);
+    if (cells[i]) return;
+    cells[i] = 1;
+    previous[i] = 0;
+    ages[i] = 0;
+  }
+
+  // A random 10 by 10 patch somewhere in a gutter, where it is visible
+  function seed() {
+    const gutter = weight.findIndex((w) => w === 0);
+    const x0 =
+      Math.random() < 0.5
+        ? Math.floor(Math.random() * Math.max(1, gutter - 10))
+        : cols - 10 - Math.floor(Math.random() * Math.max(1, gutter - 10));
+    const y0 = Math.floor(Math.random() * (rows - 10));
+    for (let y = y0; y < y0 + 10; y++) {
+      for (let x = x0; x < x0 + 10; x++) if (Math.random() < 0.4) birth(x, y);
+    }
+  }
+
+  // t runs from 0 to 1 over a generation: born cells fade in, dying cells fade out
+  function draw(t: number) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    const offset = (CELL - DOT) / 2;
+    for (let x = 0; x < cols; x++) {
+      if (!weight[x]) continue;
+      for (let y = 0; y < rows; y++) {
+        const i = y * cols + x;
+        const now = cells[i];
+        const before = previous[i];
+        if (!now && !before) continue;
+        const presence = now && before ? 1 : now ? t : 1 - t;
+        context.globalAlpha = presence * weight[x] * MAX_ALPHA;
+        context.fillStyle = palette[Math.min(ages[i], palette.length - 1)];
+        context.fillRect(x * CELL + offset, y * CELL + offset, DOT, DOT);
+      }
+    }
+  }
+
+  function loop(time: number) {
+    // After a hidden tab, skip ahead instead of running every missed generation
+    if (time - last > 1000) last = time;
+    while (time - last >= TICK) {
+      step();
+      last += TICK;
+    }
+    draw(Math.min(1, (time - last) / (TICK * 0.8)));
+    frame = requestAnimationFrame(loop);
+  }
+
+  function start() {
+    readColor();
+    restore();
+    if (still.matches) {
+      draw(1);
+      return;
+    }
+    last = performance.now();
+    frame = requestAnimationFrame(loop);
+  }
+
+  function stop() {
+    cancelAnimationFrame(frame);
+    frame = 0;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Each page is a full load, so carry the grid over in sessionStorage and let it continue on the next page
+  function restore() {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(KEY) ?? 'null');
+      if (saved) return resize(Uint8Array.from(saved.state), saved.cols, saved.rows);
+    } catch {}
+    resize(new Uint8Array(0), 0, 0);
+  }
+
+  addEventListener('pagehide', () => {
+    if (!cols) return;
+    try {
+      sessionStorage.setItem(KEY, JSON.stringify({ cols, rows, state: Array.from(state()) }));
+    } catch {}
+  });
+
+  addEventListener('resize', () => {
+    if (!wide.matches || !cols) return;
+    resize();
+    if (still.matches) draw(1);
+  });
+
+  // The pointer seeds a few cells around it while it moves over a gutter
+  addEventListener('pointermove', (event) => {
+    if (!frame || still.matches) return;
+    const x = Math.floor(event.clientX / CELL);
+    const y = Math.floor(event.clientY / CELL);
+    if (!weight[x]) return;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) if (Math.random() < 0.35) birth(x + dx, y + dy);
+    }
+  });
+
+  wide.addEventListener('change', () => (wide.matches ? start() : stop()));
+  dark.addEventListener('change', () => {
+    readColor();
+    if (still.matches && wide.matches) draw(1);
+  });
+
+  if (wide.matches) start();
+</script>
+
+<style>
+  .life {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    /* Its own name keeps it in place during page transitions instead of fading out with the root */
+    view-transition-name: life-backdrop;
+  }
+</style>

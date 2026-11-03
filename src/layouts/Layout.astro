@@ -1,6 +1,7 @@
 ---
 import { Font } from 'astro:assets';
 import '../styles/reset.css';
+import LifeBackdrop from '../components/LifeBackdrop.astro';
 
 interface Props {
   title?: string;
@@ -36,6 +37,8 @@ const source = slug ? `${repo}/tree/main/src/experiments/${slug}` : repo;
     <script is:inline defer src="/_vercel/insights/script.js"></script>
   </head>
   <body>
+    {/* The Life experiment page has its own grid, so the backdrop stays off there */}
+    {slug !== 'livets-spill' && <LifeBackdrop />}
     <header>
       <nav aria-label="Brødsmulesti">
         <ol>
