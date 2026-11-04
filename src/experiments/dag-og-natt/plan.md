@@ -25,10 +25,10 @@ The first version put the scroll in the page, between the title and the note, an
 
 - The keyframes run over the day's progress from 0 to 1. The preview holds a paused animation with `animation-delay: calc(var(--progress) * -1s)`, and the slider sets `--progress`.
 - Clicking the preview opens a modal `<dialog>` with `showModal()` inside `document.startViewTransition()`. The preview and the dialog's stage share a `view-transition-name`, so the scene grows from the preview to the full screen. Only one of them carries the name at a time.
-- The dialog is the scroll container, with `scroll-timeline: --day` and a `200%` track under a sticky stage. It opens scrolled to the slider's progress, and on close it hands its progress back to the slider. Both ways, the scene keeps its time.
+- The dialog is the scroll container, with a `200%` track under a sticky stage. The stage uses the anonymous `animation-timeline: scroll()`, because Firefox with scroll-driven animations turned on (Zen ships it that way) ignores a named `scroll-timeline` on the dialog. The dialog opens scrolled to the slider's progress, and on close it hands its progress back to the slider. Both ways, the scene keeps its time.
 - Esc fires `cancel`, which the script turns into the same transition as the Lukk button.
 - The dialog has its own slider at the bottom, and its scrollbar is hidden. Dragging that slider scrolls the dialog. A `scroll` listener on the dialog sets `--progress`, so both sliders always show the dialog's time.
-- Firefox (and Zen) has no scroll timelines yet. Without `@supports (animation-timeline: scroll())` the demo is hidden and a note says what's missing, like in `sirkel`.
+- Stock Firefox has no scroll timelines yet. Without `@supports (animation-timeline: scroll())` the demo is hidden and a note says what's missing, like in `sirkel`.
 - Pacing: give `--time` keyframe stops instead of one linear run, so dusk gets more scroll than midday, for example `0% { --time: 6 } 40% { --time: 17 } 75% { --time: 21 } 100% { --time: 24 }`. Tune by feel. Scroll-driven animations follow the scroll position directly, so a smoothing lag would need JavaScript. Leave that out.
 
 ## The scene

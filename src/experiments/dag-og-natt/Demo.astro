@@ -271,7 +271,6 @@ import Scene from './Scene.astro';
     overflow-y: auto;
     overscroll-behavior: contain;
     scrollbar-width: none;
-    scroll-timeline: --day block;
   }
 
   /* The dialog is the whole screen, so a focus ring around it adds nothing */
@@ -295,7 +294,8 @@ import Scene from './Scene.astro';
       animation-duration: auto;
       animation-delay: 0s;
       animation-play-state: running;
-      animation-timeline: --day;
+      /* The dialog is the nearest scroller. Firefox with scroll-driven animations turned on, as in Zen, ignores a named scroll-timeline here. */
+      animation-timeline: scroll();
     }
   }
 
