@@ -25,3 +25,7 @@ pnpm-debug.log*
 
 # VS Code settings
 .vscode/
+
+# Claude Code: worktrees and personal settings
+.claude/worktrees/
+.claude/settings.local.json
