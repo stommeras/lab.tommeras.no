@@ -152,7 +152,8 @@
 
   // t runs from 0 to 1 over a generation: born cells fade in, dying cells fade out
   function draw(t: number) {
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    // In CSS px, because of the devicePixelRatio transform. canvas.width misses the edges when the browser zooms out
+    context.clearRect(0, 0, cols * CELL, rows * CELL);
     const offset = (CELL - DOT) / 2;
     for (let x = 0; x < cols; x++) {
       if (!weight[x]) continue;
@@ -199,7 +200,7 @@
   function stop() {
     cancelAnimationFrame(frame);
     frame = 0;
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.clearRect(0, 0, cols * CELL, rows * CELL);
   }
 
   // A link back to the home page is a full load, so keep the grid in sessionStorage and continue where the visitor left
