@@ -49,7 +49,7 @@ import Scene from './Scene.astro';
 
   const maxScroll = () => dialog.scrollHeight - dialog.clientHeight;
 
-  // The dialog's scroll position is the progress, so it opens at the preview's time and hands its time back on close
+  // The dialog's scroll position is the progress, so it opens at the preview's time
   preview.addEventListener('click', () =>
     transition(() => {
       dialog.showModal();
@@ -59,13 +59,11 @@ import Scene from './Scene.astro';
     }),
   );
 
-  function close() {
-    transition(() => {
-      // With reduced motion the dialog doesn't scroll, and the slider keeps its time
-      if (maxScroll() > 0) setProgress(dialog.scrollTop / maxScroll());
-      dialog.close();
-    });
-  }
+  const close = () => transition(() => dialog.close());
+
+  // The slider follows the dialog's scroll, so every way of closing keeps the time.
+  // Firefox has no scroll timelines yet, and there this also moves the scene.
+  dialog.addEventListener('scroll', () => setProgress(dialog.scrollTop / maxScroll()));
 
   // Esc would close the dialog at once, so the transition takes over
   dialog.addEventListener('cancel', (event) => {
@@ -244,15 +242,18 @@ import Scene from './Scene.astro';
 
   /* Scroll is the clock. With reduced motion the dialog doesn't scroll and keeps the slider's time. */
   @media (prefers-reduced-motion: no-preference) {
-    .stage {
-      animation-duration: auto;
-      animation-delay: 0s;
-      animation-play-state: running;
-      animation-timeline: --day;
-    }
-
     .track {
       height: 200%;
+    }
+
+    /* Without scroll timelines the stage keeps the paused animation, and the script sets --progress as the dialog scrolls */
+    @supports (animation-timeline: scroll()) {
+      .stage {
+        animation-duration: auto;
+        animation-delay: 0s;
+        animation-play-state: running;
+        animation-timeline: --day;
+      }
     }
   }
 

@@ -17,7 +17,7 @@ A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, a
 - Time runs one way, from 6 (morning) to 24 (midnight). The scene sits at morning before the section reaches the top of the viewport and stays at night after it has passed.
 - Mountains get lit faces, and the cabin and trees get cast shadows on the shore.
 - No 3D. Depth comes from color, see below. `sprengskisse` covers CSS 3D.
-- No fallback for missing browser features. The note says what the demo needs, like the other experiments.
+- No fallback for missing browser features, except scroll timelines, since the scroll listener covers them for free. The note says what the demo needs, like the other experiments.
 
 ## Preview and dialog
 
@@ -27,6 +27,7 @@ The first version put the scroll in the page, between the title and the note, an
 - Clicking the preview opens a modal `<dialog>` with `showModal()` inside `document.startViewTransition()`. The preview and the dialog's stage share a `view-transition-name`, so the scene grows from the preview to the full screen. Only one of them carries the name at a time.
 - The dialog is the scroll container, with `scroll-timeline: --day` and a `200%` track under a sticky stage. It opens scrolled to the slider's progress, and on close it hands its progress back to the slider. Both ways, the scene keeps its time.
 - Esc fires `cancel`, which the script turns into the same transition as the Lukk button.
+- A `scroll` listener on the dialog sets `--progress`, so the slider always holds the dialog's time. Firefox (and Zen) has no scroll timelines yet. There the stage keeps the paused animation, and the same listener moves the scene. The scroll timeline sits behind `@supports (animation-timeline: scroll())`.
 - Pacing: give `--time` keyframe stops instead of one linear run, so dusk gets more scroll than midday, for example `0% { --time: 6 } 40% { --time: 17 } 75% { --time: 21 } 100% { --time: 24 }`. Tune by feel. Scroll-driven animations follow the scroll position directly, so a smoothing lag would need JavaScript. Leave that out.
 
 ## The scene
