@@ -4,7 +4,9 @@ A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, a
 
 ## Status
 
-- Phase 3 is done (#18). The scene is inline in `Demo.astro` with flat colors. Phases 1 and 2 come next.
+- Phases 1 to 3 are done. The scene is inline in `Demo.astro` with flat colors (#18). Scroll drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc. Phase 4 comes next.
+- The build's CSS minifier folds `animation-timeline` into the `animation` shorthand, and Chromium drops the result. Write the animation as longhands.
+- With reduced motion the scene stays at noon until the slider in phase 9.
 - `Demo.astro` holds the only copy of the drawing in the repo. The Inkscape source is `~/Documents/hamnoy.svg` on Steffen's machine. After a redraw, convert the changed layers to the markup in `Demo.astro` by hand: class names instead of fills, windows in their own group, trees as `<use>`.
 - The `viewBox` is `0 130 762 429`, 16:9 cut from the 762×635 drawing. It shows more sky than the plan below asks for, and the waterline sits about 83% down instead of 70%.
 - The spruce variants in `<defs>` have their base at the origin, so a `<use>` transform is `translate(<base>) scale(<size>)`. A mirrored tree has a negative x scale and `class="flipped"`, which swaps `--tree-lit` and `--tree-shade`.
