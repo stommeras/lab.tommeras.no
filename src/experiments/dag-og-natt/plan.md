@@ -2,6 +2,13 @@
 
 A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, and every effect on them is CSS. The only JavaScript is the slider for reduced motion.
 
+## Status
+
+- Phase 3 is done (#18). The scene is inline in `Demo.astro` with flat colors. Phases 1 and 2 come next.
+- `Demo.astro` holds the only copy of the drawing in the repo. The Inkscape source is `~/Documents/hamnoy.svg` on Steffen's machine. After a redraw, convert the changed layers to the markup in `Demo.astro` by hand: class names instead of fills, windows in their own group, trees as `<use>`.
+- The `viewBox` is `0 130 762 429`, 16:9 cut from the 762×635 drawing. It shows more sky than the plan below asks for, and the waterline sits about 83% down instead of 70%.
+- The spruce variants in `<defs>` have their base at the origin, so a `<use>` transform is `translate(<base>) scale(<size>)`. A mirrored tree has a negative x scale and `class="flipped"`, which swaps `--tree-lit` and `--tree-shade`.
+
 ## Decisions
 
 - The stage is full-bleed, edge to edge and one viewport tall. It breaks out of the 792px `main` column.
@@ -59,7 +66,7 @@ Cleanup:
 
 - Export as Plain SVG. If SVGO runs on it, turn off `mergePaths` and `cleanupIds`, since the defaults merge the faces into one path and strip the ids.
 - After export: remove every `fill`, give each face a class and a `--face` value (see Light), and paste it inline in `Demo.astro`.
-- Neighboring triangles show hairline seams from anti-aliasing. Fix with a thin stroke in the same color as the fill, `stroke: var(--fill); stroke-width: 0.5`.
+- Neighboring triangles show hairline seams from anti-aliasing. Fix with a thin stroke in the same color as the fill, `stroke: var(--fill); stroke-width: 1`. A width of 0.5 still leaves light seams at 1x.
 
 ## Light
 
