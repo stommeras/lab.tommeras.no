@@ -59,7 +59,7 @@ Cleanup:
 
 - Export as Plain SVG. If SVGO runs on it, turn off `mergePaths` and `cleanupIds`, since the defaults merge the faces into one path and strip the ids.
 - After export: remove every `fill`, give each face a class and a `--face` value (see Light), and paste it inline in `Demo.astro`.
-- Neighboring triangles show hairline seams from anti-aliasing. Fix with a thin stroke in the same color as the fill, `stroke: var(--fill); stroke-width: 0.5`.
+- Neighboring triangles show hairline seams from anti-aliasing. Fix with a thin stroke in the same color as the fill, `stroke: var(--fill); stroke-width: 1`. A width of 0.5 still leaves light seams at 1x.
 
 ## Light
 
