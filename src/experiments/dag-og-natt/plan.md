@@ -14,16 +14,16 @@ A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, a
 
 - The scroll version is a full-screen dialog that grows out of a preview in the page. See Preview and dialog.
 - Low-poly art in a flat Bob Ross composition, drawn by hand in Inkscape and inlined as SVG.
-- Time runs one way, from 6 (morning) to 24 (midnight). The scene sits at morning before the section reaches the top of the viewport and stays at night after it has passed.
+- Time runs one way, from 6 (morning) to 24 (midnight). The preview starts at about 17:30, with the sun low over the ridge.
 - Mountains get lit faces, and the cabin and trees get cast shadows on the shore.
 - No 3D. Depth comes from color, see below. `sprengskisse` covers CSS 3D.
-- No fallback for missing browser features. The note says what the demo needs, like the other experiments.
+- No fallback for missing browser features. A browser without them gets a note instead of the demo, and the note says what the demo needs, like the other experiments.
 
 ## Preview and dialog
 
 The first version put the scroll in the page, between the title and the note, and it locked the reader in on the way down. Now the page shows a 16:9 preview with a slider under it, and the scroll lives in a full-screen dialog.
 
-- The keyframes run over the day's progress from 0 to 1. The preview holds a paused animation with `animation-delay: calc(var(--progress) * -1s)`, and the slider sets `--progress`.
+- The keyframes run over the day's progress from 0 to 1. The preview holds a paused animation with `animation-delay: calc(var(--progress) * -1s)`, and the slider sets `--progress`. It starts at `0.44`, which is about 17:30.
 - Clicking the preview opens a modal `<dialog>` with `showModal()` inside `document.startViewTransition()`. The preview and the dialog's stage share a `view-transition-name`, so the scene grows from the preview to the full screen. Only one of them carries the name at a time.
 - The dialog is the scroll container, with a `200%` track under a sticky stage. The stage uses the anonymous `animation-timeline: scroll()`, because Firefox with scroll-driven animations turned on (Zen ships it that way) ignores a named `scroll-timeline` on the dialog. The dialog opens scrolled to the slider's progress, and on close it hands its progress back to the slider. Both ways, the scene keeps its time.
 - Esc fires `cancel`, which the script turns into the same transition as the Lukk button.

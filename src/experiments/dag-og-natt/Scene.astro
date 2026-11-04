@@ -151,7 +151,7 @@ const { defs = false } = Astro.props;
     <use href="#spruce-01" transform="translate(65.39,474.91)" />
   </g>
 </svg>
-<span class="clock" aria-hidden="true"></span>
+<span class="clock chip" aria-hidden="true"></span>
 
 <style>
   /* The scene has its own palette and ignores light-dark() */
@@ -183,10 +183,6 @@ const { defs = false } = Astro.props;
     position: absolute;
     bottom: 16px;
     left: 16px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: rgb(0 0 0 / 0.5);
-    color: #fff;
     --hour: round(down, var(--time), 1);
     counter-reset: hour var(--hour);
   }
@@ -197,7 +193,7 @@ const { defs = false } = Astro.props;
 
   /*
    * The angle is 0 at 6:00 and 180deg at 18:00, so the sun rises on the left and sets on the right.
-   * The arc's center is below the mountain bases, so the sun rises and sets behind them.
+   * The arc's center is behind the shore, so the sun and moon rise and set behind the mountains and the shore.
    */
   .sun,
   .moon {

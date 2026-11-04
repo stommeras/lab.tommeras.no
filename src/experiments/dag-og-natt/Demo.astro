@@ -5,7 +5,7 @@ import Scene from './Scene.astro';
 <div class="dag-og-natt">
   <button class="preview" type="button" aria-label="Åpne i fullskjerm og scroll gjennom dagen">
     <Scene defs />
-    <span class="hint" aria-hidden="true">
+    <span class="hint chip" aria-hidden="true">
       Fullskjerm ↗
     </span>
   </button>
@@ -18,10 +18,10 @@ import Scene from './Scene.astro';
       <Scene />
     </div>
     <div class="track"></div>
-    <button class="close" type="button">
+    <button class="close chip" type="button">
       Lukk
     </button>
-    <label class="time">
+    <label class="time chip">
       Klokka
       <input type="range" min="0" max="1" step="0.001" value="0.44" />
     </label>
@@ -35,7 +35,7 @@ import Scene from './Scene.astro';
   const root = document.querySelector<HTMLElement>('.dag-og-natt')!;
   const preview = root.querySelector<HTMLButtonElement>('.preview')!;
   // One slider under the preview and one in the dialog. Both show the same time.
-  const [input, dialogInput] = root.querySelectorAll<HTMLInputElement>('.time input');
+  const [previewInput, dialogInput] = root.querySelectorAll<HTMLInputElement>('.time input');
   const dialog = root.querySelector('dialog')!;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -45,7 +45,7 @@ import Scene from './Scene.astro';
     const time = parseFloat(getComputedStyle(preview).getPropertyValue('--time'));
     const hours = Math.floor(time);
     const minutes = Math.floor((time - hours) * 60);
-    for (const slider of [input, dialogInput]) {
+    for (const slider of [previewInput, dialogInput]) {
       slider.value = String(progress);
       slider.setAttribute(
         'aria-valuetext',
@@ -54,9 +54,10 @@ import Scene from './Scene.astro';
     }
   }
 
-  // The preview grows into the dialog and shrinks back, unless the visitor prefers reduced motion
+  // The preview grows into the dialog and shrinks back, unless the visitor prefers reduced motion.
+  // A browser without view transitions opens and closes the dialog at once.
   function transition(update: () => void) {
-    if (reducedMotion.matches) update();
+    if (reducedMotion.matches || !('startViewTransition' in document)) update();
     else document.startViewTransition({ update, types: ['dag-og-natt'] });
   }
 
@@ -68,7 +69,7 @@ import Scene from './Scene.astro';
       dialog.showModal();
       // Focus on the dialog itself, so the arrow keys and space scroll the day instead of pressing Lukk
       dialog.focus();
-      dialog.scrollTop = Number(input.value) * maxScroll();
+      dialog.scrollTop = Number(previewInput.value) * maxScroll();
     }),
   );
 
@@ -83,14 +84,14 @@ import Scene from './Scene.astro';
     close();
   });
   root.querySelector('.close')!.addEventListener('click', close);
-  input.addEventListener('input', () => setProgress(Number(input.value)));
+  previewInput.addEventListener('input', () => setProgress(Number(previewInput.value)));
   // The dialog's slider scrolls the dialog, and the scroll listener does the rest.
   // With reduced motion the dialog doesn't scroll, so the slider sets the time itself.
   dialogInput.addEventListener('input', () => {
     if (maxScroll() > 0) dialog.scrollTop = Number(dialogInput.value) * maxScroll();
     else setProgress(Number(dialogInput.value));
   });
-  setProgress(Number(input.value));
+  setProgress(Number(previewInput.value));
 </script>
 
 <style>
@@ -233,14 +234,18 @@ import Scene from './Scene.astro';
     view-transition-name: dag-og-natt-clock;
   }
 
-  .hint {
-    position: absolute;
-    top: 16px;
-    right: 16px;
+  /* A dark label over the scene. Global, since the readout in Scene.astro uses it too. */
+  :global(.chip) {
     padding: 2px 8px;
     border-radius: 4px;
     background: rgb(0 0 0 / 0.5);
     color: #fff;
+  }
+
+  .hint {
+    position: absolute;
+    top: 16px;
+    right: 16px;
   }
 
   .time {
@@ -306,21 +311,13 @@ import Scene from './Scene.astro';
     bottom: 16px;
     left: 120px;
     margin: 0;
-    padding: 4px 12px;
-    border-radius: 4px;
-    background: rgb(0 0 0 / 0.5);
-    color: #fff;
   }
 
   .close {
     position: fixed;
     top: 16px;
     right: 16px;
-    padding: 4px 12px;
     border: 0;
-    border-radius: 4px;
-    background: rgb(0 0 0 / 0.5);
-    color: #fff;
     font: inherit;
     cursor: pointer;
   }

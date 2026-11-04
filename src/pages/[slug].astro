@@ -57,4 +57,10 @@ const { Content } = await render(entry);
   .note > :global(:is(h2, h3)) {
     margin-top: 2em;
   }
+
+  /* A Markdown task list has checkboxes, so a bullet in front of each would be one marker too many */
+  .note :global(.contains-task-list) {
+    padding-left: 0;
+    list-style: none;
+  }
 </style>
