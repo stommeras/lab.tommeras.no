@@ -57,4 +57,9 @@ const { Content } = await render(entry);
   .note > :global(:is(h2, h3)) {
     margin-top: 2em;
   }
+
+  .note :global(.contains-task-list) {
+    padding-left: 0;
+    list-style: none;
+  }
 </style>
