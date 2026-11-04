@@ -5,6 +5,7 @@ import Scene from './Scene.astro';
 <div class="dag-og-natt">
   <button class="preview" type="button" aria-label="Åpne i fullskjerm og scroll gjennom dagen">
     <Scene defs />
+    <span class="clock chip" aria-hidden="true"></span>
     <span class="hint chip" aria-hidden="true">
       Fullskjerm ↗
     </span>
@@ -16,6 +17,7 @@ import Scene from './Scene.astro';
   <dialog aria-label="En dag i CSS" tabindex="-1">
     <div class="stage">
       <Scene />
+      <span class="clock chip" aria-hidden="true"></span>
     </div>
     <div class="track"></div>
     <button class="close chip" type="button">
@@ -34,12 +36,10 @@ import Scene from './Scene.astro';
 <script>
   const root = document.querySelector<HTMLElement>('.dag-og-natt')!;
   const preview = root.querySelector<HTMLButtonElement>('.preview')!;
-  // One slider under the preview and one in the dialog. Both show the same time.
   const [previewInput, dialogInput] = root.querySelectorAll<HTMLInputElement>('.time input');
   const dialog = root.querySelector('dialog')!;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
-  // Progress through the day, from 0 to 1. The keyframes turn it into --time and the sky colors.
   function setProgress(progress: number) {
     root.style.setProperty('--progress', String(progress));
     const time = parseFloat(getComputedStyle(preview).getPropertyValue('--time'));
@@ -54,8 +54,6 @@ import Scene from './Scene.astro';
     }
   }
 
-  // The preview grows into the dialog and shrinks back, unless the visitor prefers reduced motion.
-  // A browser without view transitions opens and closes the dialog at once.
   function transition(update: () => void) {
     if (reducedMotion.matches || !('startViewTransition' in document)) update();
     else document.startViewTransition({ update, types: ['dag-og-natt'] });
@@ -63,7 +61,6 @@ import Scene from './Scene.astro';
 
   const maxScroll = () => dialog.scrollHeight - dialog.clientHeight;
 
-  // The dialog's scroll position is the progress, so it opens at the preview's time
   preview.addEventListener('click', () =>
     transition(() => {
       dialog.showModal();
@@ -75,42 +72,36 @@ import Scene from './Scene.astro';
 
   const close = () => transition(() => dialog.close());
 
-  // The sliders follow the dialog's scroll, so every way of closing keeps the time
   dialog.addEventListener('scroll', () => setProgress(dialog.scrollTop / maxScroll()));
 
-  // Esc would close the dialog at once, so the transition takes over
   dialog.addEventListener('cancel', (event) => {
     event.preventDefault();
     close();
   });
   root.querySelector('.close')!.addEventListener('click', close);
   previewInput.addEventListener('input', () => setProgress(Number(previewInput.value)));
-  // The dialog's slider scrolls the dialog, and the scroll listener does the rest.
-  // With reduced motion the dialog doesn't scroll, so the slider sets the time itself.
   dialogInput.addEventListener('input', () => {
-    if (maxScroll() > 0) dialog.scrollTop = Number(dialogInput.value) * maxScroll();
-    else setProgress(Number(dialogInput.value));
+    if (reducedMotion.matches) setProgress(Number(dialogInput.value));
+    else dialog.scrollTop = Number(dialogInput.value) * maxScroll();
   });
   setProgress(Number(previewInput.value));
 </script>
 
 <style>
-  /* Every effect in the scene derives from this number, the hour from 6 to 24 */
   @property --time {
     syntax: '<number>';
     inherits: true;
     initial-value: 12;
   }
 
-  /* Registered so the keyframes can interpolate them. The initial values are the daytime sky. */
+  /* Registered so the keyframes can interpolate them */
   @property --sky-top {
     syntax: '<color>';
     inherits: true;
     initial-value: #6fa4d8;
   }
 
-  /* The sky at the horizon */
-  @property --sky {
+  @property --sky-horizon {
     syntax: '<color>';
     inherits: true;
     initial-value: #cfe2f0;
@@ -123,49 +114,43 @@ import Scene from './Scene.astro';
     initial-value: 0;
   }
 
-  /*
-   * The keyframes run over the day's progress, from 0 to 1. The --time stops give dusk more of it
-   * than midday. The sky stops in between sit at the progress of their hour: 8:00 is at 7%,
-   * 16:00 at 36%, 18:00 at 49%, 19:00 at 58%.
-   */
   @keyframes day {
     0% {
       --time: 6;
       --sky-top: #4a5a8a;
-      --sky: #f0a989;
+      --sky-horizon: #f0a989;
     }
     7% {
       --sky-top: #6fa4d8;
-      --sky: #cfe2f0;
+      --sky-horizon: #cfe2f0;
     }
     36% {
       --sky-top: #6fa4d8;
-      --sky: #cfe2f0;
+      --sky-horizon: #cfe2f0;
     }
     40% {
       --time: 17;
     }
     49% {
       --sky-top: #5c6fa8;
-      --sky: #f4a261;
+      --sky-horizon: #f4a261;
     }
     58% {
       --sky-top: #3a3f6e;
-      --sky: #b0677a;
+      --sky-horizon: #b0677a;
     }
     75% {
       --time: 21;
       --sky-top: #141a35;
-      --sky: #2c3358;
+      --sky-horizon: #2c3358;
     }
     100% {
       --time: 24;
       --sky-top: #070a1a;
-      --sky: #151a33;
+      --sky-horizon: #151a33;
     }
   }
 
-  /* The scroll version needs scroll timelines, which Firefox doesn't have yet */
   .dag-og-natt {
     display: none;
     --progress: 0.44;
@@ -189,10 +174,7 @@ import Scene from './Scene.astro';
     color: var(--peach);
   }
 
-  /*
-   * Both copies of the scene hold the same paused animation at the progress the slider sets.
-   * Longhands, since the minifier folds a timeline into the animation shorthand and Chromium drops that.
-   */
+  /* Longhands, since the minifier folds a timeline into the animation shorthand and Chromium drops that */
   .preview,
   .stage {
     position: relative;
@@ -215,14 +197,13 @@ import Scene from './Scene.astro';
     view-transition-name: dag-og-natt;
   }
 
-  /* The readout moves on its own, instead of growing with the scene */
-  .preview :global(.clock) {
+  .preview .clock {
     view-transition-name: dag-og-natt-clock;
   }
 
   /* Only one element can carry each name, so the open dialog takes them over */
   .dag-og-natt:has(dialog[open]) .preview,
-  .dag-og-natt:has(dialog[open]) .preview :global(.clock) {
+  .dag-og-natt:has(dialog[open]) .preview .clock {
     view-transition-name: none;
   }
 
@@ -230,16 +211,27 @@ import Scene from './Scene.astro';
     view-transition-name: dag-og-natt;
   }
 
-  dialog[open] .stage :global(.clock) {
+  dialog[open] .stage .clock {
     view-transition-name: dag-og-natt-clock;
   }
 
-  /* A dark label over the scene. Global, since the readout in Scene.astro uses it too. */
-  :global(.chip) {
+  .chip {
     padding: 2px 8px;
     border-radius: 4px;
     background: rgb(0 0 0 / 0.5);
     color: #fff;
+  }
+
+  .clock {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    --hour: round(down, var(--time), 1);
+    counter-reset: hour var(--hour);
+  }
+
+  .clock::after {
+    content: 'kl. ' counter(hour, decimal-leading-zero);
   }
 
   .hint {
@@ -278,7 +270,6 @@ import Scene from './Scene.astro';
     scrollbar-width: none;
   }
 
-  /* The dialog is the whole screen, so a focus ring around it adds nothing */
   dialog:focus-visible {
     outline: none;
   }
@@ -289,7 +280,6 @@ import Scene from './Scene.astro';
     height: 100%;
   }
 
-  /* Scroll is the clock. With reduced motion the dialog doesn't scroll and keeps the slider's time. */
   @media (prefers-reduced-motion: no-preference) {
     .track {
       height: 200%;
@@ -304,12 +294,11 @@ import Scene from './Scene.astro';
     }
   }
 
-  /* Leaves room for the kl. readout in the bottom left corner */
   dialog .time {
     position: fixed;
     right: 16px;
     bottom: 16px;
-    left: 120px;
+    left: 16px;
     margin: 0;
   }
 
@@ -322,7 +311,6 @@ import Scene from './Scene.astro';
     cursor: pointer;
   }
 
-  /* Fill the growing box with each snapshot, anchored at the bottom like the SVG's slice */
   :global(::view-transition-group(dag-og-natt)),
   :global(::view-transition-group(dag-og-natt-clock)) {
     animation-duration: 0.4s;
@@ -335,7 +323,6 @@ import Scene from './Scene.astro';
     object-position: bottom;
   }
 
-  /* The layout delays the new page for navigations, but the dialog should fade in while the scene grows */
   :global(:root:active-view-transition-type(dag-og-natt)::view-transition-new(root)) {
     animation-delay: 0s;
   }
