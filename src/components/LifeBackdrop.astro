@@ -3,8 +3,8 @@
 <script>
   import { tokenRgba, type Rgba } from '../lib/color';
 
-  const CELL = 12; // px per cell
-  const DOT = 4; // px, the square drawn in each live cell
+  const CELL = 8; // px per cell
+  const DOT = 3; // px, the square drawn in each live cell
   const TICK = 250; // ms per generation
   const COLUMN = 396; // half of the 792 px content column
   const MARGIN = 32; // px kept clear on each side of the column
@@ -152,7 +152,8 @@
 
   // t runs from 0 to 1 over a generation: born cells fade in, dying cells fade out
   function draw(t: number) {
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    // In CSS px, because of the devicePixelRatio transform. canvas.width misses the edges when the browser zooms out
+    context.clearRect(0, 0, cols * CELL, rows * CELL);
     const offset = (CELL - DOT) / 2;
     for (let x = 0; x < cols; x++) {
       if (!weight[x]) continue;
@@ -199,7 +200,7 @@
   function stop() {
     cancelAnimationFrame(frame);
     frame = 0;
-    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.clearRect(0, 0, cols * CELL, rows * CELL);
   }
 
   // A link back to the home page is a full load, so keep the grid in sessionStorage and continue where the visitor left
