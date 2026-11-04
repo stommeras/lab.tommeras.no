@@ -7,7 +7,7 @@ tags: [Animasjon]
 summary: Et landskap ved fjorden der scroll er klokka, bygd med ren CSS. Sola går over himmelen og vinduene lyser opp om kvelden.
 ---
 
-Ideen er én scene, en fjord med fjell, en hytte og noen trær, der hele dagen ligger i scrollen. Øverst på siden er det morgen, nederst er det natt.
+Ideen er én scene, en fjord med fjell, en hytte og noen trær, der hele dagen ligger i scrollen. Åpner du scenen i fullskjerm og scroller nedover, går dagen fra morgen til natt.
 
 Alt styres av ett tall. En scroll-driven animation flytter en `@property --time` fra 6 til 24, altså fra klokka seks om morgenen til midnatt, og resten av scenen regner seg ut fra den:
 
@@ -17,4 +17,4 @@ Alt styres av ett tall. En scroll-driven animation flytter en `@property --time`
 - Himmelen går fra morgengry via dagslys og solnedgang til natt.
 - Stjernene kommer frem, og vinduene i hytta lyser opp ett og ett, med forsinkelse fra `sibling-index()`.
 
-Med redusert bevegelse blir scrollen byttet ut med en slider, så du styrer tiden selv. Det er det eneste stedet med JavaScript.
+Under scenen er det en slider, så du kan styre tiden uten å åpne fullskjerm. Med redusert bevegelse er det bare slideren som styrer tiden. JavaScript brukes bare til slideren og til å åpne og lukke fullskjermen.

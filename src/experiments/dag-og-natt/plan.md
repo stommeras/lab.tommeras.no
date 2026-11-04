@@ -1,30 +1,32 @@
 # Plan: En dag i CSS
 
-A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, and every effect on them is CSS. The only JavaScript is the slider for reduced motion.
+A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, and every effect on them is CSS. JavaScript only runs the slider and opens and closes the full-screen dialog.
 
 ## Status
 
-- Phases 1 to 3 are done. The scene is inline in `Demo.astro` with flat colors (#18). Scroll drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc. Phase 4 comes next.
+- Phases 1 to 3 are done. The scene is in `Scene.astro` with flat colors (#18). Progress through the day drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc. Phase 4 comes next.
 - The build's CSS minifier folds `animation-timeline` into the `animation` shorthand, and Chromium drops the result. Write the animation as longhands.
-- With reduced motion the scene stays at noon until the slider in phase 9.
-- `Demo.astro` holds the only copy of the drawing in the repo. The Inkscape source is `~/Documents/hamnoy.svg` on Steffen's machine. After a redraw, convert the changed layers to the markup in `Demo.astro` by hand: class names instead of fills, windows in their own group, trees as `<use>`.
+- `Scene.astro` holds the only copy of the drawing in the repo. The Inkscape source is `~/Documents/hamnoy.svg` on Steffen's machine. After a redraw, convert the changed layers to the markup in `Scene.astro` by hand: class names instead of fills, windows in their own group, trees as `<use>`.
 - The `viewBox` is `0 130 762 429`, 16:9 cut from the 762×635 drawing. It shows more sky than the plan below asks for, and the waterline sits about 83% down instead of 70%.
 - The spruce variants in `<defs>` have their base at the origin, so a `<use>` transform is `translate(<base>) scale(<size>)`. A mirrored tree has a negative x scale and `class="flipped"`, which swaps `--tree-lit` and `--tree-shade`.
 
 ## Decisions
 
-- The stage is full-bleed, edge to edge and one viewport tall. It breaks out of the 792px `main` column.
+- The scroll version is a full-screen dialog that grows out of a preview in the page. See Preview and dialog.
 - Low-poly art in a flat Bob Ross composition, drawn by hand in Inkscape and inlined as SVG.
 - Time runs one way, from 6 (morning) to 24 (midnight). The scene sits at morning before the section reaches the top of the viewport and stays at night after it has passed.
 - Mountains get lit faces, and the cabin and trees get cast shadows on the shore.
 - No 3D. Depth comes from color, see below. `sprengskisse` covers CSS 3D.
 - No fallback for missing browser features. The note says what the demo needs, like the other experiments.
 
-## Stage and scroll
+## Preview and dialog
 
-- A section about `300vh` tall in `Demo.astro`, with a `position: sticky` stage inside it, `100svh` tall. The note sits below the section.
-- Full-bleed breakout: `width: 100vw` includes the scrollbar on Windows and causes horizontal overflow. Use `margin-inline: calc(50% - 50vw)` together with `overflow-x: clip` on a wrapper, or something equivalent. Check the mobile padding on `body` too.
-- `view-timeline` on the section, `animation-range: contain` on the stage animation, so time only moves while the section covers the viewport.
+The first version put the scroll in the page, between the title and the note, and it locked the reader in on the way down. Now the page shows a 16:9 preview with a slider under it, and the scroll lives in a full-screen dialog.
+
+- The keyframes run over the day's progress from 0 to 1. The preview holds a paused animation with `animation-delay: calc(var(--progress) * -1s)`, and the slider sets `--progress`.
+- Clicking the preview opens a modal `<dialog>` with `showModal()` inside `document.startViewTransition()`. The preview and the dialog's stage share a `view-transition-name`, so the scene grows from the preview to the full screen. Only one of them carries the name at a time.
+- The dialog is the scroll container, with `scroll-timeline: --day` and a `200%` track under a sticky stage. It opens scrolled to the slider's progress, and on close it hands its progress back to the slider. Both ways, the scene keeps its time.
+- Esc fires `cancel`, which the script turns into the same transition as the Lukk button.
 - Pacing: give `--time` keyframe stops instead of one linear run, so dusk gets more scroll than midday, for example `0% { --time: 6 } 40% { --time: 17 } 75% { --time: 21 } 100% { --time: 24 }`. Tune by feel. Scroll-driven animations follow the scroll position directly, so a smoothing lag would need JavaScript. Leave that out.
 
 ## The scene
@@ -100,11 +102,11 @@ The mountains get lit faces instead of cast shadows, since in a side view they'd
 
 ## Reduced motion
 
-No scroll linkage. A range input sets `--time` through a few lines of script. The stage is still full-bleed but not sticky, and the section is one viewport tall.
+The slider works the same. The dialog opens and closes without a view transition, doesn't scroll, and shows the slider's time.
 
 ## Phases
 
-1. Skeleton: full-bleed sticky stage, `--time` on the scroll timeline, sky color keyframes, and an hours-only readout through `counter()` on an integer `@property` for debugging the pacing.
+1. Skeleton: preview with a slider, full-screen dialog with a sticky stage, `--time` on the scroll timeline, sky color keyframes, and an hours-only readout through `counter()` on an integer `@property` for debugging the pacing.
 2. Sun and moon on the arc, setting behind a placeholder ridge.
 3. Draw the low-poly scene in Inkscape and inline it with flat colors. A five-triangle test of the lighting, reflection and shadow math passed before drawing started, so the markup above is safe to draw for.
 4. Atmospheric depth with `color-mix()` toward the sky.
@@ -112,7 +114,7 @@ No scroll linkage. A range input sets `--time` through a few lines of script. Th
 6. Fjord reflection.
 7. Cast shadows for the cabin and trees.
 8. Windows and stars.
-9. Reduced-motion slider, the note text, and the browser support line in the note.
+9. The note text, and the browser support line in the note.
 
 ## Later, maybe
 
