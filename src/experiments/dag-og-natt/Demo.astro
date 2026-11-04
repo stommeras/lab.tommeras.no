@@ -21,24 +21,37 @@ import Scene from './Scene.astro';
     <button class="close" type="button">
       Lukk
     </button>
+    <label class="time">
+      Klokka
+      <input type="range" min="0" max="1" step="0.001" value="0.44" />
+    </label>
   </dialog>
 </div>
+<p class="unsupported">
+  Nettleseren din støtter ikke scroll-driven animations (<code>animation-timeline</code>). Prøv Chrome eller Edge.
+</p>
 
 <script>
   const root = document.querySelector<HTMLElement>('.dag-og-natt')!;
   const preview = root.querySelector<HTMLButtonElement>('.preview')!;
-  const input = root.querySelector<HTMLInputElement>('.time input')!;
+  // One slider under the preview and one in the dialog. Both show the same time.
+  const [input, dialogInput] = root.querySelectorAll<HTMLInputElement>('.time input');
   const dialog = root.querySelector('dialog')!;
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
   // Progress through the day, from 0 to 1. The keyframes turn it into --time and the sky colors.
   function setProgress(progress: number) {
     root.style.setProperty('--progress', String(progress));
-    input.value = String(progress);
     const time = parseFloat(getComputedStyle(preview).getPropertyValue('--time'));
     const hours = Math.floor(time);
     const minutes = Math.floor((time - hours) * 60);
-    input.setAttribute('aria-valuetext', `kl. ${String(hours).padStart(2, '0')}.${String(minutes).padStart(2, '0')}`);
+    for (const slider of [input, dialogInput]) {
+      slider.value = String(progress);
+      slider.setAttribute(
+        'aria-valuetext',
+        `kl. ${String(hours).padStart(2, '0')}.${String(minutes).padStart(2, '0')}`,
+      );
+    }
   }
 
   // The preview grows into the dialog and shrinks back, unless the visitor prefers reduced motion
@@ -61,8 +74,7 @@ import Scene from './Scene.astro';
 
   const close = () => transition(() => dialog.close());
 
-  // The slider follows the dialog's scroll, so every way of closing keeps the time.
-  // Firefox has no scroll timelines yet, and there this also moves the scene.
+  // The sliders follow the dialog's scroll, so every way of closing keeps the time
   dialog.addEventListener('scroll', () => setProgress(dialog.scrollTop / maxScroll()));
 
   // Esc would close the dialog at once, so the transition takes over
@@ -72,6 +84,12 @@ import Scene from './Scene.astro';
   });
   root.querySelector('.close')!.addEventListener('click', close);
   input.addEventListener('input', () => setProgress(Number(input.value)));
+  // The dialog's slider scrolls the dialog, and the scroll listener does the rest.
+  // With reduced motion the dialog doesn't scroll, so the slider sets the time itself.
+  dialogInput.addEventListener('input', () => {
+    if (maxScroll() > 0) dialog.scrollTop = Number(dialogInput.value) * maxScroll();
+    else setProgress(Number(dialogInput.value));
+  });
   setProgress(Number(input.value));
 </script>
 
@@ -146,8 +164,28 @@ import Scene from './Scene.astro';
     }
   }
 
+  /* The scroll version needs scroll timelines, which Firefox doesn't have yet */
   .dag-og-natt {
+    display: none;
     --progress: 0.44;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    .dag-og-natt {
+      display: block;
+    }
+
+    .unsupported {
+      display: none;
+    }
+  }
+
+  .unsupported {
+    margin-top: 1em;
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--peach);
   }
 
   /*
@@ -169,6 +207,7 @@ import Scene from './Scene.astro';
     display: block;
     width: 100%;
     aspect-ratio: 16 / 9;
+    margin-top: 1em;
     padding: 0;
     border: 0;
     cursor: zoom-in;
@@ -216,9 +255,14 @@ import Scene from './Scene.astro';
     accent-color: var(--pink);
   }
 
-  /* 100vw, since a fixed element doesn't overflow and 100% would leave the page's scrollbar gutter showing */
+  /* The browser draws the page's scrollbar gutter above the dialog, so it goes away while the dialog is open */
+  :global(html:has(.dag-og-natt dialog[open])) {
+    overflow: hidden;
+    scrollbar-gutter: auto;
+  }
+
   dialog {
-    width: 100vw;
+    width: 100%;
     height: 100%;
     max-width: none;
     max-height: none;
@@ -226,6 +270,7 @@ import Scene from './Scene.astro';
     border: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+    scrollbar-width: none;
     scroll-timeline: --day block;
   }
 
@@ -246,15 +291,25 @@ import Scene from './Scene.astro';
       height: 200%;
     }
 
-    /* Without scroll timelines the stage keeps the paused animation, and the script sets --progress as the dialog scrolls */
-    @supports (animation-timeline: scroll()) {
-      .stage {
-        animation-duration: auto;
-        animation-delay: 0s;
-        animation-play-state: running;
-        animation-timeline: --day;
-      }
+    .stage {
+      animation-duration: auto;
+      animation-delay: 0s;
+      animation-play-state: running;
+      animation-timeline: --day;
     }
+  }
+
+  /* Leaves room for the kl. readout in the bottom left corner */
+  dialog .time {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    left: 120px;
+    margin: 0;
+    padding: 4px 12px;
+    border-radius: 4px;
+    background: rgb(0 0 0 / 0.5);
+    color: #fff;
   }
 
   .close {
