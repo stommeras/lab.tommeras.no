@@ -4,8 +4,8 @@ A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, a
 
 ## Status
 
-- Phases 1 to 3 are done. The scene is in `Scene.astro` with flat colors (#18). Progress through the day drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc.
-- Phases 4 and 5 are done. The far range fades toward the sky's horizon color, and each mountain face lights up as the sun lines up with it. After dusk the rock darkens toward a night color and the moon lights the faces that point at it. Phase 6 comes next: the reflection, and the fjord and shore following the time of day. Right now they stay as bright at 22 as at noon, and that breaks the night more than anything else in the scene.
+- Phases 1 to 3 are done. #18 inlined the scene in `Scene.astro` with flat colors. Progress through the day drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc.
+- Phases 4 and 5 are done. The far range fades toward the sky's horizon color, and each mountain face lights up as the sun lines up with it. After dusk the rock darkens toward a night color and the moon lights the faces that point at it. Phase 6 comes next. It adds the reflection and makes the fjord and shore follow the time of day. Right now they stay as bright at 22 as at noon, and that breaks the night more than anything else in the scene.
 - Each face's `--face-angle` sits in a `style` attribute on its `<path>`. See Face angles for the frame and how the values were chosen.
 - The mid range is low in contrast around noon, since many of its faces point almost straight up and light up together. It reads, but it's flat.
 - The build's CSS minifier folds `animation-timeline` into the `animation` shorthand, and Chromium drops the result. Write the animation as longhands.
@@ -74,15 +74,15 @@ Cabin and trees:
 Cleanup:
 
 - Export as Plain SVG. If SVGO runs on it, turn off `mergePaths` and `cleanupIds`, since the defaults merge the faces into one path and strip the ids.
-- After export: remove every `fill`, give each face a class and a `--face-angle` value (see Light), and paste it inline in `Demo.astro`.
-- Neighboring triangles show hairline seams from anti-aliasing. Fix with a thin stroke in the same color as the fill, `stroke: var(--fill); stroke-width: 1`. A width of 0.5 still leaves light seams at 1x.
+- After export: remove every `fill`, give each face a class and a `--face-angle` value (see Light), and paste it inline in `Scene.astro`.
+- Neighboring triangles show hairline seams from anti-aliasing. Fix with a thin stroke in the same color as the fill, `fill: currentColor; stroke: currentColor; stroke-width: 1`. A width of 0.5 still leaves light seams at 1x.
 
 ## Light
 
 Everything derives from one registered number, `@property --time { syntax: '<number>'; inherits: true; initial-value: 12; }`.
 
 - Sun angle `calc(var(--time) / 24 * 360deg - 90deg)`. Position from `cos()` and `sin()` of that angle on an ellipse. The moon is the same angle plus 180deg.
-- Sun height, the `sin()` of the angle, drives daylight, star opacity and window lights. Clamp it with `max(0, ...)` so night stays night.
+- Sun height, the `sin()` of the angle, drives daylight, star opacity and window lights. `--daylight` is `clamp(0, sin(<sun angle>) * 2.5, 1)`, so night stays night and full daylight starts once the sun is about 24deg up. `--moonlight` is the same ramp on the moon angle, times 0.3.
 - Lit faces: each face gets a `--face-angle` in its `style` attribute, the direction the face points in the picture. Brightness is `max(0, cos(sun angle - var(--face-angle)))` times daylight, and the fill is `color-mix(in oklch, var(--rock-lit) <brightness>, var(--rock-shade))`. Tested in Edge: `color-mix()` accepts a `calc()` percentage built from `cos()` and custom properties, and the faces in a `<use>` clone pick up `--time` and the class rules too. Setting `--face-angle` by eye is fine, it doesn't need to be physically right.
 - Moonlight: in the test, every face turned the same dark grey at night. Run the same face math against the moon angle at low strength, so the ridges still read after dark.
 - Atmospheric depth: mix each layer toward the current sky color, more for far layers. `color-mix(in oklch, var(--sky-horizon) var(--haze), <face color>)` with `--haze` set per layer group. Far mountains then turn pink at dawn and blue at night without extra rules.
@@ -95,14 +95,14 @@ Everything derives from one registered number, `@property --time { syntax: '<num
 
 `--face-angle` uses the sun's frame: 0deg points left toward the 06:00 sun, 90deg straight up toward the noon sun, 180deg right toward the 18:00 sun. Values outside 0 to 180 are allowed. A face at 30deg is brightest mid-morning and dark in the evening.
 
-The Inkscape greys that were meant to show each face's direction didn't survive into `Scene.astro`, so the 61 angles were set from screenshots instead of by eye in Inkscape:
+The Inkscape greys that were meant to show each face's direction didn't survive into `Scene.astro`. So instead of setting the 61 angles by eye in Inkscape, a Claude Code workflow picked them from screenshots:
 
-1. Three agents each proposed a full set with a different method. Geometry treated each mountain as a height field, with the ridgeline at the back, and projected each triangle's normal onto the picture. Ridges by eye split faces at the ridge lines into left-facing and right-facing. Painterly optimised for how the picture reads.
-2. Each set was written into `Scene.astro` and screenshotted at ten points in the day with headless Edge and Playwright, by setting the preview slider.
-3. A judge compared the sets at the same hours. Geometry won (7.5 of 10). It has one clear crease down the needle, so the left flank is lit in the morning and the right flank in the evening. Ridges by eye came close (7) and had the better mid range. Painterly scored 4: alternating neighbours across 90deg gave a checkerboard, and the mountain looked like crumpled paper.
-4. The final set is geometry with 13 changes. The needle tip moved to 65deg and its steep right wall to 150deg. The mid range's angles were spread 1.5 times further from 90deg for more contrast, and four of its faces were taken from the ridges set, so it gets a real morning and evening side.
+1. Three agents each proposed a full set with a different method. The geometry agent treated each mountain as a height field, with the ridgeline at the back, and projected each triangle's normal onto the picture. The ridges agent split faces at the ridge lines into left-facing and right-facing. The painterly agent made neighboring faces differ as much as possible so the facets would always show.
+2. A render agent wrote each set into `Scene.astro` and screenshotted it at ten points in the day with headless Edge and Playwright, by setting the preview slider.
+3. A judge agent compared the sets at the same hours. Geometry won with 7.5 of 10. It has one clear crease down the needle, so the left flank is lit in the morning and the right flank in the evening. Ridges came close with 7 and had the better mid range. Painterly scored 4. Its neighbors alternated across 90deg, which gave a checkerboard, and the mountain looked like crumpled paper.
+4. A last agent took the geometry set and applied the judge's 13 changes. The needle tip moved to 65deg and its steep right wall to 150deg. The judge spread the mid range's angles 1.5 times further from 90deg for more contrast and took four of its faces from the ridges set, so the mid range gets a real morning and evening side.
 
-Lesson: physically plausible normals read better than angles picked for contrast. Neighbouring faces only need to differ where the shape has a crease.
+The lesson is that physically plausible normals read better than angles picked for contrast. Neighboring faces only need to differ where the shape has a crease.
 
 To change the values, rewrite the `style="--face-angle: ..."` attributes in `<path>` order within each group and leave `d` alone. The screenshot and apply scripts lived outside the repo. Rebuild them if this needs doing again. Playwright can drive the installed Edge with `channel: 'msedge'`, and the preview's slider sets the time.
 

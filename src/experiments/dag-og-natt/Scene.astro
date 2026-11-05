@@ -184,17 +184,17 @@ const { defs = false } = Astro.props;
     --arc-center-y: 440px;
     --arc-radius-x: 330px;
     --arc-radius-y: 250px;
-    --angle: calc(var(--time) / 24 * 360deg - 90deg);
     cx: calc(var(--arc-center-x) - cos(var(--angle)) * var(--arc-radius-x));
     cy: calc(var(--arc-center-y) - sin(var(--angle)) * var(--arc-radius-y));
   }
 
   .sun {
+    --angle: var(--sun-angle);
     fill: #fff1c4;
   }
 
   .moon {
-    --angle: calc(var(--time) / 24 * 360deg + 90deg);
+    --angle: var(--moon-angle);
     fill: #e4e8ef;
   }
 
@@ -226,9 +226,7 @@ const { defs = false } = Astro.props;
     --haze: 10%;
   }
 
-  /* The stroke in the fill color hides the hairline seams that anti-aliasing leaves between faces */
   :is(.far-mountains, .mid-mountains, .near-mountains) path {
-    --face-angle: 90deg;
     --light: calc(
       max(0, cos(var(--sun-angle) - var(--face-angle))) * var(--daylight) +
         max(0, cos(var(--moon-angle) - var(--face-angle))) * var(--moonlight)
@@ -238,9 +236,10 @@ const { defs = false } = Astro.props;
     color: color-mix(
       in oklch,
       var(--sky-horizon) var(--haze),
-      color-mix(in oklch, var(--lit) calc(min(1, var(--light)) * 100%), var(--shade))
+      color-mix(in oklch, var(--lit) calc(var(--light) * 100%), var(--shade))
     );
     fill: currentColor;
+    /* The stroke in the fill color hides the hairline seams that anti-aliasing leaves between faces */
     stroke: currentColor;
     stroke-width: 1;
     stroke-linejoin: round;
