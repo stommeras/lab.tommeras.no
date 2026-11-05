@@ -348,7 +348,6 @@ const trees = [
     --paint: var(--window);
   }
 
-  /* With the sun behind the scene, a shadow is the object flipped down at its base, leaning away from the sun */
   .shadows {
     --sun-height: max(sin(var(--sun-angle)), 0.01);
     --shadow-length: min(1, 0.08 + 0.3 * abs(cos(var(--sun-angle))) / var(--sun-height));
@@ -357,7 +356,9 @@ const trees = [
   }
 
   .shadow {
-    transform: skewX(calc(cos(var(--sun-angle)) * 60deg)) scaleY(calc(-1 * var(--shadow-length)));
+    --lean-away-from-sun: skewX(calc(cos(var(--sun-angle)) * 60deg));
+    --flip-toward-viewer: scaleY(calc(-1 * var(--shadow-length)));
+    transform: var(--lean-away-from-sun) var(--flip-toward-viewer);
   }
 
   .trees {
