@@ -4,7 +4,10 @@ A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, a
 
 ## Status
 
-- Phases 1 to 3 are done. The scene is in `Scene.astro` with flat colors (#18). Progress through the day drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc. Phase 4 comes next.
+- Phases 1 to 3 are done. The scene is in `Scene.astro` with flat colors (#18). Progress through the day drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc.
+- Phases 4 and 5 are done. The far range fades toward the sky's horizon color, and each mountain face lights up as the sun lines up with it. After dusk the rock darkens toward a night color and the moon lights the faces that point at it. Phase 6 comes next: the reflection, and the fjord and shore following the time of day. Right now they stay as bright at 22 as at noon, and that breaks the night more than anything else in the scene.
+- Each face's `--face` angle sits in a `style` attribute on its `<path>`. See Face angles for the frame and how the values were chosen.
+- The mid range is low in contrast around noon, since many of its faces point almost straight up and light up together. It reads, but it's flat.
 - The build's CSS minifier folds `animation-timeline` into the `animation` shorthand, and Chromium drops the result. Write the animation as longhands.
 - `Scene.astro` holds the only copy of the drawing in the repo. The Inkscape source is `~/Documents/hamnoy.svg` on Steffen's machine. After a redraw, convert the changed layers to the markup in `Scene.astro` by hand: class names instead of fills, windows in their own group, trees as `<use>`.
 - The `viewBox` is `0 130 762 429`, 16:9 cut from the 762×635 drawing. It shows more sky than the plan below asks for, and the waterline sits about 83% down instead of 70%.
@@ -85,6 +88,23 @@ Everything derives from one registered number, `@property --time { syntax: '<num
 - Atmospheric depth: mix each layer toward the current sky color, more for far layers. `color-mix(in oklch, var(--sky-horizon) var(--haze), <face color>)` with `--haze` set per layer group. Far mountains then turn pink at dawn and blue at night without extra rules.
 - Sky colors: a few keyframe stops (dawn, day, dusk, night) on registered `<color>` properties, on the same timeline as `--time`. Pure math won't give good sky colors. In the test, daylight from sun height alone went from day to full night within half an hour after sunset. The dawn and dusk stops are there to stretch that out.
 - The scene has its own palette and ignores `light-dark()`. The page around it follows the tokens.
+- Night rock: with only the face math, the mountains kept their daytime colors at night and stood out pale against a dark sky. `--day-tint` is the sun height scaled and offset, `clamp(0, sin(<sun angle>) * 2 + 0.6, 1)`. It mixes `--rock-lit` toward `--rock-moonlit` and `--rock-shade` toward `--rock-night`. The offset keeps most of the day colors through sunrise and sunset and lets them go a while after dusk.
+- Haze per group ended up at 55% for far, 20% for mid and 10% for near. At 30% the mid range washed out to one flat grey at midday.
+
+## Face angles
+
+`--face` uses the sun's frame: 0deg points left toward the 06:00 sun, 90deg straight up toward the noon sun, 180deg right toward the 18:00 sun. Values outside 0 to 180 are allowed. A face at 30deg is brightest mid-morning and dark in the evening.
+
+The Inkscape greys that were meant to show each face's direction didn't survive into `Scene.astro`, so the 61 angles were set from screenshots instead of by eye in Inkscape:
+
+1. Three agents each proposed a full set with a different method. Geometry treated each mountain as a height field, with the ridgeline at the back, and projected each triangle's normal onto the picture. Ridges by eye split faces at the ridge lines into left-facing and right-facing. Painterly optimised for how the picture reads.
+2. Each set was written into `Scene.astro` and screenshotted at ten points in the day with headless Edge and Playwright, by setting the preview slider.
+3. A judge compared the sets at the same hours. Geometry won (7.5 of 10). It has one clear crease down the needle, so the left flank is lit in the morning and the right flank in the evening. Ridges by eye came close (7) and had the better mid range. Painterly scored 4: alternating neighbours across 90deg gave a checkerboard, and the mountain looked like crumpled paper.
+4. The final set is geometry with 13 changes. The needle tip moved to 65deg and its steep right wall to 150deg. The mid range's angles were spread 1.5 times further from 90deg for more contrast, and four of its faces were taken from the ridges set, so it gets a real morning and evening side.
+
+Lesson: physically plausible normals read better than angles picked for contrast. Neighbouring faces only need to differ where the shape has a crease.
+
+To change the values, rewrite the `style="--face: ..."` attributes in `<path>` order within each group and leave `d` alone. The screenshot and apply scripts lived outside the repo. Rebuild them if this needs doing again. Playwright can drive the installed Edge with `channel: 'msedge'`, and the preview's slider sets the time.
 
 ## Shadows
 
@@ -113,7 +133,7 @@ The slider works the same. The dialog opens and closes without a view transition
 3. Draw the low-poly scene in Inkscape and inline it with flat colors. A five-triangle test of the lighting, reflection and shadow math passed before drawing started, so the markup above is safe to draw for.
 4. Atmospheric depth with `color-mix()` toward the sky.
 5. Lit faces from `--face`.
-6. Fjord reflection.
+6. Fjord reflection. The fjord and the shore also follow the time of day here, darkening at night and taking the sky's color at dawn and dusk.
 7. Cast shadows for the cabin and trees.
 8. Windows and stars.
 9. The note text, and the browser support line in the note.

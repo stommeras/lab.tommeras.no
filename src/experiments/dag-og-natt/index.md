@@ -1,7 +1,7 @@
 ---
 title: En dag i CSS
 date: 2026-10-30T14:00:00
-status: skisse
+status: pågår
 language: CSS
 tags: [Animasjon]
 summary: Et landskap ved fjorden der scroll er klokka, bygd med ren CSS. Sola går over himmelen og vinduene lyser opp om kvelden.
@@ -14,8 +14,8 @@ Alt styres av ett tall. En scroll-driven animation flytter en `@property --time`
 - [x] Scenen er tegnet low-poly i Inkscape, etter et bilde av Hamnøy.
 - [x] Himmelen går fra morgengry via dagslys og solnedgang til natt.
 - [x] Sola og månen går i en bue over himmelen med `sin()` og `cos()`, og går ned bak fjellene.
-- [ ] Fjellene langt unna blander seg med fargen på himmelen, så de blir rosa om morgenen og blå om natta.
-- [ ] Fjellsidene som vender mot sola lyser opp, og lyset flytter seg fra den ene siden til den andre utover dagen.
+- [x] Fjellene langt unna blander seg med fargen på himmelen, så de blir rosa om morgenen og blå om natta.
+- [x] Fjellsidene som vender mot sola lyser opp, og lyset flytter seg fra den ene siden til den andre utover dagen.
 - [ ] Fjellene speiler seg i fjorden.
 - [ ] Skyggene fra hytta og trærne snur seg og blir lengre når sola står lavt.
 - [ ] Stjernene kommer frem, og vinduene i hytta lyser opp ett og ett, med forsinkelse fra `sibling-index()`.
