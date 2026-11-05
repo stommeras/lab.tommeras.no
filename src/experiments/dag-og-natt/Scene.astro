@@ -5,6 +5,23 @@ interface Props {
 
 const { ownsIds = false } = Astro.props;
 const waterline = 465.5;
+const cabinBase = 462.5;
+
+const trees = [
+  { spruce: 3, x: 484.03, y: 461.1, size: 0.81 },
+  { spruce: 1, x: 227.59, y: 461.87, size: 1.19, flipped: true },
+  { spruce: 3, x: 368.04, y: 462.2, size: 1.05 },
+  { spruce: 2, x: 507.23, y: 462.58, size: 1.5, flipped: true },
+  { spruce: 3, x: 626.64, y: 464.7, size: 1, flipped: true },
+  { spruce: 3, x: 144.56, y: 469.87, size: 1 },
+  { spruce: 2, x: 89.74, y: 473.91, size: 1 },
+  { spruce: 1, x: 65.39, y: 474.91, size: 1 },
+].map(({ spruce, x, y, size, flipped }) => ({
+  href: `#spruce-0${spruce}`,
+  base: y,
+  flipped,
+  transform: `translate(${x},${y}) scale(${flipped ? -size : size},${size})`,
+}));
 ---
 
 <svg
@@ -48,6 +65,9 @@ const waterline = 465.5;
         <path class="lit" d="m 142.0587,534.76336 -2.91026,1.5507 3.13238,-8.42833 z" />
         <path class="shade" d="m 142.0587,534.76336 2.93469,1.51842 -2.71257,-8.39605 z" />
       </g>
+      <clipPath id="shore-clip">
+        <use href="#shore" />
+      </clipPath>
     </defs>
   )}
   <circle class="sun" r="16" />
@@ -146,9 +166,20 @@ const waterline = 465.5;
       <path style="--face-angle: 148deg" d="m 490.56956,384.96419 34.71355,54.87924 -69.51258,-2.92237 z" />
     </g>
     <g class="shore">
-      <path d="m 761.99999,444.17085 v 29.50668 l -186.47836,-4.78462 -90.22429,-3.4176 -123.71665,2.73408 -104.57816,-1.36703 -66.30118,4.1011 -73.13636,6.15167 -54.681393,3.41759 L 0,485.98084 v -67.66822 l 52.198534,-3.38259 94.489016,4.8332 52.68185,-0.12084 87.96421,3.26239 82.40601,3.14159 86.03091,10.87469 69.51258,2.92237 99.16604,-0.50577 z" />
+      <path
+        id={ownsIds ? 'shore' : undefined}
+        d="m 761.99999,444.17085 v 29.50668 l -186.47836,-4.78462 -90.22429,-3.4176 -123.71665,2.73408 -104.57816,-1.36703 -66.30118,4.1011 -73.13636,6.15167 -54.681393,3.41759 L 0,485.98084 v -67.66822 l 52.198534,-3.38259 94.489016,4.8332 52.68185,-0.12084 87.96421,3.26239 82.40601,3.14159 86.03091,10.87469 69.51258,2.92237 99.16604,-0.50577 z"
+      />
     </g>
-    <g class="cabin" transform="translate(135.5,-3.1510664)">
+    <g class="shadows" clip-path="url(#shore-clip)">
+      <use class="shadow" href="#cabin" style={`transform-origin: 0 ${cabinBase}px`} />
+      {trees.map(({ href, base, transform }) => (
+        <g class="shadow" style={`transform-origin: 0 ${base}px`}>
+          <use href={href} transform={transform} />
+        </g>
+      ))}
+    </g>
+    <g id={ownsIds ? 'cabin' : undefined} class="cabin" transform="translate(135.5,-3.1510664)">
       <path class="roof" d="m 109.29048,435.76547 30.5874,-29.39124 47.67534,-1.87968 -29.04949,30.41652 z" />
       <path class="gable" d="m 187.55322,404.49455 28.02421,30.24565 -57.0737,0.17087 z" />
       <path class="end-wall" d="m 213.80886,434.7455 0.54442,30.95267 h -56.54841 l 0.69886,-30.7871 z" />
@@ -163,14 +194,9 @@ const waterline = 465.5;
       </g>
     </g>
     <g class="trees">
-      <use href="#spruce-03" transform="translate(484.03,461.1) scale(0.81)" />
-      <use class="flipped" href="#spruce-01" transform="translate(227.59,461.87) scale(-1.19,1.19)" />
-      <use href="#spruce-03" transform="translate(368.04,462.2) scale(1.05)" />
-      <use class="flipped" href="#spruce-02" transform="translate(507.23,462.58) scale(-1.5,1.5)" />
-      <use class="flipped" href="#spruce-03" transform="translate(626.64,464.7) scale(-1,1)" />
-      <use href="#spruce-03" transform="translate(144.56,469.87)" />
-      <use href="#spruce-02" transform="translate(89.74,473.91)" />
-      <use href="#spruce-01" transform="translate(65.39,474.91)" />
+      {trees.map(({ href, flipped, transform }) => (
+        <use class={flipped ? 'flipped' : undefined} href={href} transform={transform} />
+      ))}
     </g>
   </g>
 </svg>
@@ -320,6 +346,18 @@ const waterline = 465.5;
   .door,
   .windows path {
     --paint: var(--window);
+  }
+
+  /* With the sun behind the scene, a shadow is the object flipped down at its base, leaning away from the sun */
+  .shadows {
+    --sun-height: max(sin(var(--sun-angle)), 0.01);
+    --shadow-length: min(1, 0.08 + 0.3 * max(cos(var(--sun-angle)), -1 * cos(var(--sun-angle))) / var(--sun-height));
+    filter: brightness(0);
+    opacity: calc(var(--daylight) * 0.4);
+  }
+
+  .shadow {
+    transform: skewX(calc(cos(var(--sun-angle)) * 60deg)) scaleY(calc(-1 * var(--shadow-length)));
   }
 
   .trees {
