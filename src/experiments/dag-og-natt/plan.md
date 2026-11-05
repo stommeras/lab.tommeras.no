@@ -5,7 +5,11 @@ A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, a
 ## Status
 
 - Phases 1 to 3 are done. #18 inlined the scene in `Scene.astro` with flat colors. Progress through the day drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc.
-- Phases 4 and 5 are done. The far range fades toward the sky's horizon color, and each mountain face lights up as the sun lines up with it. After dusk the rock darkens toward a night color and the moon lights the faces that point at it. Phase 6 comes next. It adds the reflection and makes the fjord and shore follow the time of day. Right now they stay as bright at 22 as at noon, and that breaks the night more than anything else in the scene.
+- Phases 4 and 5 are done. The far range fades toward the sky's horizon color, and each mountain face lights up as the sun lines up with it. After dusk the rock darkens toward a night color and the moon lights the faces that point at it.
+- Phase 6 is done. Phase 7, the cast shadows, comes next.
+- The reflection is a `<use>` of `<g id="land">`, at opacity 0.5. The group holds the mountains, shore, cabin and trees.
+- Twelve thin ripple slivers lie on the water, longer and thicker toward the viewer. Their color is the sky's horizon mixed with white, at opacity 0.45. Each has a `--drift` in its `style` and moves sideways by `(--time - 15) * --drift`, so they only move when the time does and reduced motion needs no rule of its own. Neighbors drift in opposite directions.
+- The fjord, shore, cabin and trees darken toward `--rock-night`, by up to 80% as `--day-palette-mix` drops. Then they mix toward `--sky-horizon` like the mountains. Each of them names its day color in `--paint`, and one rule builds the fill.
 - Each face's `--face-angle` sits in a `style` attribute on its `<path>`. See Face angles for the frame and how the values were chosen.
 - The mid range is low in contrast around noon, since many of its faces point almost straight up and light up together. It reads, but it's flat.
 - The build's CSS minifier folds `animation-timeline` into the `animation` shorthand, and Chromium drops the result. Write the animation as longhands.
@@ -43,7 +47,7 @@ Back to front:
 3. Far mountains, pale and close to the sky color. The hazy ranges in the gap in the middle of the photo, 5 to 10 triangles each.
 4. Mid mountains, the range on the left and the snowy massif on the right. 15 to 25 triangles each, with most of the effort on the outline.
 5. Near mountains, the needle and its shoulder. 30 to 50 low-poly faces lit by the sun. The needle's clean left and right faces carry the morning-to-evening light swap.
-6. Fjord, with a mirrored `<use>` of the mountain groups as the reflection, `scaleY(-1)` and lower opacity. Its `clip-path` is in the `<use>` element's own coordinates, before the flip, so the clip rectangle sits just above the waterline, not below it.
+6. Fjord, with a mirrored `<use>` of the land as the reflection, flipped and at lower opacity. It flips around y = 465.5, the highest point of the shore's water edge, so no bare water shows between the shore and its reflection. Land that flips above the edge needs no `clip-path`, because the shore is drawn after the reflection and covers it.
 7. Shore, a strip of dark low-poly rocks with one red cabin and some trees. Skip the boats, docks and the rest of the village.
 
 The SVG is a wide landscape, roughly 16:9, with `preserveAspectRatio="xMidYMax slice"`. A phone in portrait keeps only about the middle third, so the needle and the cabin have to be in that band. The needle goes in the horizontal center of the page. The photo's shore with houses is far left, so put the cabin center-left instead.
@@ -89,7 +93,7 @@ Everything derives from one registered number, `@property --time { syntax: '<num
 - Sky colors: a few keyframe stops (dawn, day, dusk, night) on registered `<color>` properties, on the same timeline as `--time`. Pure math won't give good sky colors. In the test, daylight from sun height alone went from day to full night within half an hour after sunset. The dawn and dusk stops are there to stretch that out.
 - The scene has its own palette and ignores `light-dark()`. The page around it follows the tokens.
 - Night rock: with only the face math, the mountains kept their daytime colors at night and stood out pale against a dark sky. `--day-palette-mix` is the sun height scaled and offset, `clamp(0, sin(<sun angle>) * 2 + 0.6, 1)`. It mixes `--rock-lit` toward `--rock-moonlit` and `--rock-shade` toward `--rock-night`. The offset keeps most of the day colors through sunrise and sunset and lets them go a while after dusk.
-- Haze per group ended up at 55% for far, 20% for mid and 10% for near. At 30% the mid range washed out to one flat grey at midday.
+- Haze per group ended up at 55% for far, 20% for mid and 10% for near. At 30% the mid range washed out to one flat grey at midday. The shore, cabin and trees take 10% like the near range. The fjord takes 35%, so it turns pink at dawn and dusk. At 45% the water went so pale at midday that the reflection barely showed.
 
 ## Face angles
 
@@ -118,6 +122,7 @@ The mountains get lit faces instead of cast shadows, since in a side view they'd
 
 ## Windows and stars
 
+- The shared fill rule from phase 6 darkens `.windows path` at night along with the rest of the cabin. A lit window needs a `fill` rule of its own that comes after it, or its light gets mixed toward `--rock-night` too.
 - Each window gets a light-on time from `sibling-index()`, for example `18 + sibling-index() * 0.4`, and turns on with `clamp(0, (var(--time) - var(--on)) * 10, 1)`. Turn them off late at night the same way.
 - Stars: a handful of positioned dots, opacity from sun height, a small twinkle offset by `sibling-index()`.
 - `sibling-index()` is Chromium-only so far. Mention it in the note, no fallback.
@@ -142,4 +147,5 @@ The slider works the same. The dialog opens and closes without a view transition
 
 - A real clock in the scene with minutes. Decide after phase 1 whether the debug readout looks good enough to keep.
 - Northern lights at night: a few blurred gradient bands with `mix-blend-mode: screen`, fading in with darkness and swaying with the scroll.
+- A glitter path on the fjord under the moon, and maybe the sun: a column of 10 to 15 short streaks from the waterline down, wider and further apart toward the viewer. The group's x follows the light with the same formula as its `cx`. Opacity is highest when the light is low, roughly `(1 - sin(angle))` times `--moonlight` or `--daylight`. The streaks can wobble with a `--drift` like the ripples. Start with the moon. From 21 to 24 it's up in a clear sky over the needle's left side. The sun hides behind the ridge before it gets low, at about 17:30 on the right and early in the morning on the left, so a sun path would show mostly mid-morning and mid-afternoon, when it's weak. Showing it at sunset anyway would be painter's licence.
 - A looping version: the full 0 to 24 cycle in the scene's own scroll container, jumping the scroll position back at the end. Needs a few lines of JavaScript.
