@@ -121,6 +121,7 @@ The mountains get lit faces instead of cast shadows, since in a side view they'd
 
 ## Windows and stars
 
+- The shared fill rule from phase 6 darkens `.windows path` at night along with the rest of the cabin. A lit window needs a `fill` rule of its own that comes after it, or its light gets mixed toward `--rock-night` too.
 - Each window gets a light-on time from `sibling-index()`, for example `18 + sibling-index() * 0.4`, and turns on with `clamp(0, (var(--time) - var(--on)) * 10, 1)`. Turn them off late at night the same way.
 - Stars: a handful of positioned dots, opacity from sun height, a small twinkle offset by `sibling-index()`.
 - `sibling-index()` is Chromium-only so far. Mention it in the note, no fallback.
