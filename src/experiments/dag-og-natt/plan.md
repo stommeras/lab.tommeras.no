@@ -6,7 +6,9 @@ A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, a
 
 - Phases 1 to 3 are done. #18 inlined the scene in `Scene.astro` with flat colors. Progress through the day drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc.
 - Phases 4 and 5 are done. The far range fades toward the sky's horizon color, and each mountain face lights up as the sun lines up with it. After dusk the rock darkens toward a night color and the moon lights the faces that point at it.
-- Phase 6 is done. Phase 7, the cast shadows, comes next. The mountains, shore, cabin and trees sit in `<g id="land">`, and a `<use>` of it flipped around y = 469 is the reflection, at opacity 0.5. That line is the shore's lowest point along the water, so everything reflected lands below the waterline and the reflection needs no `clip-path`. The fjord, shore, cabin and trees mix toward `--rock-night` by up to 80% as `--day-palette-mix` drops, and then toward `--sky-horizon`, 35% for the fjord and 10% for the rest. Each element names its day color in `--paint`, and one rule builds the fill.
+- Phase 6 is done. Phase 7, the cast shadows, comes next.
+- The reflection is a `<use>` of `<g id="land">`, at opacity 0.5. The group holds the mountains, shore, cabin and trees.
+- The fjord, shore, cabin and trees darken toward `--rock-night`, by up to 80% as `--day-palette-mix` drops. Then they mix toward `--sky-horizon` like the mountains. Each of them names its day color in `--paint`, and one rule builds the fill.
 - Each face's `--face-angle` sits in a `style` attribute on its `<path>`. See Face angles for the frame and how the values were chosen.
 - The mid range is low in contrast around noon, since many of its faces point almost straight up and light up together. It reads, but it's flat.
 - The build's CSS minifier folds `animation-timeline` into the `animation` shorthand, and Chromium drops the result. Write the animation as longhands.
@@ -44,7 +46,7 @@ Back to front:
 3. Far mountains, pale and close to the sky color. The hazy ranges in the gap in the middle of the photo, 5 to 10 triangles each.
 4. Mid mountains, the range on the left and the snowy massif on the right. 15 to 25 triangles each, with most of the effort on the outline.
 5. Near mountains, the needle and its shoulder. 30 to 50 low-poly faces lit by the sun. The needle's clean left and right faces carry the morning-to-evening light swap.
-6. Fjord, with a mirrored `<use>` of the mountain groups as the reflection, `scaleY(-1)` and lower opacity. Its `clip-path` is in the `<use>` element's own coordinates, before the flip, so the clip rectangle sits just above the waterline, not below it.
+6. Fjord, with a mirrored `<use>` of the land as the reflection, flipped and at lower opacity. It flips around y = 465.5, the highest point of the shore's water edge, so no bare water shows between the shore and its reflection. Land that flips above the edge needs no `clip-path`, because the shore is drawn after the reflection and covers it.
 7. Shore, a strip of dark low-poly rocks with one red cabin and some trees. Skip the boats, docks and the rest of the village.
 
 The SVG is a wide landscape, roughly 16:9, with `preserveAspectRatio="xMidYMax slice"`. A phone in portrait keeps only about the middle third, so the needle and the cabin have to be in that band. The needle goes in the horizontal center of the page. The photo's shore with houses is far left, so put the cabin center-left instead.
@@ -90,7 +92,7 @@ Everything derives from one registered number, `@property --time { syntax: '<num
 - Sky colors: a few keyframe stops (dawn, day, dusk, night) on registered `<color>` properties, on the same timeline as `--time`. Pure math won't give good sky colors. In the test, daylight from sun height alone went from day to full night within half an hour after sunset. The dawn and dusk stops are there to stretch that out.
 - The scene has its own palette and ignores `light-dark()`. The page around it follows the tokens.
 - Night rock: with only the face math, the mountains kept their daytime colors at night and stood out pale against a dark sky. `--day-palette-mix` is the sun height scaled and offset, `clamp(0, sin(<sun angle>) * 2 + 0.6, 1)`. It mixes `--rock-lit` toward `--rock-moonlit` and `--rock-shade` toward `--rock-night`. The offset keeps most of the day colors through sunrise and sunset and lets them go a while after dusk.
-- Haze per group ended up at 55% for far, 20% for mid and 10% for near. At 30% the mid range washed out to one flat grey at midday.
+- Haze per group ended up at 55% for far, 20% for mid and 10% for near. At 30% the mid range washed out to one flat grey at midday. The shore, cabin and trees take 10% like the near range. The fjord takes 35%, so it turns pink at dawn and dusk. At 45% the water went so pale at midday that the reflection barely showed.
 
 ## Face angles
 

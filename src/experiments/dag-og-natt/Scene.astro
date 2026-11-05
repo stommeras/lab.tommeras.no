@@ -53,8 +53,8 @@ const { defs = false } = Astro.props;
   <circle class="sun" r="16" />
   <circle class="moon" r="11" />
   <rect class="fjord" x="0" y="460" width="762" height="175" />
-  <!-- Flipped around y = 469, the shore's lowest point along the water, so everything reflected lands below the waterline -->
-  <use class="reflection" href="#land" transform="translate(0 938) scale(1 -1)" />
+  <!-- Flipped around y = 465.5, the highest point of the shore's water edge, so no bare water shows between the shore and its reflection. The shore is drawn on top and hides what flips above the edge. -->
+  <use class="reflection" href="#land" transform="translate(0 931) scale(1 -1)" />
   <g id={defs ? 'land' : undefined}>
     <g class="far-mountains">
       <path
