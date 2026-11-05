@@ -8,16 +8,16 @@ const waterline = 465.5;
 const cabinBase = 462.5;
 
 const trees = [
-  { spruce: 3, x: 484.03, y: 461.1, size: 0.81 },
-  { spruce: 1, x: 227.59, y: 461.87, size: 1.19, flipped: true },
-  { spruce: 3, x: 368.04, y: 462.2, size: 1.05 },
-  { spruce: 2, x: 507.23, y: 462.58, size: 1.5, flipped: true },
-  { spruce: 3, x: 626.64, y: 464.7, size: 1, flipped: true },
-  { spruce: 3, x: 144.56, y: 469.87, size: 1 },
-  { spruce: 2, x: 89.74, y: 473.91, size: 1 },
-  { spruce: 1, x: 65.39, y: 474.91, size: 1 },
-].map(({ spruce, x, y, size, flipped }) => ({
-  href: `#spruce-0${spruce}`,
+  { href: '#spruce-03', x: 484.03, y: 461.1, size: 0.81 },
+  { href: '#spruce-01', x: 227.59, y: 461.87, size: 1.19, flipped: true },
+  { href: '#spruce-03', x: 368.04, y: 462.2, size: 1.05 },
+  { href: '#spruce-02', x: 507.23, y: 462.58, size: 1.5, flipped: true },
+  { href: '#spruce-03', x: 626.64, y: 464.7, size: 1, flipped: true },
+  { href: '#spruce-03', x: 144.56, y: 469.87, size: 1 },
+  { href: '#spruce-02', x: 89.74, y: 473.91, size: 1 },
+  { href: '#spruce-01', x: 65.39, y: 474.91, size: 1 },
+].map(({ href, x, y, size, flipped }) => ({
+  href,
   base: y,
   flipped,
   transform: `translate(${x},${y}) scale(${flipped ? -size : size},${size})`,
@@ -351,7 +351,7 @@ const trees = [
   /* With the sun behind the scene, a shadow is the object flipped down at its base, leaning away from the sun */
   .shadows {
     --sun-height: max(sin(var(--sun-angle)), 0.01);
-    --shadow-length: min(1, 0.08 + 0.3 * max(cos(var(--sun-angle)), -1 * cos(var(--sun-angle))) / var(--sun-height));
+    --shadow-length: min(1, 0.08 + 0.3 * abs(cos(var(--sun-angle))) / var(--sun-height));
     filter: brightness(0);
     opacity: calc(var(--daylight) * 0.4);
   }
