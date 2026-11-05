@@ -6,7 +6,7 @@ A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, a
 
 - Phases 1 to 3 are done. The scene is in `Scene.astro` with flat colors (#18). Progress through the day drives `--time`, the sky and the `kl.` debug readout, and the sun and moon cross the sky on their arc.
 - Phases 4 and 5 are done. The far range fades toward the sky's horizon color, and each mountain face lights up as the sun lines up with it. After dusk the rock darkens toward a night color and the moon lights the faces that point at it. Phase 6 comes next: the reflection, and the fjord and shore following the time of day. Right now they stay as bright at 22 as at noon, and that breaks the night more than anything else in the scene.
-- Each face's `--face` angle sits in a `style` attribute on its `<path>`. See Face angles for the frame and how the values were chosen.
+- Each face's `--face-angle` sits in a `style` attribute on its `<path>`. See Face angles for the frame and how the values were chosen.
 - The mid range is low in contrast around noon, since many of its faces point almost straight up and light up together. It reads, but it's flat.
 - The build's CSS minifier folds `animation-timeline` into the `animation` shorthand, and Chromium drops the result. Write the animation as longhands.
 - `Scene.astro` holds the only copy of the drawing in the repo. The Inkscape source is `~/Documents/hamnoy.svg` on Steffen's machine. After a redraw, convert the changed layers to the markup in `Scene.astro` by hand: class names instead of fills, windows in their own group, trees as `<use>`.
@@ -63,7 +63,7 @@ Mountains:
 - Pen tool, click three points, then click the first one again to close the face.
 - Start with the ridgeline, a zigzag along the outline. Then put points inside wherever the photo has a ridge, a crease or a change in light, and connect them into triangles.
 - Bigger triangles on far layers, smaller ones up close. Avoid long thin slivers, they look like glitches.
-- Give each face a rough grey from the photo, lighter or darker. CSS replaces the color, but the grey shows which way the face points when setting `--face` later.
+- Give each face a rough grey from the photo, lighter or darker. CSS replaces the color, but the grey shows which way the face points when setting `--face-angle` later.
 - Let the bottom of each mountain dip below the waterline, so there's no gap where it meets the water.
 
 Cabin and trees:
@@ -74,7 +74,7 @@ Cabin and trees:
 Cleanup:
 
 - Export as Plain SVG. If SVGO runs on it, turn off `mergePaths` and `cleanupIds`, since the defaults merge the faces into one path and strip the ids.
-- After export: remove every `fill`, give each face a class and a `--face` value (see Light), and paste it inline in `Demo.astro`.
+- After export: remove every `fill`, give each face a class and a `--face-angle` value (see Light), and paste it inline in `Demo.astro`.
 - Neighboring triangles show hairline seams from anti-aliasing. Fix with a thin stroke in the same color as the fill, `stroke: var(--fill); stroke-width: 1`. A width of 0.5 still leaves light seams at 1x.
 
 ## Light
@@ -83,17 +83,17 @@ Everything derives from one registered number, `@property --time { syntax: '<num
 
 - Sun angle `calc(var(--time) / 24 * 360deg - 90deg)`. Position from `cos()` and `sin()` of that angle on an ellipse. The moon is the same angle plus 180deg.
 - Sun height, the `sin()` of the angle, drives daylight, star opacity and window lights. Clamp it with `max(0, ...)` so night stays night.
-- Lit faces: each face gets a `--face` angle in its `style` attribute, the direction the face points in the picture. Brightness is `max(0, cos(sun angle - var(--face)))` times daylight, and the fill is `color-mix(in oklch, var(--rock-lit) <brightness>, var(--rock-shade))`. Tested in Edge: `color-mix()` accepts a `calc()` percentage built from `cos()` and custom properties, and the faces in a `<use>` clone pick up `--time` and the class rules too. Setting `--face` by eye is fine, it doesn't need to be physically right.
+- Lit faces: each face gets a `--face-angle` in its `style` attribute, the direction the face points in the picture. Brightness is `max(0, cos(sun angle - var(--face-angle)))` times daylight, and the fill is `color-mix(in oklch, var(--rock-lit) <brightness>, var(--rock-shade))`. Tested in Edge: `color-mix()` accepts a `calc()` percentage built from `cos()` and custom properties, and the faces in a `<use>` clone pick up `--time` and the class rules too. Setting `--face-angle` by eye is fine, it doesn't need to be physically right.
 - Moonlight: in the test, every face turned the same dark grey at night. Run the same face math against the moon angle at low strength, so the ridges still read after dark.
 - Atmospheric depth: mix each layer toward the current sky color, more for far layers. `color-mix(in oklch, var(--sky-horizon) var(--haze), <face color>)` with `--haze` set per layer group. Far mountains then turn pink at dawn and blue at night without extra rules.
 - Sky colors: a few keyframe stops (dawn, day, dusk, night) on registered `<color>` properties, on the same timeline as `--time`. Pure math won't give good sky colors. In the test, daylight from sun height alone went from day to full night within half an hour after sunset. The dawn and dusk stops are there to stretch that out.
 - The scene has its own palette and ignores `light-dark()`. The page around it follows the tokens.
-- Night rock: with only the face math, the mountains kept their daytime colors at night and stood out pale against a dark sky. `--day-tint` is the sun height scaled and offset, `clamp(0, sin(<sun angle>) * 2 + 0.6, 1)`. It mixes `--rock-lit` toward `--rock-moonlit` and `--rock-shade` toward `--rock-night`. The offset keeps most of the day colors through sunrise and sunset and lets them go a while after dusk.
+- Night rock: with only the face math, the mountains kept their daytime colors at night and stood out pale against a dark sky. `--day-palette-mix` is the sun height scaled and offset, `clamp(0, sin(<sun angle>) * 2 + 0.6, 1)`. It mixes `--rock-lit` toward `--rock-moonlit` and `--rock-shade` toward `--rock-night`. The offset keeps most of the day colors through sunrise and sunset and lets them go a while after dusk.
 - Haze per group ended up at 55% for far, 20% for mid and 10% for near. At 30% the mid range washed out to one flat grey at midday.
 
 ## Face angles
 
-`--face` uses the sun's frame: 0deg points left toward the 06:00 sun, 90deg straight up toward the noon sun, 180deg right toward the 18:00 sun. Values outside 0 to 180 are allowed. A face at 30deg is brightest mid-morning and dark in the evening.
+`--face-angle` uses the sun's frame: 0deg points left toward the 06:00 sun, 90deg straight up toward the noon sun, 180deg right toward the 18:00 sun. Values outside 0 to 180 are allowed. A face at 30deg is brightest mid-morning and dark in the evening.
 
 The Inkscape greys that were meant to show each face's direction didn't survive into `Scene.astro`, so the 61 angles were set from screenshots instead of by eye in Inkscape:
 
@@ -104,7 +104,7 @@ The Inkscape greys that were meant to show each face's direction didn't survive 
 
 Lesson: physically plausible normals read better than angles picked for contrast. Neighbouring faces only need to differ where the shape has a crease.
 
-To change the values, rewrite the `style="--face: ..."` attributes in `<path>` order within each group and leave `d` alone. The screenshot and apply scripts lived outside the repo. Rebuild them if this needs doing again. Playwright can drive the installed Edge with `channel: 'msedge'`, and the preview's slider sets the time.
+To change the values, rewrite the `style="--face-angle: ..."` attributes in `<path>` order within each group and leave `d` alone. The screenshot and apply scripts lived outside the repo. Rebuild them if this needs doing again. Playwright can drive the installed Edge with `channel: 'msedge'`, and the preview's slider sets the time.
 
 ## Shadows
 
@@ -132,7 +132,7 @@ The slider works the same. The dialog opens and closes without a view transition
 2. Sun and moon on the arc, setting behind a placeholder ridge.
 3. Draw the low-poly scene in Inkscape and inline it with flat colors. A five-triangle test of the lighting, reflection and shadow math passed before drawing started, so the markup above is safe to draw for.
 4. Atmospheric depth with `color-mix()` toward the sky.
-5. Lit faces from `--face`.
+5. Lit faces from `--face-angle`.
 6. Fjord reflection. The fjord and the shore also follow the time of day here, darkening at night and taking the sky's color at dawn and dusk.
 7. Cast shadows for the cabin and trees.
 8. Windows and stars.
