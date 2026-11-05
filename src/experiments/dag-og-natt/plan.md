@@ -8,6 +8,7 @@ A fjord landscape where scroll is the clock. The SVG shapes are drawn by hand, a
 - Phases 4 and 5 are done. The far range fades toward the sky's horizon color, and each mountain face lights up as the sun lines up with it. After dusk the rock darkens toward a night color and the moon lights the faces that point at it.
 - Phase 6 is done. Phase 7, the cast shadows, comes next.
 - The reflection is a `<use>` of `<g id="land">`, at opacity 0.5. The group holds the mountains, shore, cabin and trees.
+- Twelve thin ripple slivers lie on the water, longer and thicker toward the viewer. Their color is the sky's horizon mixed with white, at opacity 0.45. Each has a `--drift` in its `style` and moves sideways by `(--time - 15) * --drift`, so they only move when the time does and reduced motion needs no rule of its own. Neighbors drift in opposite directions.
 - The fjord, shore, cabin and trees darken toward `--rock-night`, by up to 80% as `--day-palette-mix` drops. Then they mix toward `--sky-horizon` like the mountains. Each of them names its day color in `--paint`, and one rule builds the fill.
 - Each face's `--face-angle` sits in a `style` attribute on its `<path>`. See Face angles for the frame and how the values were chosen.
 - The mid range is low in contrast around noon, since many of its faces point almost straight up and light up together. It reads, but it's flat.
