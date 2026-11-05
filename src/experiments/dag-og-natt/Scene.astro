@@ -1,10 +1,10 @@
 ---
-// Only the first copy on the page carries the <defs> and the ids, since a <use> finds its id anywhere in the document and ids must be unique.
 interface Props {
-  defs?: boolean;
+  ownsIds?: boolean;
 }
 
-const { defs = false } = Astro.props;
+const { ownsIds = false } = Astro.props;
+const waterline = 465.5;
 ---
 
 <svg
@@ -13,7 +13,7 @@ const { defs = false } = Astro.props;
   role="img"
   aria-label="Et fjell ved en fjord, med en rød hytte og grantrær på stranda"
 >
-  {defs && (
+  {ownsIds && (
     <defs>
       <g id="spruce-01" transform="scale(4.55) translate(-108.68,-541.51)">
         <path class="trunk" d="m 107.43719,541.41629 -0.0969,-2.64798 2.64798,0.0323 0.0323,2.71259 z" />
@@ -53,9 +53,8 @@ const { defs = false } = Astro.props;
   <circle class="sun" r="16" />
   <circle class="moon" r="11" />
   <rect class="fjord" x="0" y="460" width="762" height="175" />
-  <!-- Flipped around y = 465.5, the highest point of the shore's water edge, so no bare water shows between the shore and its reflection. The shore is drawn on top and hides what flips above the edge. -->
-  <use class="reflection" href="#land" transform="translate(0 931) scale(1 -1)" />
-  <g id={defs ? 'land' : undefined}>
+  <use class="reflection" href="#land" transform={`translate(0 ${2 * waterline}) scale(1 -1)`} />
+  <g id={ownsIds ? 'land' : undefined}>
     <g class="far-mountains">
       <path
         style="--face-angle: 135deg"
