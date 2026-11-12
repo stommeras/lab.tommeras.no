@@ -1,0 +1,84 @@
+---
+const playPath = 'M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z';
+---
+
+<div class="frame">
+  <button type="button" class="button start-button">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      aria-hidden="true"
+    >
+      <path d={playPath} />
+    </svg>
+    Start
+  </button>
+</div>
+
+<script>
+  // The emulator page in public/chip8/emulator/ loads the wasm and the ROMs, so nothing of it loads before the click
+  const frame = document.querySelector<HTMLElement>('.frame')!;
+  const button = frame.querySelector<HTMLButtonElement>('.start-button')!;
+
+  button.addEventListener('click', () => {
+    const iframe = document.createElement('iframe');
+    // The dev server serves no directory index for public/, so name the file
+    iframe.src = '/chip8/emulator/index.html';
+    iframe.title = 'CHIP-8-emulator';
+    // The page reads the keys from its own window, so it needs focus once it has loaded
+    iframe.addEventListener('load', () => iframe.focus());
+    button.replaceWith(iframe);
+  });
+</script>
+
+<style>
+  .frame {
+    position: relative;
+    margin-top: 1em;
+    height: 560px;
+    background: var(--surface);
+    border: 2px solid var(--pink);
+  }
+
+  /* The script creates the iframe, so the scoped styles don't reach it */
+  .frame :global(iframe) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  /* Matches the buttons in livets-spill/Demo.astro */
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+  }
+
+  .button:hover {
+    border-color: var(--pink);
+  }
+
+  .start-button {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: fit-content;
+    height: fit-content;
+  }
+</style>
