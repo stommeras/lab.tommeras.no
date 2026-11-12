@@ -58,6 +58,21 @@ const { Content } = await render(entry);
     margin-top: 2em;
   }
 
+  .note :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .note :global(:is(th, td)) {
+    padding: 8px 16px 8px 0;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+  }
+
+  .note :global(th) {
+    border-bottom-color: var(--pink);
+  }
+
   .note :global(.contains-task-list) {
     padding-left: 0;
     list-style: none;
