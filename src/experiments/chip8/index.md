@@ -24,4 +24,4 @@ Zig ga en mindre fil og en raskere kjerne med mindre kode. Rust bygger mye forte
 
 De ti spillene kommer fra [chip8Archive](https://github.com/JohnEarnest/chip8Archive) og har lisensen CC0-1.0. Forfatterne er SharpenedSpoon (Br8kout), mattmik (Chipquarium), TodPunk (Flight Runner), WilliamDonnelly (Mastermind og Spacejam!), JohnEarnest (Outlaw, Snek og WDL), offstatic (Super Pong) og Rectus (Tank!).
 
-Tastene sitter tett, så det fungerer best på desktop.
+Emulatoren styres bare med tastaturet og har ingen knapper på skjermen, så den fungerer best på desktop.
