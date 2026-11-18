@@ -8,6 +8,20 @@
           "value": "base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'self'"
         }
       ]
+    },
+    {
+      "source": "/varde(/.*)?",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+      ]
+    },
+    {
+      "source": "/varde-spill/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+      ]
     }
   ]
 }
