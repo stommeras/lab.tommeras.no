@@ -36,15 +36,29 @@ const playPath = 'M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-
     // Godot reads the keys from its own canvas, so the iframe needs focus once it has loaded
     iframe.addEventListener('load', () => iframe.focus());
     button.replaceWith(iframe);
-    // The game needs a 960×540 window, because integer scaling crops a smaller one and misplaces the mouse.
-    // So the iframe stays 960×540 and scales down to fit a narrower frame. The browser maps the mouse through the scale.
-    new ResizeObserver(() => (iframe.style.scale = String(frame.clientWidth / 960))).observe(frame);
+    // Godot sizes its canvas in device pixels, the iframe's CSS size times devicePixelRatio, and draws the 960×540
+    // game at a whole multiple. A canvas under 960×540 crops the game, draws it off center and misplaces the mouse,
+    // and one between two multiples leaves black bars. So the iframe gets the CSS size that makes the canvas a whole
+    // multiple of 960×540, rounded up because Godot rounds down, and a CSS scale fits it to the frame. The browser
+    // maps the mouse through the scale.
+    const fit = () => {
+      const ratio = devicePixelRatio;
+      const multiple = Math.max(1, Math.floor(ratio));
+      const width = Math.ceil((960 * multiple) / ratio);
+      iframe.style.width = `${width}px`;
+      iframe.style.height = `${Math.ceil((540 * multiple) / ratio)}px`;
+      iframe.style.scale = String(frame.clientWidth / width);
+    };
+    fit();
+    new ResizeObserver(fit).observe(frame);
+    // Zooming changes devicePixelRatio and fires resize
+    addEventListener('resize', fit);
   });
 </script>
 
 <style>
   /* The game renders at 960×540, so the frame reaches past the 760 px column, centered on it, to show it at 1:1.
-     In a narrower window the frame shrinks, and the script scales the iframe down to match. */
+     In a narrower window the frame shrinks, and the script scales the iframe to match. */
   .frame {
     --width: min(960px, 100vw - 36px);
     position: relative;
@@ -61,8 +75,6 @@ const playPath = 'M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-
   /* The script creates the iframe, so the scoped styles don't reach it */
   .frame :global(iframe) {
     display: block;
-    width: 960px;
-    height: 540px;
     border: 0;
     transform-origin: 0 0;
   }
