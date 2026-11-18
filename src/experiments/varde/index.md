@@ -17,4 +17,4 @@ Trykk Start og så Ny øy. Frø-feltet kan stå tomt. Gå med WASD eller piltast
 
 Bygget bruker tråder, og da trenger nettleseren `SharedArrayBuffer`. Den får siden bare når den er cross-origin isolated, altså når den sender `Cross-Origin-Opener-Policy` og `Cross-Origin-Embedder-Policy`. Spillet ligger i en iframe, så både spillet og siden rundt må sende dem.
 
-Spillet styres med tastaturet, så det fungerer best på desktop. Vinduet må også være minst 1000 piksler bredt, ellers blir spillet beskåret.
+Spillet styres med tastaturet, så det fungerer best på desktop.
