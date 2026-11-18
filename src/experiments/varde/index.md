@@ -13,8 +13,8 @@ Sånn er planen, i alle fall. Spillet er langt fra ferdig, og så langt kan du b
 
 Øya blir generert fra en seed: støy for høyden, elver som graver ut daler, og klipper langs dalsidene. Verden er 3D, men rendres i 960×540 og skaleres opp, så alt blir pikselgrafikk uten at noe er tegnet for hånd.
 
-Trykk Start og så Ny øy. Feltet for seed kan stå tomt. Gå med WASD eller piltastene, og Escape pauser. Første gang laster nettleseren ned hele spillet, så det tar litt tid.
+Trykk Start og så Ny øy. Frø-feltet kan stå tomt. Gå med WASD eller piltastene, og Escape pauser. Første gang laster nettleseren ned hele spillet, så det tar litt tid.
 
 Bygget bruker tråder, og da trenger nettleseren `SharedArrayBuffer`. Den får siden bare når den er cross-origin isolated, med headerne `Cross-Origin-Opener-Policy` og `Cross-Origin-Embedder-Policy`. Spillet ligger i en iframe, så både spillet og siden rundt må sende dem.
 
-Spillet styres med tastaturet, så det fungerer best på desktop.
+Spillet styres med tastaturet, så det fungerer best på desktop. Vinduet må også være minst 1000 piksler bredt, ellers blir spillet beskåret.
