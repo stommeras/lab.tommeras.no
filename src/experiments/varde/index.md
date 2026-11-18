@@ -11,7 +11,7 @@ Du går i land på en ukjent øy med et blankt kart. På den høyeste toppen st�
 
 Sånn er planen, i alle fall. Spillet er langt fra ferdig, og så langt kan du bare gå rundt på øya. Synsfeltet, kartet, toppene du kartlegger og stien av varder kommer senere. Etter hvert skal du se lenger jo høyere du står, og flere topper skal være nesten like høye, så du ikke ser nedenfra hvilken som er den ekte.
 
-Øya blir generert fra en seed: støy for høyden, elver som graver ut daler, og klipper langs dalsidene. Verden er 3D, men rendres i 960×540 og skaleres opp, så alt blir pikselgrafikk uten at noe er tegnet for hånd.
+Øya blir generert fra en seed: støy for høyden, elver som graver ut daler, og klipper langs dalsidene. Verden er 3D, men rendres i 960×540 og skaleres opp, så alt blir pikselgrafikk uten at noe er tegnet for hånd. Koden, spesifikasjonen og planen ligger i [stommeras/varde](https://github.com/stommeras/varde).
 
 Trykk Start og så Ny øy. Frø-feltet kan stå tomt. Gå med WASD eller piltastene, og Escape pauser. Første gang laster nettleseren ned hele spillet, så det tar litt tid.
 
