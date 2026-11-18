@@ -23,15 +23,15 @@ const playPath = 'M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-
 </div>
 
 <script>
-  // public/varde-spill/ is Godot's web export. Its wasm and pck load only after the click.
-  // The build uses threads, so vercel.json sends COOP and COEP for this page and the game folder.
+  // public/varde/spill/ is Godot's web export. Its wasm and pck load only after the click.
+  // The build uses threads, so vercel.json sends COOP and COEP for this page and the game folder under it.
   const frame = document.querySelector<HTMLElement>('.frame')!;
   const button = frame.querySelector<HTMLButtonElement>('.start-button')!;
 
   button.addEventListener('click', () => {
     const iframe = document.createElement('iframe');
     // The dev server serves no directory index for public/, so name the file
-    iframe.src = '/varde-spill/index.html';
+    iframe.src = '/varde/spill/index.html';
     iframe.title = 'Varde';
     // Godot reads the keys from its own canvas, so the iframe needs focus once it has loaded
     iframe.addEventListener('load', () => iframe.focus());

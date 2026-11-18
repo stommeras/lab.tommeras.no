@@ -15,6 +15,6 @@ Sånn er planen, i alle fall. Spillet er langt fra ferdig, og så langt kan du b
 
 Trykk Start og så Ny øy. Frø-feltet kan stå tomt. Gå med WASD eller piltastene, og Escape pauser. Første gang laster nettleseren ned hele spillet, så det tar litt tid.
 
-Bygget bruker tråder, og da trenger nettleseren `SharedArrayBuffer`. Den får siden bare når den er cross-origin isolated, med headerne `Cross-Origin-Opener-Policy` og `Cross-Origin-Embedder-Policy`. Spillet ligger i en iframe, så både spillet og siden rundt må sende dem.
+Bygget bruker tråder, og da trenger nettleseren `SharedArrayBuffer`. Den får siden bare når den er cross-origin isolated, altså når den sender `Cross-Origin-Opener-Policy` og `Cross-Origin-Embedder-Policy`. Spillet ligger i en iframe, så både spillet og siden rundt må sende dem.
 
 Spillet styres med tastaturet, så det fungerer best på desktop. Vinduet må også være minst 1000 piksler bredt, ellers blir spillet beskåret.
