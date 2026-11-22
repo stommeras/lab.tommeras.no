@@ -50,7 +50,12 @@ const rows: [string, number][][] = [
   [['Shift', 2.25], ...ones('ZXCVBNM,./'), ['Shift', 2.75]],
   [['Ctrl', 1.25], ['Win', 1.25], ['Alt', 1.25], ['', 6.25], ['Alt', 1.25], ['Fn', 1.25], ['Win', 1.25], ['Ctrl', 1.25]],
 ];
-const keys = rows.flat().map(([legend, width]) => ({ legend, width }));
+// Two-tone caps: Esc and Enter in an accent color, the other wide or named keys darker, the rest and the space bar plain
+const keys = rows.flat().map(([legend, width]) => ({
+  legend,
+  width,
+  tone: ['Esc', 'Enter'].includes(legend) ? 'accent' : legend && (width > 1 || legend.length > 1) ? 'mod' : undefined,
+}));
 const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps']);
 ---
 
@@ -62,9 +67,12 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
           <div class:list={['layer', id]} data-part={id} style={`--layer: ${i}; --color: ${color}`}>
             <span class="anchor" style={`anchor-name: --${id}`} />
             {gridLayers.has(id) &&
-              keys.map(({ legend, width }) => (
+              keys.map(({ legend, width, tone }) => (
                 // The grid has four columns per unit
-                <div class:list={['key', { long: width >= 2 }]} style={`grid-column: span ${width * 4}`}>
+                <div
+                  class:list={['key', { long: width >= 2 }, id === 'keycaps' && tone]}
+                  style={`grid-column: span ${width * 4}`}
+                >
                   {id === 'keycaps' && legend}
                 </div>
               ))}
@@ -196,8 +204,9 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
   /* All layers share one grid cell. Assembled, they rest a small gap apart like a real stack.
      They spread from the middle of the stack, so it stays centered. */
   .layer {
-    /* Everything on a layer is painted from --paint, so dimming a layer only has to change it */
-    --paint: var(--color);
+    /* Everything on a layer is painted from --paint. Dimming raises --dim, which mixes it toward the background. */
+    --dim: 0%;
+    --paint: color-mix(in oklab, var(--color), var(--surface) var(--dim));
     --edge: color-mix(in oklab, var(--paint), black 35%);
     --thickness: 0.25rem;
     grid-area: 1 / 1;
@@ -340,11 +349,13 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     --thickness: 0.35rem;
     /* Its place in the wave, from 0 for the first key to 1 for the last */
     --order: calc((sibling-index() - 1) / 60);
+    --cap: color-mix(in oklab, var(--color), var(--surface) var(--dim));
+    --edge: color-mix(in oklab, var(--cap), black 35%);
     margin: calc(0.06 * var(--unit));
     border-radius: 0.2rem;
-    background: var(--paint);
-    box-shadow: inset 0 0 0 0.15rem color-mix(in oklab, var(--paint), white 20%);
-    padding: calc(0.1 * var(--unit)) calc(0.15 * var(--unit));
+    background: var(--cap);
+    box-shadow: inset 0 0 0 0.15rem color-mix(in oklab, var(--cap), white 20%);
+    padding: calc(0.1 * var(--unit)) calc(0.1 * var(--unit));
     /* --surface is dark in dark mode, where the caps are light, and the other way round */
     color: var(--surface);
     font-size: calc(0.32 * var(--unit));
@@ -354,6 +365,15 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     transform: translateZ(
       calc((clamp(0, var(--progress) * 1.6 - var(--order) * 0.6, 1) - var(--progress)) * var(--full-spread))
     );
+  }
+
+  /* Mixing toward --fg darkens the caps in light mode and lightens them in dark mode, so the legends keep their contrast */
+  .keycaps .mod {
+    --cap: color-mix(in oklab, color-mix(in oklab, var(--color), var(--fg) 30%), var(--surface) var(--dim));
+  }
+
+  .keycaps .accent {
+    --cap: color-mix(in oklab, var(--pink), var(--surface) var(--dim));
   }
 
   /* On a narrow screen, move the keyboard left to make room for the labels */
@@ -506,7 +526,7 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
   .stage:has([data-part='switches']:is(:hover, :focus-within)) :not([data-part='switches']),
   .stage:has([data-part='keycaps']:is(:hover, :focus-within)) :not([data-part='keycaps']) {
     &.layer {
-      --paint: color-mix(in oklab, var(--color) 25%, var(--surface));
+      --dim: 75%;
     }
 
     &.label {
