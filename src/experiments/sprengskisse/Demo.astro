@@ -48,7 +48,7 @@ const rows: [string, number][][] = [
   [['Tab', 1.5], ...ones('QWERTYUIOP[]'), ['\\', 1.5]],
   [['Caps', 1.75], ...ones("ASDFGHJKL;'"), ['Enter', 2.25]],
   [['Shift', 2.25], ...ones('ZXCVBNM,./'), ['Shift', 2.75]],
-  [['Ctrl', 1.25], ['Win', 1.25], ['Alt', 1.25], ['', 6.25], ['Alt', 1.25], ['Fn', 1.25], ['Win', 1.25], ['Ctrl', 1.25]],
+  [['Ctrl', 1.25], ['Super', 1.25], ['Alt', 1.25], ['', 6.25], ['Alt', 1.25], ['Fn', 1.25], ['Super', 1.25], ['Ctrl', 1.25]],
 ];
 // Two-tone caps: Esc and Enter in an accent color, the other wide or named keys darker, the rest and the space bar plain
 const keys = rows.flat().map(([legend, width]) => ({
