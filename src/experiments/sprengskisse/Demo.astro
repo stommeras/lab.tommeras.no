@@ -1,12 +1,44 @@
 ---
 // Bottom to top, so the index is the layer's height in the stack
 const layers = [
-  { id: 'case', label: 'Kassen', color: 'var(--muted)' },
-  { id: 'pcb', label: 'Kretskortet', color: 'var(--mint)' },
-  { id: 'plate', label: 'Platen', color: 'color-mix(in oklab, var(--fg) 45%, var(--surface))' },
-  { id: 'stabilizers', label: 'Stabilisatorer', color: 'var(--pink)' },
-  { id: 'switches', label: 'Brytere', color: 'var(--peach)' },
-  { id: 'keycaps', label: 'Tastene', color: 'var(--lavender)' },
+  {
+    id: 'case',
+    label: 'Kassen',
+    color: 'var(--muted)',
+    about: 'Skallet alt ligger i. Den holder resten på plass og bestemmer mye av hvordan tastaturet høres ut når du skriver.',
+  },
+  {
+    id: 'pcb',
+    label: 'Kretskortet',
+    color: 'var(--mint)',
+    about:
+      'Kortet som merker tastetrykkene. Under hver bryter sitter to kontakter og en diode, sånn at flere taster kan holdes nede samtidig. Mikrokontrolleren sender trykkene videre over USB-C.',
+  },
+  {
+    id: 'plate',
+    label: 'Platen',
+    color: 'color-mix(in oklab, var(--fg) 45%, var(--surface))',
+    about: 'En plate, ofte av metall, med et hull for hver bryter. Bryterne klikker fast i hullene, så de står stødig når du trykker.',
+  },
+  {
+    id: 'stabilizers',
+    label: 'Stabilisatorer',
+    color: 'var(--pink)',
+    about:
+      'Under de lange tastene sitter en bøyle av ståltråd mellom to holdere. Den gjør at mellomromstasten går rett ned, også når du trykker helt ute på kanten.',
+  },
+  {
+    id: 'switches',
+    label: 'Brytere',
+    color: 'var(--peach)',
+    about: 'En fjær og en kontakt for hver tast. Når du trykker, lukker bryteren kretsen, og kretskortet merker trykket.',
+  },
+  {
+    id: 'keycaps',
+    label: 'Tastene',
+    color: 'var(--lavender)',
+    about: 'Plastkappene du ser og tar på. De sitter løst på bryterne, så du kan dra dem av og bytte dem.',
+  },
 ];
 
 // A 60% ANSI layout as [legend, width in units]. Every row is 15 units wide.
@@ -46,7 +78,9 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
       {
         layers.map(({ id, label, color }) => (
           <li class="label" data-part={id} style={`position-anchor: --${id}; --color: ${color}`}>
-            <span>{label}</span>
+            <button type="button" popovertarget={`sprengskisse-${id}`}>
+              {label}
+            </button>
           </li>
         ))
       }
@@ -56,6 +90,14 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
       Sett sammen
     </label>
   </div>
+  {
+    layers.map(({ id, label, about }) => (
+      <div class="about" id={`sprengskisse-${id}`} popover>
+        <strong>{label}</strong>
+        <p>{about}</p>
+      </div>
+    ))
+  }
 </section>
 
 <style>
@@ -351,11 +393,34 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     color: var(--fg);
   }
 
-  .label span {
+  .label button {
     position: absolute;
     left: calc(100% + 0.5rem);
     translate: 0 -50%;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
     white-space: nowrap;
+    cursor: pointer;
+  }
+
+  /* A short text about the part, under the label that opened it */
+  .about {
+    position-area: bottom span-left;
+    position-try-fallbacks: flip-block;
+    max-width: min(20rem, calc(100vw - 2rem));
+    margin: 0.5rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 0.5rem;
+    background: var(--surface);
+    color: var(--fg);
+
+    p {
+      margin: 0.25rem 0 0;
+    }
   }
 
   /* A dot where the line meets the part */
@@ -410,14 +475,14 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     accent-color: var(--pink);
   }
 
-  /* Hovering a part or its label dims the other parts and labels. Opacity would flatten the
+  /* Hovering a part or its label, or focusing the label, dims the other parts and labels. Opacity would flatten the
      layer's 3D children, so the dimming mixes the colors toward the background instead. */
-  .stage:has([data-part='case']:hover) :not([data-part='case']),
-  .stage:has([data-part='pcb']:hover) :not([data-part='pcb']),
-  .stage:has([data-part='plate']:hover) :not([data-part='plate']),
-  .stage:has([data-part='stabilizers']:hover) :not([data-part='stabilizers']),
-  .stage:has([data-part='switches']:hover) :not([data-part='switches']),
-  .stage:has([data-part='keycaps']:hover) :not([data-part='keycaps']) {
+  .stage:has([data-part='case']:is(:hover, :focus-within)) :not([data-part='case']),
+  .stage:has([data-part='pcb']:is(:hover, :focus-within)) :not([data-part='pcb']),
+  .stage:has([data-part='plate']:is(:hover, :focus-within)) :not([data-part='plate']),
+  .stage:has([data-part='stabilizers']:is(:hover, :focus-within)) :not([data-part='stabilizers']),
+  .stage:has([data-part='switches']:is(:hover, :focus-within)) :not([data-part='switches']),
+  .stage:has([data-part='keycaps']:is(:hover, :focus-within)) :not([data-part='keycaps']) {
     &.layer {
       --paint: color-mix(in oklab, var(--color) 25%, var(--surface));
     }
@@ -454,7 +519,7 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
       border-bottom: 0.25rem solid var(--color);
     }
 
-    .label span {
+    .label button {
       position: static;
       translate: none;
     }
