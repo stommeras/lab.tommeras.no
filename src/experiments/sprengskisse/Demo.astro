@@ -5,39 +5,38 @@ const layers = [
     id: 'case',
     label: 'Kassen',
     color: 'var(--muted)',
-    about: 'Skallet alt ligger i. Den holder resten på plass og bestemmer mye av hvordan tastaturet høres ut når du skriver.',
+    about: 'Skallet alt ligger i. Den bestemmer mye av hvordan tastaturet høres ut.',
   },
   {
     id: 'pcb',
     label: 'Kretskortet',
     color: 'var(--mint)',
     about:
-      'Kortet som merker tastetrykkene. Under hver bryter sitter to kontakter og en diode, sånn at flere taster kan holdes nede samtidig. Mikrokontrolleren sender trykkene videre over USB-C.',
+      'Merker tastetrykkene og sender dem videre over USB-C. Hver bryter har en diode, så du kan holde nede flere taster samtidig.',
   },
   {
     id: 'plate',
     label: 'Platen',
     color: 'color-mix(in oklab, var(--fg) 45%, var(--surface))',
-    about: 'En plate, ofte av metall, med et hull for hver bryter. Bryterne klikker fast i hullene, så de står stødig når du trykker.',
+    about: 'Holder bryterne stødig. Hver bryter klikker fast i sitt eget hull.',
   },
   {
     id: 'stabilizers',
     label: 'Stabilisatorer',
     color: 'var(--pink)',
-    about:
-      'Under de lange tastene sitter en bøyle av ståltråd mellom to holdere. Den gjør at mellomromstasten går rett ned, også når du trykker helt ute på kanten.',
+    about: 'En bøyle av ståltråd som får de lange tastene til å gå rett ned, også når du trykker ytterst.',
   },
   {
     id: 'switches',
     label: 'Brytere',
     color: 'var(--peach)',
-    about: 'En fjær og en kontakt for hver tast. Når du trykker, lukker bryteren kretsen, og kretskortet merker trykket.',
+    about: 'En fjær og en kontakt under hver tast. Trykket lukker kretsen.',
   },
   {
     id: 'keycaps',
     label: 'Tastene',
     color: 'var(--lavender)',
-    about: 'Plastkappene du ser og tar på. De sitter løst på bryterne, så du kan dra dem av og bytte dem.',
+    about: 'Plastkappene du tar på. De sitter løst, så du kan bytte dem.',
   },
 ];
 
@@ -49,7 +48,16 @@ const rows: [string, number][][] = [
   [['Tab', 1.5], ...ones('QWERTYUIOPÅ¨'), ['Enter', 1.5]],
   [['Caps', 1.75], ...ones("ASDFGHJKLØÆ'")],
   [['Shift', 1.25], ...ones('<ZXCVBNM,.-'), ['Shift', 2.75]],
-  [['Ctrl', 1.25], ['Super', 1.25], ['Alt', 1.25], ['', 6.25], ['AltGr', 1.25], ['Fn', 1.25], ['Super', 1.25], ['Ctrl', 1.25]],
+  [
+    ['Ctrl', 1.25],
+    ['Super', 1.25],
+    ['Alt', 1.25],
+    ['', 6.25],
+    ['AltGr', 1.25],
+    ['Fn', 1.25],
+    ['Super', 1.25],
+    ['Ctrl', 1.25],
+  ],
 ];
 // Every key gets its row and its offset in units, so it can be placed explicitly in the grid.
 // Two-tone caps: Esc and Enter in an accent color, the other wide or named keys darker, the rest and the space bar plain.
@@ -61,7 +69,11 @@ const keys = rows.flatMap((row, r) => {
       width,
       row: r,
       x,
-      tone: ['Esc', 'Enter'].includes(legend) ? 'accent' : legend && (width > 1 || legend.length > 1) ? 'mod' : undefined,
+      tone: ['Esc', 'Enter'].includes(legend)
+        ? 'accent'
+        : legend && (width > 1 || legend.length > 1)
+          ? 'mod'
+          : undefined,
     };
     x += width;
     return key;
@@ -71,61 +83,61 @@ const keys = rows.flatMap((row, r) => {
 // second element after the other keys, which takes the upper part's place in the wave.
 const enter = keys.findIndex(({ legend }) => legend === 'Enter');
 // The grid has four columns per unit
-const area = (row: number, x: number, width: number) => `grid-area: ${row + 1} / ${x * 4 + 1} / span 1 / span ${width * 4}`;
+const area = (row: number, x: number, width: number) =>
+  `grid-area: ${row + 1} / ${x * 4 + 1} / span 1 / span ${width * 4}`;
 const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps']);
 ---
 
 <section class="sprengskisse" aria-label="Et mekanisk tastatur delt opp i lag">
   <div class="stage">
     <div class="object" aria-hidden="true" style={`--middle: ${(layers.length - 1) / 2}; --last: ${keys.length - 1}`}>
-      {
-        layers.map(({ id, color }, i) => (
-          <div class:list={['layer', id]} data-part={id} style={`--layer: ${i}; --color: ${color}`}>
-            <span class="anchor" style={`anchor-name: --${id}`} />
-            {gridLayers.has(id) &&
-              keys.map(({ legend, width, row, x, tone }) => (
-                <div
-                  class:list={['key', { long: width >= 2 }, id === 'keycaps' && [tone, { enter: legend === 'Enter' }]]}
-                  style={area(row, x, width)}
-                >
-                  {id === 'keycaps' && legend}
-                </div>
-              ))}
-            {id === 'keycaps' && (
-              <div class="key accent enter-foot" style={`${area(2, 13.75, 1.25)}; --order: ${enter / (keys.length - 1)}`} />
-            )}
-            {id === 'plate' && <div class="solid" style={area(2, 13.75, 1.25)} />}
-            {id === 'pcb' && [<div class="usb" />, <div class="mcu" />]}
-            {id === 'case' && [1, 2, 3, 4, 5, 6].map((step) => <div class="rim" style={`--step: ${step}`} />)}
-          </div>
-        ))
-      }
+      {layers.map(({ id, color }, i) => (
+        <div class:list={['layer', id]} data-part={id} style={`--layer: ${i}; --color: ${color}`}>
+          <span class="anchor" style={`anchor-name: --${id}`} />
+          {gridLayers.has(id) &&
+            keys.map(({ legend, width, row, x, tone }) => (
+              <div
+                class:list={['key', { long: width >= 2 }, id === 'keycaps' && [tone, { enter: legend === 'Enter' }]]}
+                style={area(row, x, width)}
+              >
+                {id === 'keycaps' && legend}
+              </div>
+            ))}
+          {id === 'keycaps' && (
+            <div
+              class="key accent enter-foot"
+              style={`${area(2, 13.75, 1.25)}; --order: ${enter / (keys.length - 1)}`}
+            />
+          )}
+          {id === 'plate' && <div class="solid" style={area(2, 13.75, 1.25)} />}
+          {id === 'pcb' && [<div class="usb" />, <div class="mcu" />]}
+          {id === 'case' && [1, 2, 3, 4, 5, 6].map((step) => <div class="rim" style={`--step: ${step}`} />)}
+        </div>
+      ))}
     </div>
     <ul class="labels">
-      {
-        layers.map(({ id, label, color }) => (
-          <li class="label" data-part={id} style={`position-anchor: --${id}; --color: ${color}`}>
-            <button type="button" popovertarget={`sprengskisse-${id}`}>
-              {label}
-            </button>
-          </li>
-        ))
-      }
+      {layers.map(({ id, label, color }) => (
+        <li class="label" data-part={id} style={`position-anchor: --${id}; --color: ${color}`}>
+          <button type="button" popovertarget={`sprengskisse-${id}`}>
+            {label}
+          </button>
+        </li>
+      ))}
     </ul>
-    <p class="hint" aria-hidden="true">Scroll for å ta det fra hverandre ↓</p>
+    <p class="hint" aria-hidden="true">
+      Scroll for å ta det fra hverandre ↓
+    </p>
     <label class="toggle">
       <input type="checkbox" />
       Sett sammen
     </label>
   </div>
-  {
-    layers.map(({ id, label, about }) => (
-      <div class="about" id={`sprengskisse-${id}`} popover>
-        <strong>{label}</strong>
-        <p>{about}</p>
-      </div>
-    ))
-  }
+  {layers.map(({ id, label, color, about }) => (
+    <div class="about" id={`sprengskisse-${id}`} popover style={`--color: ${color}`}>
+      <strong>{label}</strong>
+      <p>{about}</p>
+    </div>
+  ))}
 </section>
 
 <style>
@@ -484,33 +496,61 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     cursor: pointer;
   }
 
-  /* A short text about the part, under the label that opened it */
+  /* A short text about the part, like a figure caption: always in the top left corner of the stage,
+     with a bar in the part's color. The popover is in the top layer, so it finds the stage by anchor. */
+  .stage {
+    anchor-name: --stage;
+  }
+
   .about {
-    position-area: bottom span-left;
-    position-try-fallbacks: flip-block;
-    max-width: min(20rem, calc(100vw - 2rem));
-    margin: 0.5rem 0;
-    padding: 0.75rem 1rem;
+    position-anchor: --stage;
+    inset: auto;
+    top: calc(anchor(top) + 1rem);
+    left: calc(anchor(left) + 1rem);
+    max-width: min(17rem, calc(anchor-size(width) - 2rem));
+    margin: 0;
+    padding: 0.5rem 0.75rem;
     border: 1px solid var(--line);
+    border-left: 0.25rem solid var(--color);
     border-radius: 0.5rem;
     background: var(--surface);
+    box-shadow: 0 0.5rem 1.5rem color-mix(in oklab, var(--fg) 12%, transparent);
     color: var(--fg);
+    font-size: 0.9rem;
+    opacity: 0;
+    transition:
+      opacity 0.25s,
+      translate 0.25s ease-out,
+      display 0.25s allow-discrete,
+      overlay 0.25s allow-discrete;
+
+    &:popover-open {
+      opacity: 1;
+
+      @starting-style {
+        opacity: 0;
+      }
+    }
 
     p {
       margin: 0.25rem 0 0;
+      color: var(--muted);
     }
   }
 
-  /* A dot where the line meets the part */
-  .label::before {
-    content: '';
-    position: absolute;
-    top: -0.2rem;
-    left: -0.2rem;
-    width: 0.4rem;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    background: currentColor;
+  /* A short slide as it comes in and goes out, only when motion is fine */
+  @media (prefers-reduced-motion: no-preference) {
+    .about {
+      translate: 0 0.5rem;
+
+      &:popover-open {
+        translate: 0 0;
+
+        @starting-style {
+          translate: 0 0.5rem;
+        }
+      }
+    }
   }
 
   /* Without the scroll animation, a checkbox moves the layers together and apart */
@@ -546,7 +586,7 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
   .toggle {
     position: absolute;
     top: 1rem;
-    left: 1rem;
+    right: 1rem;
     display: flex;
     gap: 0.5rem;
     align-items: center;
