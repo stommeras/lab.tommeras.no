@@ -92,16 +92,19 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     }
   }
 
+  /* Hidden as well as transparent, so a faded label can't be hovered or clicked */
   @keyframes labels {
     0%,
     30%,
     70%,
     100% {
       opacity: 0;
+      visibility: hidden;
     }
     40%,
     60% {
       opacity: 1;
+      visibility: visible;
     }
   }
 
@@ -377,11 +380,14 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
 
     .label {
       opacity: 0;
+      visibility: hidden;
     }
   }
 
   .label {
-    transition: opacity 0.3s;
+    transition:
+      opacity 0.3s,
+      visibility 0.3s;
   }
 
   .toggle {
