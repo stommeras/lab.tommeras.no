@@ -134,7 +134,7 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
   </div>
   {layers.map(({ id, label, color, about }) => (
     <div class="about" id={`sprengskisse-${id}`} popover style={`--color: ${color}`}>
-      <strong>{label}</strong>
+      <span class="name">{label}</span>
       <p>{about}</p>
     </div>
   ))}
@@ -496,8 +496,9 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     cursor: pointer;
   }
 
-  /* A short text about the part, like a figure caption: always in the top left corner of the stage,
-     with a bar in the part's color. The popover is in the top layer, so it finds the stage by anchor. */
+  /* A short text about the part, like a caption in a manual: always in the top left corner of the stage,
+     and the part's name marked with the same dot as the leader lines. The popover is in the top layer,
+     so it finds the stage by anchor. */
   .stage {
     anchor-name: --stage;
   }
@@ -507,16 +508,14 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     inset: auto;
     top: calc(anchor(top) + 1rem);
     left: calc(anchor(left) + 1rem);
-    max-width: min(17rem, calc(anchor-size(width) - 2rem));
+    max-width: min(15rem, calc(anchor-size(width) - 2rem));
     margin: 0;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--line);
-    border-left: 0.25rem solid var(--color);
-    border-radius: 0.5rem;
+    padding: 0 0 0.25rem;
+    border: none;
+    /* The stage's own color, so the caption covers cleanly where it overlaps the keyboard */
     background: var(--surface);
-    box-shadow: 0 0.5rem 1.5rem color-mix(in oklab, var(--fg) 12%, transparent);
     color: var(--fg);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     opacity: 0;
     transition:
       opacity 0.25s,
@@ -533,8 +532,22 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     }
 
     p {
-      margin: 0.25rem 0 0;
+      margin: 0.35rem 0 0;
       color: var(--muted);
+    }
+  }
+
+  .about .name {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+
+    &::before {
+      content: '';
+      width: 0.4rem;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: var(--color);
     }
   }
 
