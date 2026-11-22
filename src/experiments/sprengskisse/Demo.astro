@@ -94,6 +94,7 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
             {id === 'keycaps' && (
               <div class="key accent enter-foot" style={`${area(2, 13.75, 1.25)}; --order: ${enter / (keys.length - 1)}`} />
             )}
+            {id === 'plate' && <div class="solid" style={area(2, 13.75, 1.25)} />}
             {id === 'pcb' && [<div class="usb" />, <div class="mcu" />]}
             {id === 'case' && [1, 2, 3, 4, 5, 6].map((step) => <div class="rim" style={`--step: ${step}`} />)}
           </div>
@@ -330,8 +331,18 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     box-shadow: inset 0 0 0 calc(0.4 * var(--unit)) var(--paint);
   }
 
+  /* Square cells whose edges spread a little past each other. Rounded corners and rounding in the
+     grid left gaps where the PCB showed through. */
   .plate .key {
     border: calc(0.16 * var(--unit)) solid var(--paint);
+    border-radius: 0;
+    box-shadow: 0 0 0 calc(0.1 * var(--unit)) var(--paint);
+  }
+
+  /* No switch sits under the lower part of the ISO Enter, so the plate is solid there */
+  .plate .solid {
+    background: var(--paint);
+    box-shadow: 0 0 0 calc(0.1 * var(--unit)) var(--paint);
   }
 
   .key {
