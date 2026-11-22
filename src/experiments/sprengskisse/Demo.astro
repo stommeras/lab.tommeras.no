@@ -418,8 +418,14 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     }
   }
 
-  /* Without anchor positioning, the labels become a legend under the keyboard */
-  @supports not (anchor-name: --a) {
+  /* Without anchor positioning, the labels become a legend under the keyboard. Firefox 157 has
+     anchor positioning, but places anchors from their untransformed boxes, so every label lands
+     in the same spot. Firefox also lacks scroll timelines, so that is the test for it. */
+  @supports not ((anchor-name: --a) and (animation-timeline: view())) {
+    .stage {
+      padding-bottom: 4rem;
+    }
+
     .labels {
       position: absolute;
       bottom: 1rem;
