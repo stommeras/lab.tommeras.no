@@ -41,41 +41,59 @@ const layers = [
   },
 ];
 
-// A 60% ANSI layout as [legend, width in units]. Every row is 15 units wide.
+// A Norwegian 60% ISO layout as [legend, width in units]. Every row is 15 units wide, except the
+// third, where the lower part of Enter fills the last 1.25 units.
 const ones = (legends: string) => [...legends].map((legend): [string, number] => [legend, 1]);
 const rows: [string, number][][] = [
-  [['Esc', 1], ...ones('1234567890-='), ['⌫', 2]],
-  [['Tab', 1.5], ...ones('QWERTYUIOP[]'), ['\\', 1.5]],
-  [['Caps', 1.75], ...ones("ASDFGHJKL;'"), ['Enter', 2.25]],
-  [['Shift', 2.25], ...ones('ZXCVBNM,./'), ['Shift', 2.75]],
-  [['Ctrl', 1.25], ['Super', 1.25], ['Alt', 1.25], ['', 6.25], ['Alt', 1.25], ['Fn', 1.25], ['Super', 1.25], ['Ctrl', 1.25]],
+  [['Esc', 1], ...ones('1234567890+\\'), ['⌫', 2]],
+  [['Tab', 1.5], ...ones('QWERTYUIOPÅ¨'), ['Enter', 1.5]],
+  [['Caps', 1.75], ...ones("ASDFGHJKLØÆ'")],
+  [['Shift', 1.25], ...ones('<ZXCVBNM,.-'), ['Shift', 2.75]],
+  [['Ctrl', 1.25], ['Super', 1.25], ['Alt', 1.25], ['', 6.25], ['AltGr', 1.25], ['Fn', 1.25], ['Super', 1.25], ['Ctrl', 1.25]],
 ];
-// Two-tone caps: Esc and Enter in an accent color, the other wide or named keys darker, the rest and the space bar plain
-const keys = rows.flat().map(([legend, width]) => ({
-  legend,
-  width,
-  tone: ['Esc', 'Enter'].includes(legend) ? 'accent' : legend && (width > 1 || legend.length > 1) ? 'mod' : undefined,
-}));
+// Every key gets its row and its offset in units, so it can be placed explicitly in the grid.
+// Two-tone caps: Esc and Enter in an accent color, the other wide or named keys darker, the rest and the space bar plain.
+const keys = rows.flatMap((row, r) => {
+  let x = 0;
+  return row.map(([legend, width]) => {
+    const key = {
+      legend,
+      width,
+      row: r,
+      x,
+      tone: ['Esc', 'Enter'].includes(legend) ? 'accent' : legend && (width > 1 || legend.length > 1) ? 'mod' : undefined,
+    };
+    x += width;
+    return key;
+  });
+});
+// The ISO Enter is an L over two rows. clip-path would flatten its 3D side face, so the lower part is a
+// second element after the other keys, which takes the upper part's place in the wave.
+const enter = keys.findIndex(({ legend }) => legend === 'Enter');
+// The grid has four columns per unit
+const area = (row: number, x: number, width: number) => `grid-area: ${row + 1} / ${x * 4 + 1} / span 1 / span ${width * 4}`;
 const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps']);
 ---
 
 <section class="sprengskisse" aria-label="Et mekanisk tastatur delt opp i lag">
   <div class="stage">
-    <div class="object" aria-hidden="true" style={`--middle: ${(layers.length - 1) / 2}`}>
+    <div class="object" aria-hidden="true" style={`--middle: ${(layers.length - 1) / 2}; --last: ${keys.length - 1}`}>
       {
         layers.map(({ id, color }, i) => (
           <div class:list={['layer', id]} data-part={id} style={`--layer: ${i}; --color: ${color}`}>
             <span class="anchor" style={`anchor-name: --${id}`} />
             {gridLayers.has(id) &&
-              keys.map(({ legend, width, tone }) => (
-                // The grid has four columns per unit
+              keys.map(({ legend, width, row, x, tone }) => (
                 <div
-                  class:list={['key', { long: width >= 2 }, id === 'keycaps' && tone]}
-                  style={`grid-column: span ${width * 4}`}
+                  class:list={['key', { long: width >= 2 }, id === 'keycaps' && [tone, { enter: legend === 'Enter' }]]}
+                  style={area(row, x, width)}
                 >
                   {id === 'keycaps' && legend}
                 </div>
               ))}
+            {id === 'keycaps' && (
+              <div class="key accent enter-foot" style={`${area(2, 13.75, 1.25)}; --order: ${enter / (keys.length - 1)}`} />
+            )}
             {id === 'pcb' && [<div class="usb" />, <div class="mcu" />]}
             {id === 'case' && [1, 2, 3, 4, 5, 6].map((step) => <div class="rim" style={`--step: ${step}`} />)}
           </div>
@@ -347,8 +365,8 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
 
   .keycaps .key {
     --thickness: 0.35rem;
-    /* Its place in the wave, from 0 for the first key to 1 for the last */
-    --order: calc((sibling-index() - 1) / 60);
+    /* Its place in the wave, from 0 for the first key to 1 for the last. The anchor comes first in the layer, so the first key is sibling 2. */
+    --order: calc((sibling-index() - 2) / var(--last));
     --cap: color-mix(in oklab, var(--color), var(--surface) var(--dim));
     --edge: color-mix(in oklab, var(--cap), black 35%);
     margin: calc(0.06 * var(--unit));
@@ -374,6 +392,23 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
 
   .keycaps .accent {
     --cap: color-mix(in oklab, var(--pink), var(--surface) var(--dim));
+  }
+
+  /* The two parts of Enter overlap a little, so they read as one L-shaped cap */
+  .keycaps .enter {
+    margin-bottom: calc(-0.06 * var(--unit));
+    border-bottom-right-radius: 0;
+  }
+
+  .keycaps .enter-foot {
+    margin-top: calc(-0.06 * var(--unit));
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    /* The highlight on every edge except the top, which joins the upper part */
+    box-shadow:
+      inset 0.15rem 0 0 color-mix(in oklab, var(--cap), white 20%),
+      inset -0.15rem 0 0 color-mix(in oklab, var(--cap), white 20%),
+      inset 0 -0.15rem 0 color-mix(in oklab, var(--cap), white 20%);
   }
 
   /* On a narrow screen, move the keyboard left to make room for the labels */
