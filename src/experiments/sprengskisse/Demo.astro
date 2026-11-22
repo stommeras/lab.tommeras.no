@@ -85,6 +85,7 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
         ))
       }
     </ul>
+    <p class="hint" aria-hidden="true">Scroll for å ta det fra hverandre ↓</p>
     <label class="toggle">
       <input type="checkbox" />
       Sett sammen
@@ -147,6 +148,17 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     60% {
       opacity: 1;
       visibility: visible;
+    }
+  }
+
+  @keyframes hint {
+    0% {
+      opacity: 1;
+    }
+    8%,
+    100% {
+      opacity: 0;
+      visibility: hidden;
     }
   }
 
@@ -455,6 +467,16 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
       visibility 0.3s;
   }
 
+  /* Only shown while the scroll animation runs, and gone as soon as it starts */
+  .hint {
+    display: none;
+    position: absolute;
+    bottom: 1rem;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
   .toggle {
     position: absolute;
     top: 1rem;
@@ -551,6 +573,13 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
       /* The timing function applies to each step between keyframes, so every phase eases in and out */
       .toggle {
         display: none;
+      }
+
+      .hint {
+        display: block;
+        animation: hint linear both;
+        animation-timeline: --explode;
+        animation-range: contain 0% contain 100%;
       }
 
       .stage {
