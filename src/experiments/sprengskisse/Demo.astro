@@ -145,6 +145,18 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
   ))}
 </section>
 
+<script>
+  // Clicking a part does the same as clicking its label. The parts are inside aria-hidden, so they can't be
+  // buttons themselves.
+  for (const layer of document.querySelectorAll<HTMLElement>('.sprengskisse .layer')) {
+    layer.addEventListener('click', () => {
+      document
+        .querySelector<HTMLButtonElement>(`.sprengskisse .label[data-part='${layer.dataset.part}'] button`)
+        ?.click();
+    });
+  }
+</script>
+
 <style>
   /* Registered so they can animate and transition. Without the scroll animation, the keyboard shows
      tilted (--tilt's initial value) and exploded (.stage sets --spread). */
@@ -235,6 +247,25 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     place-items: center;
     transform-style: preserve-3d;
     transform: rotateX(var(--tilt)) rotateZ(calc(var(--tilt) * -0.6));
+  }
+
+  /* Only the visible parts catch the pointer. The keycap, switch and stabilizer layers are otherwise
+     empty boxes that would cover the parts below them. */
+  .object {
+    cursor: pointer;
+  }
+
+  .keycaps,
+  .switches,
+  .stabilizers,
+  .stabilizers .key {
+    pointer-events: none;
+  }
+
+  .keycaps .key,
+  .switches .key,
+  .stabilizers .long {
+    pointer-events: auto;
   }
 
   /* All layers share one grid cell. Assembled, they rest a small gap apart like a real stack.
@@ -686,14 +717,33 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     accent-color: var(--pink);
   }
 
-  /* Hovering a part or its label, or focusing the label, dims the other parts and labels. Opacity would flatten the
-     layer's 3D children, so the dimming mixes the colors toward the background instead. */
-  .stage:has([data-part='case']:is(:hover, :focus-within)) :not([data-part='case']),
-  .stage:has([data-part='pcb']:is(:hover, :focus-within)) :not([data-part='pcb']),
-  .stage:has([data-part='plate']:is(:hover, :focus-within)) :not([data-part='plate']),
-  .stage:has([data-part='stabilizers']:is(:hover, :focus-within)) :not([data-part='stabilizers']),
-  .stage:has([data-part='switches']:is(:hover, :focus-within)) :not([data-part='switches']),
-  .stage:has([data-part='keycaps']:is(:hover, :focus-within)) :not([data-part='keycaps']) {
+  /* While a part's caption is open, the other parts and labels are dimmed. Without an open caption, hovering a
+     part or its label, or focusing the label, does the same. Opacity would flatten the layer's 3D children, so
+     the dimming mixes the colors toward the background instead. */
+  .sprengskisse:has(#sprengskisse-case:popover-open) .stage :not([data-part='case']),
+  .sprengskisse:has(#sprengskisse-pcb:popover-open) .stage :not([data-part='pcb']),
+  .sprengskisse:has(#sprengskisse-plate:popover-open) .stage :not([data-part='plate']),
+  .sprengskisse:has(#sprengskisse-stabilizers:popover-open) .stage :not([data-part='stabilizers']),
+  .sprengskisse:has(#sprengskisse-switches:popover-open) .stage :not([data-part='switches']),
+  .sprengskisse:has(#sprengskisse-keycaps:popover-open) .stage :not([data-part='keycaps']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='case']:is(:hover, :focus-within))
+    :not([data-part='case']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='pcb']:is(:hover, :focus-within))
+    :not([data-part='pcb']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='plate']:is(:hover, :focus-within))
+    :not([data-part='plate']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='stabilizers']:is(:hover, :focus-within))
+    :not([data-part='stabilizers']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='switches']:is(:hover, :focus-within))
+    :not([data-part='switches']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='keycaps']:is(:hover, :focus-within))
+    :not([data-part='keycaps']) {
     &.layer {
       --dim: 75%;
     }
