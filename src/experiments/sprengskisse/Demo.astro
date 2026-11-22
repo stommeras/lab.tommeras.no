@@ -368,8 +368,10 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
         animation-range: contain 0% contain 100%;
       }
 
+      /* The timing function applies to each step between keyframes, so every phase eases in and out */
       .stage {
         animation-name: explode;
+        animation-timing-function: ease-in-out;
       }
 
       .label {
