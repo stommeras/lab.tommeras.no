@@ -8,26 +8,32 @@ const layers = [
   { id: 'keycaps', label: 'Tastene', color: 'var(--lavender)' },
 ];
 
-// A 60% ANSI layout, key widths in units. Every row is 15 units wide.
-const rows = [
-  [...Array(13).fill(1), 2],
-  [1.5, ...Array(12).fill(1), 1.5],
-  [1.75, ...Array(11).fill(1), 2.25],
-  [2.25, ...Array(10).fill(1), 2.75],
-  [1.25, 1.25, 1.25, 6.25, 1.25, 1.25, 1.25, 1.25],
+// A 60% ANSI layout as [legend, width in units]. Every row is 15 units wide.
+const ones = (legends: string) => [...legends].map((legend): [string, number] => [legend, 1]);
+const rows: [string, number][][] = [
+  [['Esc', 1], ...ones('1234567890-='), ['⌫', 2]],
+  [['Tab', 1.5], ...ones('QWERTYUIOP[]'), ['\\', 1.5]],
+  [['Caps', 1.75], ...ones("ASDFGHJKL;'"), ['Enter', 2.25]],
+  [['Shift', 2.25], ...ones('ZXCVBNM,./'), ['Shift', 2.75]],
+  [['Ctrl', 1.25], ['Win', 1.25], ['Alt', 1.25], ['', 6.25], ['Alt', 1.25], ['Fn', 1.25], ['Win', 1.25], ['Ctrl', 1.25]],
 ];
-// The grid has four columns per unit, so a key spans its width times four
-const spans = rows.flat().map((width) => width * 4);
+const keys = rows.flat().map(([legend, width]) => ({ legend, width }));
 const gridLayers = new Set(['plate', 'switches', 'keycaps']);
 ---
 
 <section class="sprengskisse" aria-label="Et mekanisk tastatur delt opp i lag">
   <div class="stage">
-    <div class="object">
+    <div class="object" aria-hidden="true">
       {
         layers.map(({ id, color }, i) => (
           <div class:list={['layer', id]} style={`--layer: ${i}; --color: ${color}; anchor-name: --${id}`}>
-            {gridLayers.has(id) && spans.map((span) => <div class="key" style={`grid-column: span ${span}`} />)}
+            {gridLayers.has(id) &&
+              keys.map(({ legend, width }) => (
+                // The grid has four columns per unit
+                <div class="key" style={`grid-column: span ${width * 4}`}>
+                  {id === 'keycaps' && legend}
+                </div>
+              ))}
           </div>
         ))
       }
@@ -197,6 +203,11 @@ const gridLayers = new Set(['plate', 'switches', 'keycaps']);
     border-radius: 0.2rem;
     background: var(--color);
     box-shadow: inset 0 0 0 0.15rem color-mix(in oklab, var(--color), white 20%);
+    padding: calc(0.1 * var(--unit)) calc(0.15 * var(--unit));
+    /* --surface is dark in dark mode, where the caps are light, and the other way round */
+    color: var(--surface);
+    font-size: calc(0.32 * var(--unit));
+    line-height: 1;
     /* Each cap sits on its switch until its turn in the wave, then lifts to the keycaps layer.
        The lag is at most one layer gap (70px at full spread), so a cap never sinks below the switches. */
     transform: translateZ(
