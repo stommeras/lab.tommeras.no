@@ -4,6 +4,7 @@ const layers = [
   { id: 'case', label: 'Kassen', color: 'var(--muted)' },
   { id: 'pcb', label: 'Kretskortet', color: 'var(--mint)' },
   { id: 'plate', label: 'Platen', color: 'color-mix(in oklab, var(--fg) 45%, var(--surface))' },
+  { id: 'stabilizers', label: 'Stabilisatorer', color: 'var(--pink)' },
   { id: 'switches', label: 'Brytere', color: 'var(--peach)' },
   { id: 'keycaps', label: 'Tastene', color: 'var(--lavender)' },
 ];
@@ -18,19 +19,19 @@ const rows: [string, number][][] = [
   [['Ctrl', 1.25], ['Win', 1.25], ['Alt', 1.25], ['', 6.25], ['Alt', 1.25], ['Fn', 1.25], ['Win', 1.25], ['Ctrl', 1.25]],
 ];
 const keys = rows.flat().map(([legend, width]) => ({ legend, width }));
-const gridLayers = new Set(['plate', 'switches', 'keycaps']);
+const gridLayers = new Set(['plate', 'stabilizers', 'switches', 'keycaps']);
 ---
 
 <section class="sprengskisse" aria-label="Et mekanisk tastatur delt opp i lag">
   <div class="stage">
-    <div class="object" aria-hidden="true">
+    <div class="object" aria-hidden="true" style={`--middle: ${(layers.length - 1) / 2}`}>
       {
         layers.map(({ id, color }, i) => (
           <div class:list={['layer', id]} style={`--layer: ${i}; --color: ${color}; anchor-name: --${id}`}>
             {gridLayers.has(id) &&
               keys.map(({ legend, width }) => (
                 // The grid has four columns per unit
-                <div class="key" style={`grid-column: span ${width * 4}`}>
+                <div class:list={['key', { long: width >= 2 }]} style={`grid-column: span ${width * 4}`}>
                   {id === 'keycaps' && legend}
                 </div>
               ))}
@@ -124,7 +125,7 @@ const gridLayers = new Set(['plate', 'switches', 'keycaps']);
   }
 
   /* All layers share one grid cell, so they start stacked on top of each other.
-     They spread from the middle layer (index 2 of 5), so the stack stays centered. */
+     They spread from the middle of the stack, so it stays centered. */
   .layer {
     --edge: color-mix(in oklab, var(--color), black 35%);
     --thickness: 0.25rem;
@@ -137,7 +138,7 @@ const gridLayers = new Set(['plate', 'switches', 'keycaps']);
     padding: calc(0.4 * var(--unit));
     border-radius: calc(0.4 * var(--unit));
     transform-style: preserve-3d;
-    transform: translateZ(calc((var(--layer) - 2) * var(--spread)));
+    transform: translateZ(calc((var(--layer) - var(--middle)) * var(--spread)));
   }
 
   /* The side of a slab: a darker copy just under it, which shows along the near edges once tilted */
@@ -151,6 +152,7 @@ const gridLayers = new Set(['plate', 'switches', 'keycaps']);
   .case::after,
   .pcb::after,
   .switches .key::after,
+  .stabilizers .long::after,
   .keycaps .key::after {
     content: '';
     position: absolute;
@@ -189,6 +191,23 @@ const gridLayers = new Set(['plate', 'switches', 'keycaps']);
     transform-style: preserve-3d;
   }
 
+  /* A wire bar between two housings, under every key that is 2 units or wider */
+  .stabilizers .long {
+    --thickness: 0.2rem;
+    margin: calc(0.3 * var(--unit)) calc(0.1 * var(--unit));
+    background:
+      linear-gradient(var(--color) 0 0) left / calc(0.3 * var(--unit)) 100% no-repeat,
+      linear-gradient(var(--color) 0 0) right / calc(0.3 * var(--unit)) 100% no-repeat,
+      linear-gradient(var(--color) 0 0) center / 100% calc(0.08 * var(--unit)) no-repeat;
+  }
+
+  /* The side face only under the housings, not under the gap around the wire */
+  .stabilizers .long::after {
+    background:
+      linear-gradient(var(--edge) 0 0) left / calc(0.3 * var(--unit)) 100% no-repeat,
+      linear-gradient(var(--edge) 0 0) right / calc(0.3 * var(--unit)) 100% no-repeat;
+  }
+
   .switches .key {
     --thickness: 0.3rem;
     margin: calc(0.24 * var(--unit));
@@ -218,11 +237,12 @@ const gridLayers = new Set(['plate', 'switches', 'keycaps']);
   /* On a narrow screen, move the keyboard left to make room for the labels */
   @media (width < 40rem) {
     .object {
-      margin-right: 8rem;
+      margin-right: 9rem;
     }
 
     .label {
       --leader: 1rem;
+      font-size: 0.8rem;
     }
   }
 
