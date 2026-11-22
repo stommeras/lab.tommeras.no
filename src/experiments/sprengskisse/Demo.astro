@@ -27,7 +27,8 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     <div class="object" aria-hidden="true" style={`--middle: ${(layers.length - 1) / 2}`}>
       {
         layers.map(({ id, color }, i) => (
-          <div class:list={['layer', id]} style={`--layer: ${i}; --color: ${color}; anchor-name: --${id}`}>
+          <div class:list={['layer', id]} style={`--layer: ${i}; --color: ${color}`}>
+            <span class="anchor" style={`anchor-name: --${id}`} />
             {gridLayers.has(id) &&
               keys.map(({ legend, width }) => (
                 // The grid has four columns per unit
@@ -45,7 +46,7 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
       {
         layers.map(({ id, label, color }) => (
           <li class="label" style={`position-anchor: --${id}; --color: ${color}`}>
-            {label}
+            <span>{label}</span>
           </li>
         ))
       }
@@ -300,28 +301,60 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     }
   }
 
+  /* The point each leader line ends at: the front right corner of the key area. Once tilted, it's
+     the rightmost point of the part, so the line doesn't cross it, and the layers above never cover it. */
+  .anchor {
+    position: absolute;
+    bottom: calc(0.4 * var(--unit));
+    right: calc(0.4 * var(--unit));
+  }
+
+  /* The case is 0.3 units wider on each side, so this keeps its label in line with the others */
+  .case .anchor {
+    bottom: calc(0.7 * var(--unit));
+    right: calc(0.7 * var(--unit));
+  }
+
+  /* No stabilizer sits in the front right corner, so point at the right housing under right shift */
+  .stabilizers .anchor {
+    bottom: calc(1.7 * var(--unit));
+    right: calc(0.5 * var(--unit));
+  }
+
   .labels {
     display: contents;
     list-style: none;
   }
 
+  /* The label box is the leader line. It runs from its own anchor to a column shared by all labels,
+     set by the keycaps' anchor, so the lines differ in length and the text lines up. */
   .label {
     --leader: 2rem;
     position: absolute;
     top: anchor(center);
-    left: calc(anchor(right) + var(--leader) + 0.5rem);
-    translate: 0 -50%;
+    left: anchor(right);
+    right: calc(anchor(--keycaps right) - var(--leader));
+    border-top: 1px solid var(--fg);
     color: var(--fg);
   }
 
-  /* A leader line from the label back to the layer */
+  .label span {
+    position: absolute;
+    left: calc(100% + 0.5rem);
+    translate: 0 -50%;
+    white-space: nowrap;
+  }
+
+  /* A dot where the line meets the part */
   .label::before {
     content: '';
     position: absolute;
-    top: 50%;
-    right: calc(100% + 0.5rem);
-    width: var(--leader);
-    border-top: 1px solid var(--fg);
+    top: -0.2rem;
+    left: -0.2rem;
+    width: 0.4rem;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: var(--fg);
   }
 
   /* Without anchor positioning, the labels become a legend under the keyboard */
@@ -340,8 +373,13 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
 
     .label {
       position: static;
-      translate: none;
+      border-top: none;
       border-bottom: 0.25rem solid var(--color);
+    }
+
+    .label span {
+      position: static;
+      translate: none;
     }
 
     .label::before {
