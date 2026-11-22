@@ -132,8 +132,13 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
       Sett sammen
     </label>
   </div>
-  {layers.map(({ id, label, color, about }) => (
-    <div class="about" id={`sprengskisse-${id}`} popover style={`--color: ${color}`}>
+  {layers.map(({ id, label, color, about }, i) => (
+    // Numbered from the top of the stack, like the parts list in a manual
+    <div class="about" id={`sprengskisse-${id}`} popover style={`--color: ${color}; --number: ${layers.length - i}`}>
+      <div class="head" aria-hidden="true">
+        <span class="number"></span>
+        <span class="rule"></span>
+      </div>
       <span class="name">{label}</span>
       <p>{about}</p>
     </div>
@@ -496,9 +501,8 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     cursor: pointer;
   }
 
-  /* A short text about the part, like a caption in a manual: always in the top left corner of the stage,
-     and the part's name marked with the same dot as the leader lines. The popover is in the top layer,
-     so it finds the stage by anchor. */
+  /* A short text about the part, like an entry in a manual's parts list: always in the top left corner
+     of the stage. The popover is in the top layer, so it finds the stage by anchor. */
   .stage {
     anchor-name: --stage;
   }
@@ -512,10 +516,14 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     margin: 0;
     padding: 0 0 0.25rem;
     border: none;
-    /* The stage's own color, so the caption covers cleanly where it overlaps the keyboard */
-    background: var(--surface);
+    background: none;
     color: var(--fg);
     font-size: 0.85rem;
+
+    /* On a narrow screen the caption overlaps the keyboard, so it gets the stage's own color to cover it cleanly */
+    @media (width < 40rem) {
+      background: var(--surface);
+    }
     opacity: 0;
     transition:
       opacity 0.25s,
@@ -537,21 +545,48 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     }
   }
 
-  .about .name {
+  /* An integer, so it can transition and count up */
+  @property --count {
+    syntax: '<integer>';
+    inherits: false;
+    initial-value: 0;
+  }
+
+  .about .head {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.75rem;
     align-items: center;
+  }
+
+  .about .number {
+    --count: var(--number);
+    counter-reset: part var(--count);
+    color: var(--color);
+    font-size: 2rem;
+    line-height: 1;
 
     &::before {
-      content: '';
-      width: 0.4rem;
-      aspect-ratio: 1;
-      border-radius: 50%;
-      background: var(--color);
+      content: counter(part, decimal-leading-zero);
     }
   }
 
-  /* A short slide as it comes in and goes out, only when motion is fine */
+  .about .rule {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+    transform-origin: left;
+  }
+
+  .about .name {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* Only when motion is fine: the caption slides in, the number counts up from 00, the line draws
+     itself out from the number, and the text comes in last */
   @media (prefers-reduced-motion: no-preference) {
     .about {
       translate: 0 0.5rem;
@@ -561,6 +596,41 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
 
         @starting-style {
           translate: 0 0.5rem;
+        }
+      }
+    }
+
+    .about .number {
+      transition: --count 0.5s ease-out;
+    }
+
+    .about .rule {
+      transition: scale 0.5s 0.1s ease-out;
+    }
+
+    .about p {
+      transition:
+        opacity 0.3s 0.25s,
+        translate 0.3s 0.25s ease-out;
+    }
+
+    .about:popover-open {
+      .number {
+        @starting-style {
+          --count: 0;
+        }
+      }
+
+      .rule {
+        @starting-style {
+          scale: 0 1;
+        }
+      }
+
+      p {
+        @starting-style {
+          opacity: 0;
+          translate: 0 0.25rem;
         }
       }
     }
