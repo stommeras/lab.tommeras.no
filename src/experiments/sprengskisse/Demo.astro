@@ -1,0 +1,295 @@
+---
+// Bottom to top, so the index is the layer's height in the stack
+const layers = [
+  { id: 'case', label: 'Kassen', color: 'var(--muted)' },
+  { id: 'pcb', label: 'Kretskortet', color: 'var(--mint)' },
+  { id: 'plate', label: 'Platen', color: 'color-mix(in oklab, var(--fg) 45%, var(--surface))' },
+  { id: 'switches', label: 'Brytere', color: 'var(--peach)' },
+  { id: 'keycaps', label: 'Tastene', color: 'var(--lavender)' },
+];
+
+// A 60% ANSI layout, key widths in units. Every row is 15 units wide.
+const rows = [
+  [...Array(13).fill(1), 2],
+  [1.5, ...Array(12).fill(1), 1.5],
+  [1.75, ...Array(11).fill(1), 2.25],
+  [2.25, ...Array(10).fill(1), 2.75],
+  [1.25, 1.25, 1.25, 6.25, 1.25, 1.25, 1.25, 1.25],
+];
+// The grid has four columns per unit, so a key spans its width times four
+const spans = rows.flat().map((width) => width * 4);
+const gridLayers = new Set(['plate', 'switches', 'keycaps']);
+---
+
+<section class="sprengskisse" aria-label="Et mekanisk tastatur delt opp i lag">
+  <div class="stage">
+    <div class="object">
+      {
+        layers.map(({ id, color }, i) => (
+          <div class:list={['layer', id]} style={`--layer: ${i}; --color: ${color}; anchor-name: --${id}`}>
+            {gridLayers.has(id) && spans.map((span) => <div class="key" style={`grid-column: span ${span}`} />)}
+          </div>
+        ))
+      }
+    </div>
+    <ul class="labels">
+      {
+        layers.map(({ id, label, color }) => (
+          <li class="label" style={`position-anchor: --${id}; --color: ${color}`}>
+            {label}
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  /* The initial values are the exploded view, which is what shows without scroll-driven animations or with reduced motion */
+  @property --spread {
+    syntax: '<length>';
+    inherits: true;
+    initial-value: 70px;
+  }
+
+  @property --tilt {
+    syntax: '<angle>';
+    inherits: true;
+    initial-value: 55deg;
+  }
+
+  /* Tilt, spread, hold, then the same way back so it ends assembled and flat */
+  @keyframes explode {
+    0%,
+    100% {
+      --tilt: 0deg;
+      --spread: 0px;
+    }
+    20%,
+    80% {
+      --tilt: 55deg;
+      --spread: 0px;
+    }
+    40%,
+    60% {
+      --tilt: 55deg;
+      --spread: 70px;
+    }
+  }
+
+  @keyframes labels {
+    0%,
+    30%,
+    70%,
+    100% {
+      opacity: 0;
+    }
+    40%,
+    60% {
+      opacity: 1;
+    }
+  }
+
+  .sprengskisse {
+    view-timeline: --explode;
+  }
+
+  .stage {
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 70vh;
+    min-height: 28rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+
+  /* No perspective: Chrome 155 tracks an anchor through 3D transforms but leaves perspective
+     out, so a label drifts off its layer as the layer moves along Z. Orthographic matches a
+     manual's exploded view anyway. */
+  .object {
+    --unit: clamp(0.6rem, 3vw, 1.25rem);
+    /* How far apart the layers are, from 0 to 1. 70px is the full spread in the keyframes. */
+    --progress: calc(var(--spread) / 70px);
+    display: grid;
+    transform-style: preserve-3d;
+    transform: rotateX(var(--tilt)) rotateZ(calc(var(--tilt) * -0.6));
+  }
+
+  /* All layers share one grid cell, so they start stacked on top of each other.
+     They spread from the middle layer (index 2 of 5), so the stack stays centered. */
+  .layer {
+    --edge: color-mix(in oklab, var(--color), black 35%);
+    --thickness: 0.25rem;
+    grid-area: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(60, 1fr);
+    grid-auto-rows: 1fr;
+    width: calc(15 * var(--unit));
+    height: calc(5 * var(--unit));
+    padding: calc(0.4 * var(--unit));
+    border-radius: calc(0.4 * var(--unit));
+    transform-style: preserve-3d;
+    transform: translateZ(calc((var(--layer) - 2) * var(--spread)));
+  }
+
+  /* The side of a slab: a darker copy just under it, which shows along the near edges once tilted */
+  .case,
+  .pcb,
+  .plate {
+    background: var(--color);
+    box-shadow: inset 0 0 0 1px var(--edge);
+  }
+
+  .case::after,
+  .pcb::after,
+  .switches .key::after,
+  .keycaps .key::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--edge);
+    transform: translateZ(calc(-1 * var(--thickness)));
+  }
+
+  .case {
+    --thickness: 1.5rem;
+    position: relative;
+  }
+
+  .pcb {
+    position: relative;
+    background:
+      repeating-linear-gradient(90deg, transparent 0 0.9rem, var(--edge) 0.9rem calc(0.9rem + 1px)),
+      repeating-linear-gradient(0deg, transparent 0 1.3rem, var(--edge) 1.3rem calc(1.3rem + 1px)),
+      var(--color);
+  }
+
+  /* The plate is the borders around each key, so the holes are see-through */
+  .plate {
+    background: none;
+    box-shadow: inset 0 0 0 calc(0.4 * var(--unit)) var(--color);
+  }
+
+  .plate .key {
+    border: calc(0.16 * var(--unit)) solid var(--color);
+  }
+
+  .key {
+    position: relative;
+    border-radius: 0.15rem;
+    transform-style: preserve-3d;
+  }
+
+  .switches .key {
+    --thickness: 0.3rem;
+    margin: calc(0.24 * var(--unit));
+    background: var(--color);
+  }
+
+  .keycaps .key {
+    --thickness: 0.35rem;
+    /* Its place in the wave, from 0 for the first key to 1 for the last */
+    --order: calc((sibling-index() - 1) / 60);
+    margin: calc(0.06 * var(--unit));
+    border-radius: 0.2rem;
+    background: var(--color);
+    box-shadow: inset 0 0 0 0.15rem color-mix(in oklab, var(--color), white 20%);
+    /* Each cap sits on its switch until its turn in the wave, then lifts to the keycaps layer.
+       The lag is at most one layer gap (70px at full spread), so a cap never sinks below the switches. */
+    transform: translateZ(
+      calc((clamp(0, var(--progress) * 1.6 - var(--order) * 0.6, 1) - var(--progress)) * 70px)
+    );
+  }
+
+  /* On a narrow screen, move the keyboard left to make room for the labels */
+  @media (width < 40rem) {
+    .object {
+      margin-right: 8rem;
+    }
+
+    .label {
+      --leader: 1rem;
+    }
+  }
+
+  .labels {
+    display: contents;
+    list-style: none;
+  }
+
+  .label {
+    --leader: 2rem;
+    position: absolute;
+    top: anchor(center);
+    left: calc(anchor(right) + var(--leader) + 0.5rem);
+    translate: 0 -50%;
+    color: var(--fg);
+  }
+
+  /* A leader line from the label back to the layer */
+  .label::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: calc(100% + 0.5rem);
+    width: var(--leader);
+    border-top: 1px solid var(--fg);
+  }
+
+  /* Without anchor positioning, the labels become a legend under the keyboard */
+  @supports not (anchor-name: --a) {
+    .labels {
+      position: absolute;
+      bottom: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      justify-content: center;
+      margin: 0;
+      padding: 0 1rem;
+      list-style: none;
+    }
+
+    .label {
+      position: static;
+      translate: none;
+      border-bottom: 0.25rem solid var(--color);
+    }
+
+    .label::before {
+      content: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .sprengskisse {
+      height: 300vh;
+    }
+
+    .stage {
+      position: sticky;
+      top: 15vh;
+    }
+
+    @supports (animation-timeline: view()) {
+      .stage,
+      .label {
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: --explode;
+        animation-range: contain 0% contain 100%;
+      }
+
+      .stage {
+        animation-name: explode;
+      }
+
+      .label {
+        animation-name: labels;
+      }
+    }
+  }
+</style>

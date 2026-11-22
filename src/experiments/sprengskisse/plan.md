@@ -17,7 +17,7 @@ First thoughts, not a decided design.
 ## Labels
 
 - Each layer gets `anchor-name: --keycaps` etc. Labels sit outside the 3D context with `position-anchor` and `top: anchor(center)` / `left: anchor(right)`.
-- Big unknown: does anchor positioning track an anchor through 3D transforms and track it every frame while a scroll-driven animation runs? Test this first with a single box before building anything else. If it doesn't, fall back to labels inside the 3D context that move with their layer, or position them from the same `--spread` math.
+- Answered by the prototype: Chrome 155 tracks an anchor through 3D transforms on every frame of a scroll-driven animation, but leaves `perspective` out of the anchor box. With `perspective: 1200px` a label drifted up to 15px off its layer at full spread. Without perspective the offset is 0px, so the object is orthographic.
 - Leader lines: a pseudo-element on the label stretched toward the anchor, or an SVG line. Start simple.
 - Labels fade in only once the layers are apart, keyed off the same timeline.
 
