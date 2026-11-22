@@ -59,11 +59,12 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
 </section>
 
 <style>
-  /* The initial values are the exploded view, which is what shows without scroll-driven animations or with reduced motion */
+  /* Registered so they can animate and transition. Without the scroll animation, the keyboard shows
+     tilted (--tilt's initial value) and exploded (.stage sets --spread). */
   @property --spread {
     syntax: '<length>';
     inherits: true;
-    initial-value: 70px;
+    initial-value: 0px;
   }
 
   @property --tilt {
@@ -87,7 +88,7 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     40%,
     60% {
       --tilt: 55deg;
-      --spread: 70px;
+      --spread: var(--full-spread);
     }
   }
 
@@ -109,6 +110,9 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
   }
 
   .stage {
+    /* How far apart the layers move. Everything that depends on the spread reads it from here. */
+    --full-spread: 70px;
+    --spread: var(--full-spread);
     position: relative;
     display: grid;
     place-items: center;
@@ -124,8 +128,8 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
      manual's exploded view anyway. */
   .object {
     --unit: clamp(0.6rem, 3vw, 1.25rem);
-    /* How far apart the layers are, from 0 to 1. 70px is the full spread in the keyframes. */
-    --progress: calc(var(--spread) / 70px);
+    /* How far apart the layers are, from 0 to 1 */
+    --progress: calc(var(--spread) / var(--full-spread));
     display: grid;
     place-items: center;
     transform-style: preserve-3d;
@@ -289,9 +293,9 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
     font-size: calc(0.32 * var(--unit));
     line-height: 1;
     /* Each cap sits on its switch until its turn in the wave, then lifts to the keycaps layer.
-       The lag is at most one layer gap (70px at full spread), so a cap never sinks below the switches. */
+       The lag is at most one layer gap at full spread, so a cap never sinks below the switches. */
     transform: translateZ(
-      calc((clamp(0, var(--progress) * 1.6 - var(--order) * 0.6, 1) - var(--progress)) * 70px)
+      calc((clamp(0, var(--progress) * 1.6 - var(--order) * 0.6, 1) - var(--progress)) * var(--full-spread))
     );
   }
 
