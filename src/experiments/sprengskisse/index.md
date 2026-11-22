@@ -15,4 +15,4 @@ Lagene er vanlige elementer i CSS 3D med `transform-style: preserve-3d`, og hver
 
 Det jeg ikke visste: Chrome følger et anchor gjennom 3D-transforms, men tar ikke med `perspective`. Med perspektiv drev merkelappene opptil 15 piksler bort fra delen sin når lagene gled fra hverandre. Uten perspektiv sitter de helt presist, så tastaturet er tegnet ortografisk, sånn som en sprengskisse i en bruksanvisning uansett pleier å være.
 
-Med redusert bevegelse står tastaturet ferdig delt opp, uten animasjon. Uten anchor positioning blir merkelappene en forklaring under tastaturet.
+Med redusert bevegelse står tastaturet ferdig delt opp, og du klikker på Sett sammen for å se det samlet. Uten anchor positioning blir merkelappene en forklaring under tastaturet.
