@@ -16,7 +16,7 @@ const key = (col: number, row: number, color = cap, wide = 1, z = 5) => {
 };
 
 for (let row = 0; row < 4; row++) for (let col = 0; col < 11; col++) if (row || col) key(col, row);
-key(0, 0, 'var(--pink)', 1, 10);
+key(0, 0, 'var(--pink)', 1, 8);
 key(0, 4, cap);
 key(1, 4, cap);
 key(2, 4, cap, 6);
