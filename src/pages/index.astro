@@ -162,8 +162,6 @@ const previews = new Map(
   }
 
   .art {
-    grid-row: span 2;
-    align-self: start;
     height: 72px;
   }
 
@@ -206,10 +204,15 @@ const previews = new Map(
     color: var(--muted);
   }
 
-  /* Touch screens get the caption under the title and no picture */
+  /* Touch screens get the caption under the object and the title, across the whole row, and no picture */
   @media not ((hover: hover) and (pointer: fine)) {
     li {
       padding-bottom: 20px;
+    }
+
+    .card {
+      grid-column: 1 / -1;
+      margin-top: 8px;
     }
 
     picture {
