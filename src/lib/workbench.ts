@@ -76,13 +76,15 @@ function sheet(sketches: Drawn[]) {
   return { paper, placed };
 }
 
-// The experiments come newest first. Returns the drawn objects on the table, the blueprint sheet if any, and the ids
-// of the experiments that didn't fit
+// The experiments come newest first. Returns the drawn objects on the table, the blueprint sheet if any, every object
+// drawn on its own at the origin, and the ids of the experiments that didn't fit
 export function arrange(experiments: CollectionEntry<'experiments'>[]) {
   const sketches = experiments.filter(({ data }) => data.status === 'skisse');
   const others = experiments.filter(({ data }) => data.status !== 'skisse');
-  const blueprint = sketches.length ? sheet(sketches.map(({ id }) => draw(object(id), true))) : undefined;
-  const drawn = others.map(({ id }) => draw(object(id)));
+  // Every object on its own as well, for the list
+  const alone = new Map(experiments.map(({ id, data }) => [id, draw(object(id), data.status === 'skisse')]));
+  const blueprint = sketches.length ? sheet(sketches.map(({ id }) => alone.get(id)!)) : undefined;
+  const drawn = others.map(({ id }) => alone.get(id)!);
 
   for (let count = others.length; count >= 0; count--) {
     const items = drawn.slice(0, count);
@@ -94,7 +96,7 @@ export function arrange(experiments: CollectionEntry<'experiments'>[]) {
       paper = placed[count].footprint;
       for (const [i, { id }] of sketches.entries()) table.set(id, moved(blueprint.placed[i], paper[0], paper[1]));
     }
-    return { table, paper, rest: experiments.filter(({ id }) => !table.has(id)).map(({ id }) => id) };
+    return { table, paper, alone, rest:experiments.filter(({ id }) => !table.has(id)).map(({ id }) => id) };
   }
   throw new Error('The blueprint sheet is too big for the workbench');
 }

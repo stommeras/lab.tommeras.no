@@ -7,9 +7,13 @@ import CodeText from '../components/CodeText.astro';
 import { sharedEntryStyle } from '../lib/shared-entry';
 import Workbench from '../components/Workbench.astro';
 import { arrange } from '../lib/workbench';
+import type { Drawn } from '../lib/bench';
+import '../styles/voxels.css';
 
 const experiments = (await getCollection('experiments')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
-const { table, paper, rest } = arrange(experiments);
+const { table, paper, alone, rest } = arrange(experiments);
+// Fits the object's bounding box on screen, with room for the strokes
+const fit = ({ screen: [l, t, r, b] }: Drawn) => `${l - 1} ${t - 1} ${r - l + 2} ${b - t + 2}`;
 
 // Screenshots from `bun run previews`, one per color scheme. An experiment without a Demo.astro has none
 const shots = import.meta.glob<{ default: ImageMetadata }>('../experiments/*/preview-*.png', { eager: true });
@@ -49,7 +53,15 @@ const previews = new Map(
         const preview = previews.get(id);
         return (
           <li class:list={{ 'on-bench': table.has(id) }}>
-            <a href={`/${id}/`} style={sharedEntryStyle('title', id)}>
+            {/* Outside the title's link, or the view transition would carry the object into the page heading */}
+            <a class="art voxel-art" href={`/${id}/`} tabindex="-1" aria-hidden="true">
+              <svg
+                class:list={{ sketch: data.status === 'skisse' }}
+                viewBox={fit(alone.get(id)!)}
+                set:html={alone.get(id)!.markup}
+              />
+            </a>
+            <a class="title" href={`/${id}/`} style={sharedEntryStyle('title', id)}>
               {data.title}
             </a>
             <div class="card">
@@ -99,13 +111,13 @@ const previews = new Map(
   /* Wide screens with a mouse get the workbench, and under it the list of the experiments that aren't on the table.
      The rest get the whole list. An experiment never shows in both: the two share view-transition-name values, and a
      duplicate name aborts the transition */
-  .scene,
+  :global(.scene),
   .older {
     display: none;
   }
 
   @media (hover: hover) and (pointer: fine) and (min-width: 760px) {
-    .scene,
+    :global(.scene),
     .older {
       display: block;
     }
@@ -140,11 +152,29 @@ const previews = new Map(
     list-style: none;
   }
 
+  /* The experiment's object from the workbench sits left of its title and caption */
   li {
     position: relative;
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    column-gap: 16px;
+    align-items: center;
   }
 
-  li > a {
+  .art {
+    grid-row: span 2;
+    align-self: start;
+    height: 72px;
+  }
+
+  .art svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  li > .title {
+    justify-self: start;
     display: inline-block;
     padding: 4px 0;
     font-size: clamp(1.5rem, 0.9rem + 3.2cqi, 2.625rem);
@@ -162,7 +192,7 @@ const previews = new Map(
     opacity: 0.35;
   }
 
-  li > a:is(:hover, :focus-visible) {
+  li > .title:is(:hover, :focus-visible) {
     color: var(--fg);
     text-decoration-color: var(--pink);
   }
@@ -246,7 +276,7 @@ const previews = new Map(
   }
 
   @media (prefers-reduced-motion: reduce) {
-    li > a,
+    li > .title,
     .card {
       transition: none !important;
     }

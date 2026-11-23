@@ -3,6 +3,7 @@ import type { CollectionEntry } from 'astro:content';
 import EntryMeta from './EntryMeta.astro';
 import CodeText from './CodeText.astro';
 import { sharedEntryStyle } from '../lib/shared-entry';
+import '../styles/voxels.css';
 import { TABLE, outline, rectangle, type Drawn } from '../lib/bench';
 
 interface Props {
@@ -127,7 +128,7 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
 };
 ---
 
-<div class:list={['bench', className]} style={`aspect-ratio: ${width} / ${height}`}>
+<div class:list={['bench', 'voxel-art', className]} style={`aspect-ratio: ${width} / ${height}`}>
   <svg class="mat" viewBox={viewBox} aria-hidden="true">
     {table.map(([face, d]) => (
       <path class={face} style="--c: var(--wood)" d={d} />
@@ -193,12 +194,6 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
 
 <style>
   .bench {
-    --mat: light-dark(color-mix(in oklch, var(--mint) 55%, var(--bg)), color-mix(in oklch, var(--mint) 30%, var(--bg)));
-    --grid: color-mix(in oklch, var(--mint) 25%, var(--surface));
-    --wood: light-dark(
-      color-mix(in oklch, var(--peach) 45%, var(--surface)),
-      color-mix(in oklch, var(--peach) 35%, var(--bg))
-    );
     position: relative;
     /* The objects' z-index follows the painter's order, and the open card sits above all of them */
     isolation: isolate;
@@ -229,74 +224,6 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
     height: 100%;
     overflow: visible;
     pointer-events: none;
-  }
-
-  /* Each face path gets its color from --c, lit from the top left. A stroke in the same color closes the
-     hairline gaps that anti-aliasing leaves between neighbors */
-  .bench :global(:is(.t, .x, .y)) {
-    stroke-width: 0.04;
-    stroke-linejoin: round;
-  }
-
-  .bench :global(.t) {
-    fill: var(--c);
-    stroke: var(--c);
-  }
-
-  .bench :global(.y) {
-    --shade: color-mix(in oklch, var(--c), black 15%);
-    fill: var(--shade);
-    stroke: var(--shade);
-  }
-
-  .bench :global(.x) {
-    --shade: color-mix(in oklch, var(--c), black 32%);
-    fill: var(--shade);
-    stroke: var(--shade);
-  }
-
-  /* Overlapping strokes would show as darker seams through the glass */
-  .bench :global(.glass) {
-    opacity: 0.45;
-  }
-
-  .bench :global(.glass path) {
-    stroke: none;
-  }
-
-  /* Blueprint paper for the sheet and the sketches on it: lavender and mint meet in blue, and the lines are light in
-     both schemes */
-  .bench {
-    --blue: color-mix(in oklch, var(--lavender) 55%, var(--mint));
-    --paper: light-dark(var(--blue), color-mix(in oklch, var(--blue) 45%, var(--bg)));
-    --ink: light-dark(var(--surface), var(--fg));
-  }
-
-  /* The drawing is flat paper color, so only its lines show its shape */
-  .sketch .voxels :global(:is(.t, .x, .y)) {
-    fill: var(--paper);
-    stroke: var(--paper);
-  }
-
-  .sketch :global(:is(.edges, .paper-line, .paper-grid)) {
-    fill: none;
-    stroke: var(--ink);
-    stroke-linecap: round;
-    stroke-linejoin: round;
-  }
-
-  .sketch :global(.edges) {
-    stroke-width: 0.18;
-  }
-
-  .paper-line {
-    stroke-width: 0.12;
-    opacity: 0.8;
-  }
-
-  .paper-grid {
-    stroke-width: 0.04;
-    opacity: 0.3;
   }
 
   .grid {
