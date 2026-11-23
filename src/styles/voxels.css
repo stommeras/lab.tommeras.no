@@ -10,7 +10,7 @@
   --ink: light-dark(var(--surface), var(--fg));
 }
 
-/* A stroke in the face's own color closes the hairline gaps that anti-aliasing leaves between neighbors */
+/* The table, the mat and the sheet. The objects carry their own fills, from src/lib/bench.ts */
 .voxel-art :is(.t, .x, .y) {
   stroke-width: 0.04;
   stroke-linejoin: round;
@@ -33,28 +33,10 @@
   stroke: var(--shade);
 }
 
-.voxel-art .glass {
-  opacity: 0.45;
-}
-
-.voxel-art .glass path {
-  stroke: none;
-}
-
-.voxel-art .sketch :is(.t, .x, .y) {
-  fill: var(--paper);
-  stroke: var(--paper);
-}
-
-.voxel-art .sketch :is(.edges, .paper-line, .paper-grid) {
+.voxel-art .sketch :is(.paper-line, .paper-grid) {
   fill: none;
   stroke: var(--ink);
   stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.voxel-art .sketch .edges {
-  stroke-width: 0.18;
 }
 
 .voxel-art .sketch .paper-line {

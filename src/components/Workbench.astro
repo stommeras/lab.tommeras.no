@@ -16,7 +16,6 @@ interface Props {
 }
 
 const { experiments, table: drawn, paper, previews, class: className } = Astro.props;
-const sketch = (id: string) => experiments.find((entry) => entry.id === id)?.data.status === 'skisse';
 
 const backToFront = ({ footprint: a }: Drawn, { footprint: b }: Drawn) =>
   a[3] <= b[1] ? -1 : b[3] <= a[1] ? 1 : a[0] - b[0];
@@ -149,7 +148,7 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
         <li>
           <a href={`/${id}/`} aria-labelledby={`bench-${id}`} aria-describedby={`bench-${id}-summary`}>
             <svg
-              class:list={{ sketch: sketch(id) }}
+              class:list={{ sketch: data.status === 'skisse' }}
               viewBox={viewBox}
               aria-hidden="true"
               style={`z-index: ${paintOrder.get(id)}`}

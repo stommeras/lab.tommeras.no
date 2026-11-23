@@ -6,7 +6,7 @@ import EntryMeta from '../components/EntryMeta.astro';
 import CodeText from '../components/CodeText.astro';
 import { sharedEntryStyle } from '../lib/shared-entry';
 import Workbench from '../components/Workbench.astro';
-import { arrange } from '../lib/workbench';
+import { arrange, symbolId } from '../lib/workbench';
 import type { Drawn } from '../lib/bench';
 import '../styles/voxels.css';
 
@@ -35,6 +35,13 @@ const previews = new Map(
 <Layout>
   <h1>Lab</h1>
   <p class="intro">Eksperimenter, skisser og ting som kanskje ikke virker enda.</p>
+  <svg class="defs voxel-art" aria-hidden="true">
+    <defs>
+      {experiments.map(({ id, data }) => (
+        <g id={symbolId(id)} class:list={{ sketch: data.status === 'skisse' }} set:html={alone.get(id)!.markup} />
+      ))}
+    </defs>
+  </svg>
   {experiments.length > 0 && (
     <Workbench
       class="scene"
@@ -57,16 +64,11 @@ const previews = new Map(
                 class:list={{ sketch: data.status === 'skisse' }}
                 viewBox={fit(alone.get(id)!)}
                 preserveAspectRatio="xMidYMax meet"
-                set:html={alone.get(id)!.markup}
-              />
+              >
+                <use href={`#${symbolId(id)}`} />
+              </svg>
             </a>
-            {/* On a desktop the caption is in a hidden card, which screen readers skip unless the link points at it */}
-            <a
-              class="title"
-              href={`/${id}/`}
-              style={sharedEntryStyle('title', id)}
-              aria-describedby={`list-${id}-caption`}
-            >
+            <a class="title" href={`/${id}/`} style={sharedEntryStyle('title', id)}>
               {data.title}
             </a>
             <div class="card">
@@ -83,7 +85,7 @@ const previews = new Map(
                   />
                 </picture>
               )}
-              <div class="caption" id={`list-${id}-caption`}>
+              <div class="caption">
                 <EntryMeta id={id} data={data} />
                 <p>
                   <CodeText text={data.summary} />
@@ -125,6 +127,12 @@ const previews = new Map(
   :global(.scene),
   .older {
     display: none;
+  }
+
+  .defs {
+    position: absolute;
+    width: 0;
+    height: 0;
   }
 
   @media (hover: hover) and (pointer: fine) and (min-width: 760px) {
@@ -241,15 +249,14 @@ const previews = new Map(
       box-shadow: 0 12px 32px -12px light-dark(rgb(42 38 56 / 0.35), rgb(0 0 0 / 0.6));
       font-size: 0.875rem;
       line-height: 1.5;
+      /* Only transparent, not visibility: hidden, so screen readers read the caption in its place on every device */
       opacity: 0;
-      visibility: hidden;
       translate: 0 -50%;
       scale: 0.96;
       pointer-events: none;
       transition:
         opacity 0.15s,
-        scale 0.15s,
-        visibility 0s 0.15s;
+        scale 0.15s;
     }
 
     li[data-follow] .card {
@@ -260,11 +267,7 @@ const previews = new Map(
 
     li:is(:hover, :focus-within) .card {
       opacity: 1;
-      visibility: visible;
       scale: 1;
-      transition:
-        opacity 0.15s,
-        scale 0.15s;
     }
 
     img {

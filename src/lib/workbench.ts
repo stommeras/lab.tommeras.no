@@ -12,6 +12,20 @@ const SHEET_WIDTH = 60;
 
 const size = ({ footprint: [x0, y0, x1, y1] }: Drawn) => [x1 - x0, y1 - y0] as const;
 
+const fitsOnMat = ([w, d]: readonly [number, number]) => w <= TABLE.width - 2 * GAP && d <= TABLE.depth - 2 * GAP;
+const onMat = ([x0, y0, x1, y1]: Footprint) =>
+  x0 >= GAP && y0 >= GAP && x1 <= TABLE.width - GAP && y1 <= TABLE.depth - GAP;
+const overlaps = ([ax0, ay0, ax1, ay1]: Footprint, [bx0, by0, bx1, by1]: Footprint) =>
+  ax0 < bx1 + GAP && bx0 < ax1 + GAP && ay0 < by1 + GAP && by0 < ay1 + GAP;
+
+function checkLayout(footprints: Footprint[]) {
+  for (const [i, a] of footprints.entries()) {
+    if (!onMat(a)) throw new Error(`The workbench placed an object off the mat at ${a}`);
+    for (const b of footprints.slice(i + 1))
+      if (overlaps(a, b)) throw new Error(`The workbench placed two objects too close, at ${a} and ${b}`);
+  }
+}
+
 function pack(items: Drawn[]) {
   const [width, depth] = [TABLE.width - 2 * GAP, TABLE.depth - 2 * GAP];
   const tallestFirst = [...items.keys()].sort((a, b) => items[b].height - items[a].height || a - b);
@@ -67,21 +81,29 @@ function sheet(sketches: Drawn[]) {
   return { paper, placed };
 }
 
+// The id of an object's markup, which the page defines once and the table and the list draw with <use>
+export const symbolId = (id: string) => `bench-object-${id}`;
+
 // The experiments come newest first. Returns the drawn objects on the table, the blueprint sheet if any, every object
-// drawn on its own at the origin, and the ids of the experiments that didn't fit
+// drawn on its own at the origin with its full markup, and the ids of the experiments that didn't fit
 export function arrange(experiments: CollectionEntry<'experiments'>[]) {
   const alone = new Map(experiments.map(({ id, data }) => [id, draw(object(id), data.status === 'skisse')]));
+  for (const [id, drawn] of alone)
+    if (!fitsOnMat(size(drawn))) throw new Error(`${id}'s bench object is bigger than the mat`);
+  const ref = (id: string): Drawn => ({ ...alone.get(id)!, markup: `<use href="#${symbolId(id)}"/>` });
+
   const sketches = experiments
     .filter(({ data }) => data.status === 'skisse')
     .sort((a, b) => alone.get(b.id)!.height - alone.get(a.id)!.height);
   const others = experiments.filter(({ data }) => data.status !== 'skisse');
-  const blueprint = sketches.length ? sheet(sketches.map(({ id }) => alone.get(id)!)) : undefined;
-  const drawn = others.map(({ id }) => alone.get(id)!);
+  const blueprint = sketches.length ? sheet(sketches.map(({ id }) => ref(id))) : undefined;
+  const drawn = others.map(({ id }) => ref(id));
 
   for (let count = others.length; count >= 0; count--) {
     const items = drawn.slice(0, count);
     const placed = pack(blueprint ? [...items, blueprint.paper] : items);
     if (!placed) continue;
+    checkLayout(placed.map(({ footprint }) => footprint));
     const table = new Map(others.slice(0, count).map(({ id }, i) => [id, placed[i]]));
     let paper: Footprint | undefined;
     if (blueprint) {

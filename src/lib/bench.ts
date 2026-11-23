@@ -54,7 +54,7 @@ export function ellipsoid(center: Vec3, radius: number | Vec3, color: string | (
   return parts;
 }
 
-export const CRATE = 12;
+const CRATE = 12;
 export const crate = (): BenchObject => {
   const wood = mix('var(--peach)', 'var(--surface)', 55);
   const slat = mix('var(--peach)', 'var(--muted)', 70);
@@ -123,7 +123,19 @@ function paint(buffer: TriangleLattice, c: number, k: number, value: Paint) {
   if (!current || current.depth < value.depth) column.set(k, value);
 }
 
-function trace(buffer: TriangleLattice, keep: (c: number, k: number, value: Paint) => boolean = () => true) {
+// Lit from the top left, so the sides facing +y and +x are darker than the top
+const SHADE: Record<Face, number> = { t: 0, y: 15, x: 32 };
+
+// The faces carry their own fill and stroke, because the page draws each object with <use>, and selectors with an
+// ancestor don't reach into its copy
+function trace(
+  buffer: TriangleLattice,
+  {
+    keep = () => true,
+    flat = false,
+    glass = false,
+  }: { keep?: (c: number, k: number, value: Paint) => boolean; flat?: boolean; glass?: boolean } = {},
+) {
   const paths = new Map<string, string>();
   for (const [c, column] of buffer) {
     const ks = [...column.keys()].filter((k) => keep(c, k, column.get(k)!)).sort((a, b) => a - b);
@@ -144,8 +156,12 @@ function trace(buffer: TriangleLattice, keep: (c: number, k: number, value: Pain
     }
   }
   return [...paths].map(([key, d]) => {
-    const [face, color] = key.split('|');
-    return `<path class="${face}" style="--c:${color}" d="${d}"/>`;
+    const [face, color] = key.split('|') as [Face, string];
+    const fill = flat || !SHADE[face] ? color : `color-mix(in oklch, ${color}, black ${SHADE[face]}%)`;
+    // A stroke in the face's own color closes the hairline gaps that anti-aliasing leaves between neighbors. Glass
+    // gets none, because the overlapping strokes would show through it
+    const stroke = glass ? 'none' : `${fill};stroke-width:.04;stroke-linejoin:round`;
+    return `<path style="fill:${fill};stroke:${stroke}" d="${d}"/>`;
   });
 }
 
@@ -238,11 +254,12 @@ export function draw({ parts }: BenchObject, sketch = false): Drawn {
   }
 
   const inFront = (c: number, k: number, { depth }: Paint) => (solid.get(c)?.get(k)?.depth ?? -Infinity) < depth;
-  const glassPaths = trace(glass, inFront);
+  const glassPaths = trace(glass, { keep: inFront, glass: true });
+  const ink = 'fill:none;stroke:var(--ink);stroke-width:.18;stroke-linecap:round;stroke-linejoin:round';
   const markup =
-    trace(solid).join('') +
-    (glassPaths.length ? `<g class="glass">${glassPaths.join('')}</g>` : '') +
-    (sketch ? `<path class="edges" d="${edges(solid)}"/>` : '');
+    trace(solid, { flat: sketch }).join('') +
+    (glassPaths.length ? `<g opacity=".45">${glassPaths.join('')}</g>` : '') +
+    (sketch ? `<path style="${ink}" d="${edges(solid)}"/>` : '');
 
   const corners = [x0, x1].flatMap((cx) => [y0, y1].flatMap((cy) => [project(cx, cy, 0), project(cx, cy, top)]));
   const screen = [
