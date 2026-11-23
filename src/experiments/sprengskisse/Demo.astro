@@ -1,0 +1,834 @@
+---
+// Bottom to top, so the index is the layer's height in the stack
+const layers = [
+  {
+    id: 'case',
+    label: 'Kassen',
+    color: 'var(--muted)',
+    about: 'Skallet alt ligger i. Mye av lyden kommer herfra.',
+  },
+  {
+    id: 'pcb',
+    label: 'Kretskortet',
+    color: 'var(--mint)',
+    about:
+      'Merker tastetrykkene og sender dem videre over USB-C. Hver bryter har en diode, så du kan holde nede flere taster samtidig.',
+  },
+  {
+    id: 'plate',
+    label: 'Platen',
+    color: 'color-mix(in oklab, var(--fg) 45%, var(--surface))',
+    about: 'Holder bryterne stødig. Hver bryter klikker fast i sitt eget hull.',
+  },
+  {
+    id: 'stabilizers',
+    label: 'Stabilisatorer',
+    color: 'var(--pink)',
+    about: 'En bøyle av ståltråd som får de lange tastene til å gå rett ned, også når du trykker ytterst.',
+  },
+  {
+    id: 'switches',
+    label: 'Brytere',
+    color: 'var(--peach)',
+    about: 'En fjær og en kontakt under hver tast. Trykket lukker kretsen.',
+  },
+  {
+    id: 'keycaps',
+    label: 'Tastene',
+    color: 'var(--lavender)',
+    about: 'Plastkappene du tar på. De sitter løst, så du kan bytte dem.',
+  },
+];
+
+// A Norwegian 60% ISO layout as [legend, width in units]. Every row is 15 units wide, except the
+// third, where the lower part of Enter fills the last 1.25 units.
+const ones = (legends: string) => [...legends].map((legend): [string, number] => [legend, 1]);
+const rows: [string, number][][] = [
+  [['Esc', 1], ...ones('1234567890+\\'), ['⌫', 2]],
+  [['Tab', 1.5], ...ones('QWERTYUIOPÅ¨'), ['Enter', 1.5]],
+  [['Caps', 1.75], ...ones("ASDFGHJKLØÆ'")],
+  [['Shift', 1.25], ...ones('<ZXCVBNM,.-'), ['Shift', 2.75]],
+  [
+    ['Ctrl', 1.25],
+    ['Super', 1.25],
+    ['Alt', 1.25],
+    ['', 6.25],
+    ['AltGr', 1.25],
+    ['Fn', 1.25],
+    ['Super', 1.25],
+    ['Ctrl', 1.25],
+  ],
+];
+// Every key gets its row and its offset in units, so it can be placed explicitly in the grid.
+// Two-tone caps: Esc and Enter in an accent color, the other wide or named keys darker, the rest and the space bar plain.
+const keys = rows.flatMap((row, r) => {
+  let x = 0;
+  return row.map(([legend, width]) => {
+    const key = {
+      legend,
+      width,
+      row: r,
+      x,
+      tone: ['Esc', 'Enter'].includes(legend)
+        ? 'accent'
+        : legend && (width > 1 || legend.length > 1)
+          ? 'mod'
+          : undefined,
+    };
+    x += width;
+    return key;
+  });
+});
+// The ISO Enter is an L over two rows. clip-path would flatten its 3D side face, so the lower part is a
+// second element after the other keys, which takes the upper part's place in the wave.
+const enter = keys.findIndex(({ legend }) => legend === 'Enter');
+// The grid has four columns per unit
+const area = (row: number, x: number, width: number) =>
+  `grid-area: ${row + 1} / ${x * 4 + 1} / span 1 / span ${width * 4}`;
+const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps']);
+---
+
+<section class="sprengskisse" aria-label="Et mekanisk tastatur delt opp i lag">
+  <div class="stage">
+    <div class="object" aria-hidden="true" style={`--middle: ${(layers.length - 1) / 2}; --last: ${keys.length - 1}`}>
+      {layers.map(({ id, color }, i) => (
+        <div class:list={['layer', id]} data-part={id} style={`--layer: ${i}; --color: ${color}`}>
+          <span class="anchor" style={`anchor-name: --${id}`} />
+          {gridLayers.has(id) &&
+            keys.map(({ legend, width, row, x, tone }) => (
+              <div
+                class:list={['key', { long: width >= 2 }, id === 'keycaps' && [tone, { enter: legend === 'Enter' }]]}
+                style={area(row, x, width)}
+              >
+                {id === 'keycaps' && legend}
+              </div>
+            ))}
+          {id === 'keycaps' && (
+            <div
+              class="key accent enter-foot"
+              style={`${area(2, 13.75, 1.25)}; --order: ${enter / (keys.length - 1)}`}
+            />
+          )}
+          {id === 'plate' && <div class="solid" style={area(2, 13.75, 1.25)} />}
+          {id === 'pcb' && [<div class="usb" />, <div class="mcu" />]}
+          {id === 'case' && [1, 2, 3, 4, 5, 6].map((step) => <div class="rim" style={`--step: ${step}`} />)}
+        </div>
+      ))}
+    </div>
+    <ul class="labels">
+      {layers.map(({ id, label, color }) => (
+        <li class="label" data-part={id} style={`position-anchor: --${id}; --color: ${color}`}>
+          <button type="button" popovertarget={`sprengskisse-${id}`}>
+            {label}
+          </button>
+        </li>
+      ))}
+    </ul>
+    <p class="hint" aria-hidden="true">
+      Scroll for å ta det fra hverandre ↓
+    </p>
+    <label class="toggle">
+      <input type="checkbox" />
+      Sett sammen
+    </label>
+  </div>
+  {layers.map(({ id, label, color, about }, i) => (
+    // Numbered from the top of the stack, like the parts list in a manual
+    <div class="about" id={`sprengskisse-${id}`} popover style={`--color: ${color}; --number: ${layers.length - i}`}>
+      <div class="head" aria-hidden="true">
+        <span class="number"></span>
+        <span class="rule"></span>
+      </div>
+      <span class="name">{label}</span>
+      <p>{about}</p>
+    </div>
+  ))}
+</section>
+
+<script>
+  // Clicking a part toggles its caption, like clicking its label. The parts are inside aria-hidden, so they
+  // can't be buttons themselves. A click on a part counts as outside the caption, so light dismiss has already
+  // closed an open caption by the time the click fires. pointerdown records whether it was open first.
+  for (const layer of document.querySelectorAll<HTMLElement>('.sprengskisse .layer')) {
+    const about = document.getElementById(`sprengskisse-${layer.dataset.part}`);
+    let wasOpen = false;
+    layer.addEventListener('pointerdown', () => {
+      wasOpen = !!about?.matches(':popover-open');
+    });
+    layer.addEventListener('click', () => {
+      if (!wasOpen && !about?.matches(':popover-open')) about?.showPopover();
+    });
+  }
+</script>
+
+<style>
+  /* Registered so they can animate and transition. Without the scroll animation, the keyboard shows
+     tilted (--tilt's initial value) and exploded (.stage sets --spread). */
+  @property --spread {
+    syntax: '<length>';
+    inherits: true;
+    initial-value: 0px;
+  }
+
+  @property --tilt {
+    syntax: '<angle>';
+    inherits: true;
+    initial-value: 55deg;
+  }
+
+  /* Tilt, spread, hold, then the same way back so it ends assembled and flat */
+  @keyframes explode {
+    0%,
+    100% {
+      --tilt: 0deg;
+      --spread: 0px;
+    }
+    20%,
+    80% {
+      --tilt: 55deg;
+      --spread: 0px;
+    }
+    40%,
+    60% {
+      --tilt: 55deg;
+      --spread: var(--full-spread);
+    }
+  }
+
+  /* Hidden as well as transparent, so a faded label can't be hovered or clicked */
+  @keyframes labels {
+    0%,
+    30%,
+    70%,
+    100% {
+      opacity: 0;
+      visibility: hidden;
+    }
+    40%,
+    60% {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+
+  @keyframes hint {
+    0% {
+      opacity: 1;
+    }
+    8%,
+    100% {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+
+  .sprengskisse {
+    view-timeline: --explode;
+  }
+
+  .stage {
+    /* How far apart the layers move. Everything that depends on the spread reads it from here. */
+    --full-spread: 70px;
+    --spread: var(--full-spread);
+    position: relative;
+    display: grid;
+    place-items: center;
+    height: 70vh;
+    min-height: 28rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+
+  /* No perspective: Chrome 155 tracks an anchor through 3D transforms but leaves perspective
+     out, so a label drifts off its layer as the layer moves along Z. Orthographic matches a
+     manual's exploded view anyway. */
+  .object {
+    --unit: clamp(0.6rem, 3vw, 1.25rem);
+    /* How far apart the layers are, from 0 to 1 */
+    --progress: calc(var(--spread) / var(--full-spread));
+    display: grid;
+    place-items: center;
+    transform-style: preserve-3d;
+    transform: rotateX(var(--tilt)) rotateZ(calc(var(--tilt) * -0.6));
+  }
+
+  /* Only the visible parts catch the pointer. The keycap, switch and stabilizer layers are otherwise
+     empty boxes that would cover the parts below them. */
+  .object {
+    cursor: pointer;
+  }
+
+  .keycaps,
+  .switches,
+  .stabilizers,
+  .stabilizers .key {
+    pointer-events: none;
+  }
+
+  .keycaps .key,
+  .switches .key,
+  .stabilizers .long {
+    pointer-events: auto;
+  }
+
+  /* All layers share one grid cell. Assembled, they rest a small gap apart like a real stack.
+     They spread from the middle of the stack, so it stays centered. */
+  .layer {
+    /* Everything on a layer is painted from --paint. Dimming raises --dim, which mixes it toward the background. */
+    --dim: 0%;
+    --paint: color-mix(in oklab, var(--color), var(--surface) var(--dim));
+    --edge: color-mix(in oklab, var(--paint), black 35%);
+    --thickness: 0.25rem;
+    grid-area: 1 / 1;
+    display: grid;
+    grid-template-columns: repeat(60, 1fr);
+    grid-auto-rows: 1fr;
+    width: calc(15 * var(--unit));
+    height: calc(5 * var(--unit));
+    padding: calc(0.4 * var(--unit));
+    border-radius: calc(0.4 * var(--unit));
+    transform-style: preserve-3d;
+    transform: translateZ(calc((var(--layer) - var(--middle)) * (var(--spread) + 0.25 * var(--unit))));
+  }
+
+  /* The side of a slab: a darker copy just under it, which shows along the near edges once tilted */
+  .case,
+  .pcb,
+  .plate {
+    background: var(--paint);
+    box-shadow: inset 0 0 0 1px var(--edge);
+  }
+
+  .case::after,
+  .pcb::after,
+  .switches .key::after,
+  .stabilizers .long::after,
+  .keycaps .key::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--edge);
+    transform: translateZ(calc(-1 * var(--thickness)));
+  }
+
+  /* A bit larger than the other layers, so they fit inside its walls */
+  .case {
+    --thickness: 1.5rem;
+    position: relative;
+    width: calc(15.6 * var(--unit));
+    height: calc(5.6 * var(--unit));
+  }
+
+  /* The walls of the case are frames stacked up along Z. Upright faces would be simpler, but
+     Chrome's 3D sorting splits planes that cross, and that cut holes in the PCB. */
+  .rim {
+    --wall: calc(0.7 * var(--unit));
+    position: absolute;
+    inset: 0;
+    border: calc(0.3 * var(--unit)) solid color-mix(in oklab, var(--paint), black 15%);
+    border-radius: inherit;
+    transform: translateZ(calc(var(--step) / 6 * var(--wall)));
+  }
+
+  .rim:last-child {
+    border-color: color-mix(in oklab, var(--paint), white 15%);
+  }
+
+  .pcb {
+    --pad: color-mix(in oklab, var(--paint), white 55%);
+    position: relative;
+  }
+
+  /* A switch footprint under each key: the center hole, two pins and a diode */
+  .pcb .key {
+    --u: var(--unit);
+    background:
+      radial-gradient(circle at 50% 45%, var(--edge) 0 calc(0.13 * var(--u)), transparent 0),
+      radial-gradient(circle at calc(50% - 0.2 * var(--u)) 25%, var(--pad) 0 calc(0.06 * var(--u)), transparent 0),
+      radial-gradient(circle at calc(50% + 0.12 * var(--u)) 20%, var(--pad) 0 calc(0.06 * var(--u)), transparent 0),
+      linear-gradient(var(--edge) 0 0) 50% 88% / calc(0.32 * var(--u)) calc(0.1 * var(--u)) no-repeat;
+  }
+
+  .usb,
+  .mcu {
+    position: absolute;
+  }
+
+  /* The USB-C port sits on the back edge and sticks out a little */
+  .usb {
+    top: calc(-0.15 * var(--unit));
+    left: calc(50% - 0.35 * var(--unit));
+    width: calc(0.7 * var(--unit));
+    height: calc(0.35 * var(--unit));
+    border-radius: calc(0.12 * var(--unit));
+    background: var(--pad);
+  }
+
+  /* The microcontroller, between the number row and the top letter row */
+  .mcu {
+    top: calc(1.05 * var(--unit));
+    left: calc(50% + 1.6 * var(--unit));
+    width: calc(0.7 * var(--unit));
+    height: calc(0.7 * var(--unit));
+    border: calc(0.05 * var(--unit)) dashed var(--pad);
+    background: var(--edge);
+    rotate: 45deg;
+  }
+
+  /* The plate is the borders around each key, so the holes are see-through */
+  .plate {
+    background: none;
+    box-shadow: inset 0 0 0 calc(0.4 * var(--unit)) var(--paint);
+  }
+
+  /* Square cells whose edges spread a little past each other. Rounded corners and rounding in the
+     grid left gaps where the PCB showed through. */
+  .plate .key {
+    border: calc(0.16 * var(--unit)) solid var(--paint);
+    border-radius: 0;
+    box-shadow: 0 0 0 calc(0.1 * var(--unit)) var(--paint);
+  }
+
+  /* No switch sits under the lower part of the ISO Enter, so the plate is solid there */
+  .plate .solid {
+    background: var(--paint);
+    box-shadow: 0 0 0 calc(0.1 * var(--unit)) var(--paint);
+  }
+
+  .key {
+    position: relative;
+    border-radius: 0.15rem;
+    transform-style: preserve-3d;
+  }
+
+  /* A wire bar between two housings, under every key that is 2 units or wider */
+  .stabilizers .long {
+    --thickness: 0.2rem;
+    margin: calc(0.3 * var(--unit)) calc(0.1 * var(--unit));
+    background:
+      linear-gradient(var(--paint) 0 0) left / calc(0.3 * var(--unit)) 100% no-repeat,
+      linear-gradient(var(--paint) 0 0) right / calc(0.3 * var(--unit)) 100% no-repeat,
+      linear-gradient(var(--paint) 0 0) center / 100% calc(0.08 * var(--unit)) no-repeat;
+  }
+
+  /* The side face only under the housings, not under the gap around the wire */
+  .stabilizers .long::after {
+    background:
+      linear-gradient(var(--edge) 0 0) left / calc(0.3 * var(--unit)) 100% no-repeat,
+      linear-gradient(var(--edge) 0 0) right / calc(0.3 * var(--unit)) 100% no-repeat;
+  }
+
+  .switches .key {
+    --thickness: 0.3rem;
+    margin: calc(0.24 * var(--unit));
+    background: var(--paint);
+  }
+
+  .keycaps .key {
+    --thickness: 0.35rem;
+    /* Its place in the wave, from 0 for the first key to 1 for the last. The anchor comes first in the layer, so the first key is sibling 2. */
+    --order: calc((sibling-index() - 2) / var(--last));
+    --cap: color-mix(in oklab, var(--color), var(--surface) var(--dim));
+    --edge: color-mix(in oklab, var(--cap), black 35%);
+    margin: calc(0.06 * var(--unit));
+    border-radius: 0.2rem;
+    background: var(--cap);
+    box-shadow: inset 0 0 0 0.15rem color-mix(in oklab, var(--cap), white 20%);
+    padding: calc(0.1 * var(--unit)) calc(0.1 * var(--unit));
+    /* --surface is dark in dark mode, where the caps are light, and the other way round */
+    color: var(--surface);
+    font-size: calc(0.32 * var(--unit));
+    line-height: 1;
+    /* Each cap sits on its switch until its turn in the wave, then lifts to the keycaps layer.
+       The lag is at most one layer gap at full spread, so a cap never sinks below the switches. */
+    transform: translateZ(
+      calc((clamp(0, var(--progress) * 1.6 - var(--order) * 0.6, 1) - var(--progress)) * var(--full-spread))
+    );
+  }
+
+  /* Mixing toward --fg darkens the caps in light mode and lightens them in dark mode, so the legends keep their contrast */
+  .keycaps .mod {
+    --cap: color-mix(in oklab, color-mix(in oklab, var(--color), var(--fg) 30%), var(--surface) var(--dim));
+  }
+
+  .keycaps .accent {
+    --cap: color-mix(in oklab, var(--pink), var(--surface) var(--dim));
+  }
+
+  /* The two parts of Enter overlap a little, so they read as one L-shaped cap */
+  .keycaps .enter {
+    margin-bottom: calc(-0.06 * var(--unit));
+    border-bottom-right-radius: 0;
+  }
+
+  .keycaps .enter-foot {
+    margin-top: calc(-0.06 * var(--unit));
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    /* The highlight on every edge except the top, which joins the upper part */
+    box-shadow:
+      inset 0.15rem 0 0 color-mix(in oklab, var(--cap), white 20%),
+      inset -0.15rem 0 0 color-mix(in oklab, var(--cap), white 20%),
+      inset 0 -0.15rem 0 color-mix(in oklab, var(--cap), white 20%);
+  }
+
+  /* On a narrow screen, move the keyboard left to make room for the labels */
+  @media (width < 40rem) {
+    .object {
+      margin-right: 9rem;
+    }
+
+    .label {
+      --leader: 1rem;
+      font-size: 0.8rem;
+    }
+  }
+
+  /* The point each leader line ends at: the front right corner of the key area. Once tilted, it's
+     the rightmost point of the part, so the line doesn't cross it, and the layers above never cover it. */
+  .anchor {
+    position: absolute;
+    bottom: calc(0.4 * var(--unit));
+    right: calc(0.4 * var(--unit));
+  }
+
+  /* The case is 0.3 units wider on each side, so this keeps its label in line with the others */
+  .case .anchor {
+    bottom: calc(0.7 * var(--unit));
+    right: calc(0.7 * var(--unit));
+  }
+
+  /* No stabilizer sits in the front right corner, so point at the right housing under right shift */
+  .stabilizers .anchor {
+    bottom: calc(1.7 * var(--unit));
+    right: calc(0.5 * var(--unit));
+  }
+
+  .labels {
+    display: contents;
+    list-style: none;
+  }
+
+  /* The label box is the leader line. It runs from its own anchor to a column shared by all labels,
+     set by the keycaps' anchor, so the lines differ in length and the text lines up. */
+  .label {
+    --leader: 2rem;
+    position: absolute;
+    top: anchor(center);
+    left: anchor(right);
+    right: calc(anchor(--keycaps right) - var(--leader));
+    border-top: 1px solid var(--fg);
+    color: var(--fg);
+  }
+
+  .label button {
+    position: absolute;
+    left: calc(100% + 0.5rem);
+    translate: 0 -50%;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  /* A short text about the part, like an entry in a manual's parts list: always in the top left corner
+     of the stage. The popover is in the top layer, so it finds the stage by anchor. */
+  .stage {
+    anchor-name: --stage;
+  }
+
+  .about {
+    position-anchor: --stage;
+    inset: auto;
+    top: calc(anchor(top) + 1rem);
+    left: calc(anchor(left) + 1rem);
+    max-width: min(15rem, calc(anchor-size(width) - 2rem));
+    margin: 0;
+    padding: 0 0 0.25rem;
+    border: none;
+    background: none;
+    color: var(--fg);
+    font-size: 0.85rem;
+
+    /* On a narrow screen the caption overlaps the keyboard, so it gets the stage's own color to cover it cleanly */
+    @media (width < 40rem) {
+      background: var(--surface);
+    }
+    opacity: 0;
+    transition:
+      opacity 0.25s,
+      translate 0.25s ease-out,
+      display 0.25s allow-discrete,
+      overlay 0.25s allow-discrete;
+
+    &:popover-open {
+      opacity: 1;
+
+      @starting-style {
+        opacity: 0;
+      }
+    }
+
+    p {
+      margin: 0.35rem 0 0;
+      color: var(--muted);
+    }
+  }
+
+  /* An integer, so it can transition and count up */
+  @property --count {
+    syntax: '<integer>';
+    inherits: false;
+    initial-value: 0;
+  }
+
+  .about .head {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+  }
+
+  .about .number {
+    --count: var(--number);
+    counter-reset: part var(--count);
+    color: var(--color);
+    font-size: 2rem;
+    line-height: 1;
+
+    &::before {
+      content: counter(part, decimal-leading-zero);
+    }
+  }
+
+  .about .rule {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+    transform-origin: left;
+  }
+
+  .about .name {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* Only when motion is fine: the caption slides in, the number counts up from 00, the line draws
+     itself out from the number, and the text comes in last */
+  @media (prefers-reduced-motion: no-preference) {
+    .about {
+      translate: 0 0.5rem;
+
+      &:popover-open {
+        translate: 0 0;
+
+        @starting-style {
+          translate: 0 0.5rem;
+        }
+      }
+    }
+
+    .about .number {
+      transition: --count 0.5s ease-out;
+    }
+
+    .about .rule {
+      transition: scale 0.5s 0.1s ease-out;
+    }
+
+    .about p {
+      transition:
+        opacity 0.3s 0.25s,
+        translate 0.3s 0.25s ease-out;
+    }
+
+    .about:popover-open {
+      .number {
+        @starting-style {
+          --count: 0;
+        }
+      }
+
+      .rule {
+        @starting-style {
+          scale: 0 1;
+        }
+      }
+
+      p {
+        @starting-style {
+          opacity: 0;
+          translate: 0 0.25rem;
+        }
+      }
+    }
+  }
+
+  /* Without the scroll animation, a checkbox moves the layers together and apart */
+  .stage {
+    transition: --spread 0.8s ease-in-out;
+  }
+
+  .stage:has(.toggle :checked) {
+    --spread: 0px;
+
+    .label {
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
+
+  .label {
+    transition:
+      opacity 0.3s,
+      visibility 0.3s;
+  }
+
+  /* Only shown while the scroll animation runs, and gone as soon as it starts */
+  .hint {
+    display: none;
+    position: absolute;
+    bottom: 1rem;
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .toggle {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--fg);
+    cursor: pointer;
+  }
+
+  .toggle input {
+    margin: 0;
+    accent-color: var(--pink);
+  }
+
+  /* While a part's caption is open, the other parts and labels are dimmed. Without an open caption, hovering a
+     part or its label, or focusing the label, does the same. Opacity would flatten the layer's 3D children, so
+     the dimming mixes the colors toward the background instead. */
+  .sprengskisse:has(#sprengskisse-case:popover-open) .stage :not([data-part='case']),
+  .sprengskisse:has(#sprengskisse-pcb:popover-open) .stage :not([data-part='pcb']),
+  .sprengskisse:has(#sprengskisse-plate:popover-open) .stage :not([data-part='plate']),
+  .sprengskisse:has(#sprengskisse-stabilizers:popover-open) .stage :not([data-part='stabilizers']),
+  .sprengskisse:has(#sprengskisse-switches:popover-open) .stage :not([data-part='switches']),
+  .sprengskisse:has(#sprengskisse-keycaps:popover-open) .stage :not([data-part='keycaps']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='case']:is(:hover, :focus-within))
+    :not([data-part='case']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='pcb']:is(:hover, :focus-within))
+    :not([data-part='pcb']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='plate']:is(:hover, :focus-within))
+    :not([data-part='plate']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='stabilizers']:is(:hover, :focus-within))
+    :not([data-part='stabilizers']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='switches']:is(:hover, :focus-within))
+    :not([data-part='switches']),
+  .sprengskisse:not(:has(.about:popover-open))
+    .stage:has([data-part='keycaps']:is(:hover, :focus-within))
+    :not([data-part='keycaps']) {
+    &.layer {
+      --dim: 75%;
+    }
+
+    &.label {
+      color: var(--muted);
+      border-color: var(--line);
+    }
+  }
+
+  /* Without anchor positioning, the labels become a legend under the keyboard. Firefox 157 has
+     anchor positioning, but places anchors from their untransformed boxes, so every label lands
+     in the same spot. Firefox also lacks scroll timelines, so that is the test for it. */
+  @supports not ((anchor-name: --a) and (animation-timeline: view())) {
+    .stage {
+      padding-bottom: 4rem;
+    }
+
+    .labels {
+      position: absolute;
+      bottom: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      justify-content: center;
+      margin: 0;
+      padding: 0 1rem;
+      list-style: none;
+    }
+
+    .label {
+      position: static;
+      border-top: none;
+      border-bottom: 0.25rem solid var(--color);
+    }
+
+    .label button {
+      position: static;
+      translate: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .sprengskisse {
+        height: 300vh;
+      }
+
+      .stage {
+        position: sticky;
+        top: 15vh;
+      }
+
+      .stage,
+      .label {
+        animation-timing-function: linear;
+        animation-fill-mode: both;
+        animation-timeline: --explode;
+        animation-range: contain 0% contain 100%;
+      }
+
+      .toggle {
+        display: none;
+      }
+
+      .hint {
+        display: block;
+        animation: hint linear both;
+        animation-timeline: --explode;
+        animation-range: contain 0% contain 100%;
+      }
+
+      /* The timing function applies to each step between keyframes, so every phase eases in and out */
+      .stage {
+        animation-name: explode;
+        animation-timing-function: ease-in-out;
+      }
+
+      .label {
+        animation-name: labels;
+      }
+    }
+  }
+</style>
