@@ -4,6 +4,7 @@ import EntryMeta from './EntryMeta.astro';
 import CodeText from './CodeText.astro';
 import { sharedEntryStyle } from '../lib/shared-entry';
 import {
+  CRATE,
   TABLE,
   checkLayout,
   crate,
@@ -26,14 +27,33 @@ const { experiments, previews, class: className } = Astro.props;
 const benches = import.meta.glob<{ default: BenchObject }>('../experiments/*/bench.ts', { eager: true });
 const own = (id: string) => benches[`../experiments/${id}/bench.ts`]?.default;
 
-// Experiments with their own object go first, so the crates fill the space that's left
+// A sketch is a line drawing on a sheet of blueprint paper, this much wider than the object on every side. The sheet
+// counts as the footprint, so other objects keep off it
+const SHEET = 4;
+const sketches = new Set(experiments.filter(({ data }) => data.status === 'skisse').map(({ id }) => id));
 const drawn = new Map<string, Drawn>();
+const place = (id: string, object: BenchObject) => {
+  const sketch = sketches.has(id);
+  const result = draw(object, sketch);
+  const [x0, y0, x1, y1] = result.footprint;
+  if (sketch) result.footprint = [x0 - SHEET, y0 - SHEET, x1 + SHEET, y1 + SHEET];
+  drawn.set(id, result);
+};
+
+// Experiments with their own object go first, so the crates fill the space that's left
 for (const { id } of experiments) {
   const object = own(id);
-  if (object) drawn.set(id, draw(object));
+  if (object) place(id, object);
 }
 for (const { id } of experiments)
-  if (!drawn.has(id)) drawn.set(id, draw(crate(freeSpot([...drawn.values()].map(({ footprint }) => footprint)))));
+  if (!drawn.has(id)) {
+    const pad = sketches.has(id) ? SHEET : 0;
+    const [x, y] = freeSpot(
+      [...drawn.values()].map(({ footprint }) => footprint),
+      CRATE + 2 * pad,
+    );
+    place(id, crate([x + pad, y + pad]));
+  }
 checkLayout([...drawn].map(([id, { footprint }]) => ({ id, footprint })));
 
 // Objects further back are painted first. The list keeps the date order for screen readers and the tab order, so
@@ -112,6 +132,29 @@ const lines = (major: boolean) => {
   return d;
 };
 
+// The blueprint paper under a sketch: a thin sheet with a fine grid, a border, and a title block in the left corner
+const sheet = ([x0, y0, x1, y1]: Drawn['footprint']) => {
+  let grid = '';
+  for (let x = x0 + 2; x < x1 - 1; x += 2)
+    grid += outline([
+      [x, y0 + 1, 0],
+      [x, y1 - 1, 0],
+    ]);
+  for (let y = y0 + 2; y < y1 - 1; y += 2)
+    grid += outline([
+      [x0 + 1, y, 0],
+      [x1 - 1, y, 0],
+    ]);
+  const frame =
+    rectangle(x0 + 1, y0 + 1, x1 - 1, y1 - 1) +
+    rectangle(x0 + 1, y1 - 4, x0 + 10, y1 - 1) +
+    outline([
+      [x0 + 1, y1 - 2.5, 0],
+      [x0 + 10, y1 - 2.5, 0],
+    ]);
+  return { faces: slab(x0, y0, x1, y1, 0, 0.3), grid, frame };
+};
+
 // The card opens beside the object, on the side with more room, and stays within the height of the table
 const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
   const right = (sx0 + sx1) / 2 < left + width / 2;
@@ -138,10 +181,19 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
       const object = drawn.get(id)!;
       const [x0, y0, x1, y1] = object.footprint;
       const preview = previews.get(id);
+      const paper = sketches.has(id) && sheet(object.footprint);
       return (
         <li>
           <a href={`/${id}/`} aria-labelledby={`bench-${id}`} aria-describedby={`bench-${id}-summary`}>
-            <svg viewBox={viewBox} aria-hidden="true" style={`z-index: ${rank.get(id)}`}>
+            <svg
+              class:list={{ sketch: paper }}
+              viewBox={viewBox}
+              aria-hidden="true"
+              style={`z-index: ${rank.get(id)}`}
+            >
+              {paper && paper.faces.map(([face, d]) => <path class={face} style="--c: var(--paper)" d={d} />)}
+              {paper && <path class="paper-grid" d={paper.grid} />}
+              {paper && <path class="paper-line" d={paper.frame} />}
               <path class="footprint" d={rectangle(x0 - 1, y0 - 1, x1 + 1, y1 + 1)} />
               <g class="voxels" set:html={object.markup} />
             </svg>
@@ -240,6 +292,40 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
 
   .bench :global(.glass path) {
     stroke: none;
+  }
+
+  /* Blueprint paper: lavender and mint meet in blue, and the lines are light in both schemes */
+  .sketch {
+    --blue: color-mix(in oklch, var(--lavender) 55%, var(--mint));
+    --paper: light-dark(var(--blue), color-mix(in oklch, var(--blue) 45%, var(--bg)));
+    --ink: light-dark(var(--surface), var(--fg));
+  }
+
+  /* The drawing is flat paper color, so only its lines show its shape */
+  .sketch .voxels :global(:is(.t, .x, .y)) {
+    fill: var(--paper);
+    stroke: var(--paper);
+  }
+
+  .sketch :global(:is(.edges, .paper-line, .paper-grid)) {
+    fill: none;
+    stroke: var(--ink);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .sketch :global(.edges) {
+    stroke-width: 0.18;
+  }
+
+  .paper-line {
+    stroke-width: 0.12;
+    opacity: 0.8;
+  }
+
+  .paper-grid {
+    stroke-width: 0.04;
+    opacity: 0.3;
   }
 
   .grid {

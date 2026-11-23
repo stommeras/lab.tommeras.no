@@ -105,6 +105,8 @@ interface Paint {
   // 't' for top, 'x' and 'y' for the sides facing +x and +y
   face: string;
   color: string;
+  // The face's coordinate along its normal, so two neighbors on screen with the same face and plane are one surface
+  plane: number;
 }
 
 export interface Drawn {
@@ -159,7 +161,29 @@ function trace(buffer: Buffer, keep: (c: number, k: number, value: Paint) => boo
   });
 }
 
-export function draw({ at: [ox, oy], parts }: BenchObject): Drawn {
+// The lines where one surface meets another or the background, as one path. A triangle meets its neighbors in the
+// same column across its slanted edges, and the one in the next column across its vertical edge
+function edges(buffer: Buffer) {
+  const at = (c: number, k: number) => buffer.get(c)?.get(k);
+  const segments = new Set<string>();
+  const slanted = (c: number, k: number) =>
+    (k - c) % 2 === 0 ? `M${c} ${k / 2 + 1}L${c + 1} ${k / 2 + 0.5}` : `M${c} ${k / 2 + 0.5}L${c + 1} ${k / 2 + 1}`;
+  for (const [c, column] of buffer)
+    for (const [k, self] of column) {
+      const left = (k - c) % 2 === 0;
+      const neighbors: [Paint | undefined, string][] = [
+        [at(c, k - 1), slanted(c, k - 1)],
+        [at(c, k + 1), slanted(c, k)],
+        [at(left ? c - 1 : c + 1, k), `M${left ? c : c + 1} ${k / 2}v1`],
+      ];
+      for (const [other, segment] of neighbors)
+        if (!other || other.face !== self.face || other.plane !== self.plane) segments.add(segment);
+    }
+  return [...segments].join('');
+}
+
+// With sketch, the object is drawn as a line drawing: every face in one color, with lines along its edges
+export function draw({ at: [ox, oy], parts }: BenchObject, sketch = false): Drawn {
   const voxels = new Map<string, Voxel>();
   for (const { at, size, color, glass = false } of parts)
     for (let x = at[0]; x < at[0] + size[0]; x++)
@@ -168,7 +192,8 @@ export function draw({ at: [ox, oy], parts }: BenchObject): Drawn {
         for (let z = Math.max(0, at[2]); z < at[2] + size[2]; z++) {
           const key = `${ox + x},${oy + y},${z}`;
           if (color === 'none') voxels.delete(key);
-          else voxels.set(key, { color, glass });
+          // A drawing has no glass or colors
+          else voxels.set(key, sketch ? { color: 'var(--paper)', glass: false } : { color, glass });
         }
   if (!voxels.size) throw new Error('A bench object has no voxels');
 
@@ -198,6 +223,7 @@ export function draw({ at: [ox, oy], parts }: BenchObject): Drawn {
     const faces = [
       [
         't',
+        z + 1,
         hidden(voxel, x, y, z + 1),
         [
           [sx - 1, k],
@@ -206,6 +232,7 @@ export function draw({ at: [ox, oy], parts }: BenchObject): Drawn {
       ],
       [
         'y',
+        y + 1,
         hidden(voxel, x, y + 1, z),
         [
           [sx - 1, k + 1],
@@ -214,6 +241,7 @@ export function draw({ at: [ox, oy], parts }: BenchObject): Drawn {
       ],
       [
         'x',
+        x + 1,
         hidden(voxel, x + 1, y, z),
         [
           [sx, k + 1],
@@ -221,14 +249,18 @@ export function draw({ at: [ox, oy], parts }: BenchObject): Drawn {
         ],
       ],
     ] as const;
-    for (const [face, isHidden, triangles] of faces)
-      if (!isHidden) for (const [c, t] of triangles) paint(buffer, c, t, { depth, face, color: voxel.color });
+    for (const [face, plane, isHidden, triangles] of faces)
+      if (!isHidden)
+        for (const [c, t] of triangles) paint(buffer, c, t, { depth, face, color: voxel.color, plane });
   }
 
   // Glass shows only where it's in front of the solid voxels
   const inFront = (c: number, k: number, { depth }: Paint) => (solid.get(c)?.get(k)?.depth ?? -Infinity) < depth;
   const glassPaths = trace(glass, inFront);
-  const markup = trace(solid).join('') + (glassPaths.length ? `<g class="glass">${glassPaths.join('')}</g>` : '');
+  const markup =
+    trace(solid).join('') +
+    (glassPaths.length ? `<g class="glass">${glassPaths.join('')}</g>` : '') +
+    (sketch ? `<path class="edges" d="${edges(solid)}"/>` : '');
 
   // Every corner of every voxel is within the hull of the footprint's corners at the bottom and top
   const corners = [x0, x1].flatMap((cx) => [y0, y1].flatMap((cy) => [project(cx, cy, 0), project(cx, cy, top)]));
