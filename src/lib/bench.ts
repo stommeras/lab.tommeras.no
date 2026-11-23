@@ -21,8 +21,8 @@ export interface BenchObject {
   parts: Cuboid[];
 }
 
-// The cutting mat, in voxels
-export const TABLE = { width: 132, depth: 84, thickness: 3 };
+// The cutting mat, in voxels. Its top is at z = 0, where the objects stand
+export const TABLE = { width: 132, depth: 84, thickness: 1 };
 
 export const mix = (a: string, b: string, percent: number) => `color-mix(in oklch, ${a} ${percent}%, ${b})`;
 
@@ -86,13 +86,13 @@ const project = (x: number, y: number, z: number) => [x - y, (x + y) / 2 - z] as
 export const outline = (points: Vec3[]) =>
   'M' + points.map((point) => project(...point).join(' ')).join('L') + (points.length > 2 ? 'Z' : '');
 
-// A rectangle on the table
-export const rectangle = (x0: number, y0: number, x1: number, y1: number) =>
+// A rectangle on the table, or at another height
+export const rectangle = (x0: number, y0: number, x1: number, y1: number, z = 0) =>
   outline([
-    [x0, y0, 0],
-    [x1, y0, 0],
-    [x1, y1, 0],
-    [x0, y1, 0],
+    [x0, y0, z],
+    [x1, y0, z],
+    [x1, y1, z],
+    [x0, y1, z],
   ]);
 
 interface Voxel {

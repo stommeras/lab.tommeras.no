@@ -41,36 +41,57 @@ checkLayout([...drawn].map(([id, { footprint }]) => ({ id, footprint })));
 const center = ({ footprint: [x0, y0, x1, y1] }: Drawn) => x0 + x1 + y0 + y1;
 const rank = new Map([...drawn].sort(([, a], [, b]) => center(a) - center(b)).map(([id], i) => [id, i + 1]));
 
-// The viewBox fits the mat, the tallest object and room for the lift on hover
+const { width: W, depth: D, thickness: T } = TABLE;
+// The wooden table top under the mat: how far it reaches past the mat, how thick it is, and how wide its boards are
+const WOOD = { margin: 5, thickness: 5, board: 8 };
+const M = WOOD.margin;
+const bottom = -T - WOOD.thickness;
+
+// The viewBox fits the table, the tallest object and room for the lift on hover
 // Matches the translate on hover in the styles below
 const LIFT = 3;
-const left = -TABLE.depth - 1;
-const width = TABLE.width + TABLE.depth + 2;
-const top = Math.min(-1, ...[...drawn.values()].map(({ screen }) => screen[1])) - LIFT - 1;
-const height = (TABLE.width + TABLE.depth) / 2 + TABLE.thickness + 1 - top;
+const left = -D - 2 * M - 1;
+const width = W + D + 4 * M + 2;
+const top = Math.min(-M - 1, ...[...drawn.values()].map(({ screen }) => screen[1])) - LIFT - 1;
+const height = (W + D) / 2 + M - bottom + 1 - top;
 const viewBox = `${left} ${top} ${width} ${height}`;
 
-const { width: W, depth: D, thickness: T } = TABLE;
-const sides = [
+// The visible faces of a block lying on the table: its top and the sides facing +y and +x
+const slab = (x0: number, y0: number, x1: number, y1: number, z: number, thickness: number) => [
   [
     'y',
     outline([
-      [0, D, 0],
-      [W, D, 0],
-      [W, D, -T],
-      [0, D, -T],
+      [x0, y1, z],
+      [x1, y1, z],
+      [x1, y1, z - thickness],
+      [x0, y1, z - thickness],
     ]),
   ],
   [
     'x',
     outline([
-      [W, 0, 0],
-      [W, D, 0],
-      [W, D, -T],
-      [W, 0, -T],
+      [x1, y0, z],
+      [x1, y1, z],
+      [x1, y1, z - thickness],
+      [x1, y0, z - thickness],
     ]),
   ],
+  ['t', rectangle(x0, y0, x1, y1, z)],
 ];
+const table = slab(-M, -M, W + M, D + M, -T, WOOD.thickness);
+const mat = slab(0, 0, W, D, 0, T);
+// The boards run along x, so their seams cross the top and show as their ends on the side facing +x
+let seams = '';
+for (let y = -M + WOOD.board; y < D + M; y += WOOD.board)
+  seams +=
+    outline([
+      [-M, y, -T],
+      [W + M, y, -T],
+    ]) +
+    outline([
+      [W + M, y, -T],
+      [W + M, y, bottom],
+    ]);
 // Thin lines every other voxel and thicker ones every tenth, inside a plain border like on a real cutting mat
 const BORDER = 2;
 const lines = (major: boolean) => {
@@ -102,10 +123,13 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
 
 <div class:list={['bench', className]} style={`aspect-ratio: ${width} / ${height}`}>
   <svg class="mat" viewBox={viewBox} aria-hidden="true">
-    {sides.map(([face, d]) => (
+    {table.map(([face, d]) => (
+      <path class={face} style="--c: var(--wood)" d={d} />
+    ))}
+    <path class="seams" d={seams} />
+    {mat.map(([face, d]) => (
       <path class={face} style="--c: var(--mat)" d={d} />
     ))}
-    <path class="t" style="--c: var(--mat)" d={rectangle(0, 0, W, D)} />
     <path class="grid" d={lines(false)} />
     <path class="grid major" d={lines(true)} />
   </svg>
@@ -149,12 +173,27 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
   .bench {
     --mat: light-dark(color-mix(in oklch, var(--mint) 55%, var(--bg)), color-mix(in oklch, var(--mint) 30%, var(--bg)));
     --grid: color-mix(in oklch, var(--mint) 25%, var(--surface));
+    --wood: light-dark(
+      color-mix(in oklch, var(--peach) 45%, var(--surface)),
+      color-mix(in oklch, var(--peach) 35%, var(--bg))
+    );
     position: relative;
     /* The objects' z-index follows the painter's order, and the open card sits above all of them */
     isolation: isolate;
     /* Wider than the text column, centered on it. cqi is the width of the body, without the scrollbar */
     width: min(1200px, 100cqi - 32px);
-    margin: 32px 0 0 calc(50% - min(600px, 50cqi - 16px));
+    margin: 32px 0 48px calc(50% - min(600px, 50cqi - 16px));
+  }
+
+  /* The shadow on the floor under the table */
+  .mat {
+    filter: drop-shadow(0 32px 24px light-dark(rgb(42 38 56 / 0.22), rgb(0 0 0 / 0.55)));
+  }
+
+  .seams {
+    fill: none;
+    stroke: color-mix(in oklch, var(--wood), black 22%);
+    stroke-width: 0.15;
   }
 
   svg {
