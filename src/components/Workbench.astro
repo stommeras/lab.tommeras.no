@@ -185,9 +185,13 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
     margin: 32px 0 48px calc(50% - min(600px, 50cqi - 16px));
   }
 
-  /* The shadow on the floor under the table */
+  /* The shadow on the floor under the table: a tight one where it meets the floor and a wide, soft one. Black barely
+     shows on the dark background, so in dark mode it's a faint light instead */
   .mat {
-    filter: drop-shadow(0 32px 24px light-dark(rgb(42 38 56 / 0.22), rgb(0 0 0 / 0.55)));
+    filter: drop-shadow(
+        0 10px 8px light-dark(rgb(42 38 56 / 0.18), color-mix(in oklch, var(--lavender) 12%, transparent))
+      )
+      drop-shadow(0 36px 32px light-dark(rgb(42 38 56 / 0.2), color-mix(in oklch, var(--lavender) 16%, transparent)));
   }
 
   .seams {
