@@ -1,12 +1,22 @@
-// A roll of tape, which is a circle with a hole in it, with the loose end stuck to the mat
-import { box, cylinder, mix, type BenchObject } from '../../lib/bench';
+// Twelve beads spread evenly around a ring on a round tray, colored around the hue wheel like the dots in the demo
+import { cylinder, mix, type BenchObject } from '../../lib/bench';
+
+const BEADS = 12;
+const CENTER = 9;
+const RING = 6;
+
+// The same lightness and chroma as the tag pills, so the beads read in both color schemes
+const hue = (degrees: number) => `light-dark(oklch(60% 0.15 ${degrees}), oklch(80% 0.11 ${degrees}))`;
 
 export default {
   at: [40, 62],
   parts: [
-    ...cylinder([9, 9], 8, 0, 6, 'var(--pink)'),
-    ...cylinder([9, 9], 5, 0, 6, mix('var(--peach)', 'var(--surface)', 50)),
-    ...cylinder([9, 9], 4, 0, 6, 'none'),
-    box([17, 8, 0], [5, 3, 1], 'var(--pink)'),
+    ...cylinder([CENTER, CENTER], 9, 0, 1, mix('var(--muted)', 'var(--surface)', 30)),
+    ...Array.from({ length: BEADS }, (_, i) => {
+      const angle = (2 * Math.PI * i) / BEADS;
+      const x = Math.round(CENTER + RING * Math.cos(angle));
+      const y = Math.round(CENTER + RING * Math.sin(angle));
+      return cylinder([x, y], 1.5, 1, 2, hue(25 + (360 / BEADS) * i));
+    }).flat(),
   ],
 } satisfies BenchObject;

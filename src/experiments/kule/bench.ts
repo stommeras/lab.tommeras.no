@@ -1,32 +1,21 @@
-// A globe on a stand, dotted with points spread evenly over the sphere
-import { box, cylinder, ellipsoid, mix, type BenchObject, type Vec3 } from '../../lib/bench';
+// Points spread over a sphere with the golden angle, as loose cubes around a stand, pink at the top and lavender at
+// the bottom like in the demo
+import { box, cylinder, mix, type BenchObject, type Cuboid, type Vec3 } from '../../lib/bench';
 
-const CENTER: Vec3 = [10, 10, 13];
+const POINTS = 90;
 const RADIUS = 9;
-// A Fibonacci lattice of unit vectors
-const POINTS = 24;
-const points = Array.from({ length: POINTS }, (_, i) => {
-  const z = 1 - (2 * (i + 0.5)) / POINTS;
-  const angle = Math.PI * (3 - Math.sqrt(5)) * i;
-  const r = Math.sqrt(1 - z * z);
-  return [r * Math.cos(angle), r * Math.sin(angle), z];
-});
-
-// A voxel is a dot when its direction from the center is close to one of the points
-const dotted = ([x, y, z]: Vec3) => {
-  const v = [x + 0.5 - CENTER[0], y + 0.5 - CENTER[1], z + 0.5 - CENTER[2]];
-  const length = Math.hypot(...v);
-  const near = points.some((p) => p.reduce((sum, c, i) => sum + c * v[i], 0) / length > 0.975);
-  return near ? 'var(--pink)' : 'var(--lavender)';
-};
-
+const [cx, cy, cz] = [10, 10, 13];
+const golden = Math.PI * (3 - Math.sqrt(5));
 const stand = mix('var(--muted)', 'var(--surface)', 60);
 
-export default {
-  at: [52, 4],
-  parts: [
-    ...cylinder([10, 10], 5, 0, 2, stand),
-    box([9, 9, 2], [2, 2, 3], stand),
-    ...ellipsoid(CENTER, RADIUS, dotted),
-  ],
-} satisfies BenchObject;
+const parts: Cuboid[] = [...cylinder([cx, cy], 4, 0, 1, stand), box([cx, cy, 1], [1, 1, cz - 1], stand)];
+for (let i = 0; i < POINTS; i++) {
+  const z = 1 - (2 * (i + 0.5)) / POINTS;
+  const r = Math.sqrt(1 - z * z);
+  const point = [cx + RADIUS * r * Math.cos(golden * i), cy + RADIUS * r * Math.sin(golden * i), cz + RADIUS * z];
+  // One voxel per point
+  const at = point.map((c) => Math.floor(c)) as Vec3;
+  parts.push(box(at, [1, 1, 1], mix('var(--pink)', 'var(--lavender)', Math.round(((z + 1) / 2) * 100))));
+}
+
+export default { at: [52, 4], parts } satisfies BenchObject;
