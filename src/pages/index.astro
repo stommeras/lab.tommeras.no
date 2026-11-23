@@ -12,10 +12,9 @@ import '../styles/voxels.css';
 
 const experiments = (await getCollection('experiments')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
 const { table, paper, alone, rest } = arrange(experiments);
-// Fits the object's bounding box on screen, with room for the strokes
 const fit = ({ screen: [l, t, r, b] }: Drawn) => `${l - 1} ${t - 1} ${r - l + 2} ${b - t + 2}`;
 
-// Screenshots from `bun run previews`, one per color scheme. An experiment without a Demo.astro has none
+const CARD_WIDTH = 320;
 const shots = import.meta.glob<{ default: ImageMetadata }>('../experiments/*/preview-*.png', { eager: true });
 const shot = (id: string, scheme: 'light' | 'dark') => shots[`../experiments/${id}/preview-${scheme}.png`]?.default;
 const previews = new Map(
@@ -24,8 +23,9 @@ const previews = new Map(
       const light = shot(id, 'light');
       const dark = shot(id, 'dark');
       if (!light || !dark) return [id, undefined] as const;
-      // Twice the 320 px the card shows them at
-      const [l, d] = await Promise.all([light, dark].map((src) => getImage({ src, width: 640, format: 'webp' })));
+      const [l, d] = await Promise.all(
+        [light, dark].map((src) => getImage({ src, width: 2 * CARD_WIDTH, format: 'webp' })),
+      );
       return [id, { light: l.src, dark: d.src }] as const;
     }),
   ),
@@ -46,7 +46,7 @@ const previews = new Map(
   )}
   {rest.length > 0 && <h2 class="older">Eldre eksperimenter</h2>}
   {experiments.length ? (
-    <ol class="list">
+    <ol class="list" style={`--card-width: ${CARD_WIDTH}px`}>
       {experiments.map(({ id, data }) => {
         const preview = previews.get(id);
         return (
@@ -73,7 +73,14 @@ const previews = new Map(
               {preview && (
                 <picture>
                   <source media="(prefers-color-scheme: dark)" srcset={preview.dark} />
-                  <img src={preview.light} alt="" width="320" height="200" loading="lazy" decoding="async" />
+                  <img
+                    src={preview.light}
+                    alt=""
+                    width={CARD_WIDTH}
+                    height={(CARD_WIDTH * 10) / 16}
+                    loading="lazy"
+                    decoding="async"
+                  />
                 </picture>
               )}
               <div class="caption" id={`list-${id}-caption`}>
@@ -93,8 +100,8 @@ const previews = new Map(
 </Layout>
 
 <script>
-  // The card follows the pointer over its row. It flips to the left of the pointer near the right edge of the window
-  const GAP = 32;
+  const POINTER_GAP = 32;
+  const WINDOW_GUTTER = 16;
   const still = matchMedia('(prefers-reduced-motion: reduce)');
 
   for (const row of document.querySelectorAll<HTMLElement>('.list > li')) {
@@ -102,8 +109,8 @@ const previews = new Map(
     row.addEventListener('pointermove', (event) => {
       if (still.matches || event.pointerType !== 'mouse') return;
       const box = row.getBoundingClientRect();
-      const left = event.clientX + GAP + card.offsetWidth > innerWidth - 16;
-      const x = event.clientX - box.left + (left ? -GAP - card.offsetWidth : GAP);
+      const left = event.clientX + POINTER_GAP + card.offsetWidth > innerWidth - WINDOW_GUTTER;
+      const x = event.clientX - box.left + (left ? -POINTER_GAP - card.offsetWidth : POINTER_GAP);
       row.style.setProperty('--x', `${x}px`);
       row.style.setProperty('--y', `${event.clientY - box.top}px`);
       row.dataset.follow = '';
@@ -113,9 +120,8 @@ const previews = new Map(
 </script>
 
 <style>
-  /* Wide screens with a mouse get the workbench, and under it the list of the experiments that aren't on the table.
-     The rest get the whole list. An experiment never shows in both: the two share view-transition-name values, and a
-     duplicate name aborts the transition */
+  /* An experiment never shows on both the workbench and the list, because they share view-transition-name values and
+     a duplicate name aborts the transition */
   :global(.scene),
   .older {
     display: none;
@@ -142,7 +148,6 @@ const previews = new Map(
     font-size: inherit;
   }
 
-  /* The titles below are the big type, so the page heading stays at body size */
   h1 {
     font-size: inherit;
   }
@@ -157,13 +162,11 @@ const previews = new Map(
     list-style: none;
   }
 
-  /* The experiment's object from the workbench sits left of its title and caption */
   li {
     position: relative;
     display: grid;
     grid-template-columns: 88px minmax(0, 1fr);
     column-gap: 16px;
-    /* The object and the title stand on the same line, so a short title sits right above its caption */
     align-items: end;
   }
 
@@ -191,7 +194,6 @@ const previews = new Map(
       text-decoration-color 0.2s;
   }
 
-  /* One title at a time: the hovered or focused one stays, the rest step back */
   ol:has(li:is(:hover, :focus-within)) li:not(:hover, :focus-within) > a {
     opacity: 0.35;
   }
@@ -210,7 +212,6 @@ const previews = new Map(
     color: var(--muted);
   }
 
-  /* Touch screens get the caption under the object and the title, across the whole row, and no picture */
   @media not ((hover: hover) and (pointer: fine)) {
     li {
       padding-bottom: 40px;
@@ -230,10 +231,9 @@ const previews = new Map(
     .card {
       position: absolute;
       z-index: 1;
-      /* Without a pointer position (keyboard focus, reduced motion) the card sits at the right end of the row */
       top: 50%;
       right: 0;
-      width: 320px;
+      width: var(--card-width);
       overflow: hidden;
       border: 1px solid var(--line);
       border-radius: 10px;
@@ -278,12 +278,10 @@ const previews = new Map(
       padding: 12px 14px 14px;
     }
 
-    /* The meta's tags sit on the right in the article byline. In the narrow card they wrap under */
     .caption :global(.tags) {
       margin-left: 0;
     }
 
-    /* Only the open card's meta takes part in the view transition, like on the workbench */
     li:not(:hover, :focus-within) .caption :global(.meta) {
       view-transition-name: none !important;
     }

@@ -9,7 +9,6 @@ import { TABLE, outline, rectangle, type Drawn } from '../lib/bench';
 interface Props {
   // Only the experiments on the table, newest first
   experiments: CollectionEntry<'experiments'>[];
-  // From arrange() in src/lib/workbench.ts
   table: Map<string, Drawn>;
   paper?: Drawn['footprint'];
   previews: Map<string, { light: string; dark: string } | undefined>;
@@ -19,21 +18,15 @@ interface Props {
 const { experiments, table: drawn, paper, previews, class: className } = Astro.props;
 const sketch = (id: string) => experiments.find((entry) => entry.id === id)?.data.status === 'skisse';
 
-// Objects further back are painted first. The list keeps the date order for screen readers and the tab order, so
-// the painter's order goes in each object's z-index instead. The objects stand in rows along x, so an object in a row
-// further forward has its whole footprint in front, and row-mates overlap in y and go by x
-const behind = ({ footprint: a }: Drawn, { footprint: b }: Drawn) =>
+const backToFront = ({ footprint: a }: Drawn, { footprint: b }: Drawn) =>
   a[3] <= b[1] ? -1 : b[3] <= a[1] ? 1 : a[0] - b[0];
-const rank = new Map([...drawn].sort(([, a], [, b]) => behind(a, b)).map(([id], i) => [id, i + 1]));
+const paintOrder = new Map([...drawn].sort(([, a], [, b]) => backToFront(a, b)).map(([id], i) => [id, i + 1]));
 
 const { width: W, depth: D, thickness: T } = TABLE;
-// The wooden table top under the mat: how far it reaches past the mat, how thick it is, and how wide its boards are
 const WOOD = { margin: 5, thickness: 5, board: 8 };
 const M = WOOD.margin;
 const bottom = -T - WOOD.thickness;
 
-// The viewBox fits the table, the tallest object and room for the lift on hover
-// Matches the translate on hover in the styles below
 const LIFT = 3;
 const left = -D - 2 * M - 1;
 const width = W + D + 4 * M + 2;
@@ -41,7 +34,6 @@ const top = Math.min(-M - 1, ...[...drawn.values()].map(({ screen }) => screen[1
 const height = (W + D) / 2 + M - bottom + 1 - top;
 const viewBox = `${left} ${top} ${width} ${height}`;
 
-// The visible faces of a block lying on the table: its top and the sides facing +y and +x
 const slab = (x0: number, y0: number, x1: number, y1: number, z: number, thickness: number) => [
   [
     'y',
@@ -65,7 +57,6 @@ const slab = (x0: number, y0: number, x1: number, y1: number, z: number, thickne
 ];
 const table = slab(-M, -M, W + M, D + M, -T, WOOD.thickness);
 const mat = slab(0, 0, W, D, 0, T);
-// The boards run along x, so their seams cross the top and show as their ends on the side facing +x
 let seams = '';
 for (let y = -M + WOOD.board; y < D + M; y += WOOD.board)
   seams +=
@@ -77,7 +68,6 @@ for (let y = -M + WOOD.board; y < D + M; y += WOOD.board)
       [W + M, y, -T],
       [W + M, y, bottom],
     ]);
-// Thin lines every other voxel and thicker ones every tenth, inside a plain border like on a real cutting mat
 const BORDER = 2;
 const lines = (major: boolean) => {
   const keep = (i: number) => (major ? (i - BORDER) % 10 === 0 : (i - BORDER) % 2 === 0 && (i - BORDER) % 10 !== 0);
@@ -97,7 +87,6 @@ const lines = (major: boolean) => {
   return d;
 };
 
-// The blueprint paper under a sketch: a thin sheet with a fine grid, a border, and a title block in the left corner
 const sheet = ([x0, y0, x1, y1]: Drawn['footprint']) => {
   let grid = '';
   for (let x = x0 + 2; x < x1 - 1; x += 2)
@@ -121,16 +110,16 @@ const sheet = ([x0, y0, x1, y1]: Drawn['footprint']) => {
 };
 const blueprint = paper && sheet(paper);
 
-// The card opens beside the object, on the side with more room, and stays within the height of the table
+const CARD_CENTER = { min: 0.38, max: 0.62 };
 const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
   const right = (sx0 + sx1) / 2 < left + width / 2;
   const x = ((right ? sx1 + 1 : sx0 - 1) - left) / width;
-  const y = Math.min(0.62, Math.max(0.38, ((sy0 + sy1) / 2 - top) / height));
+  const y = Math.min(CARD_CENTER.max, Math.max(CARD_CENTER.min, ((sy0 + sy1) / 2 - top) / height));
   return `--x: ${(x * 100).toFixed(2)}%; --y: ${(y * 100).toFixed(2)}%; --side: ${right ? 0 : -100}%`;
 };
 ---
 
-<div class:list={['bench', 'voxel-art', className]} style={`aspect-ratio: ${width} / ${height}`}>
+<div class:list={['bench', 'voxel-art', className]} style={`aspect-ratio: ${width} / ${height}; --lift: ${LIFT}px`}>
   <svg class="mat" viewBox={viewBox} aria-hidden="true">
     {table.map(([face, d]) => (
       <path class={face} style="--c: var(--wood)" d={d} />
@@ -163,7 +152,7 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
               class:list={{ sketch: sketch(id) }}
               viewBox={viewBox}
               aria-hidden="true"
-              style={`z-index: ${rank.get(id)}`}
+              style={`z-index: ${paintOrder.get(id)}`}
             >
               <path class="footprint" d={rectangle(x0 - 1, y0 - 1, x1 + 1, y1 + 1)} />
               <g class="voxels" set:html={object.markup} />
@@ -195,15 +184,13 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
 <style>
   .bench {
     position: relative;
-    /* The objects' z-index follows the painter's order, and the open card sits above all of them */
     isolation: isolate;
-    /* Wider than the text column, centered on it. cqi is the width of the body, without the scrollbar */
-    width: min(1200px, 100cqi - 32px);
-    margin: 32px 0 48px calc(50% - min(600px, 50cqi - 16px));
+    /* cqi leaves out the scrollbar, which vw includes */
+    --width: min(1200px, 100cqi - 32px);
+    width: var(--width);
+    margin: 32px 0 48px calc(50% - var(--width) / 2);
   }
 
-  /* The shadow on the floor under the table: a tight one where it meets the floor and a wide, soft one. Black barely
-     shows on the dark background, so in dark mode it's a faint light instead */
   .mat {
     filter: drop-shadow(
         0 10px 8px light-dark(rgb(42 38 56 / 0.18), color-mix(in oklch, var(--lavender) 12%, transparent))
@@ -249,7 +236,6 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
     pointer-events: none;
   }
 
-  /* The object's voxels and its footprint are the link's hit area */
   a :global(:is(.voxels path, .footprint)) {
     pointer-events: visiblePainted;
     cursor: pointer;
@@ -276,7 +262,7 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
   }
 
   a:is(:hover, :focus-visible) .voxels {
-    translate: 0 -3px;
+    translate: 0 calc(-1 * var(--lift));
   }
 
   .card {
@@ -338,7 +324,6 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
     color: var(--muted);
   }
 
-  /* The meta's tags sit on the right in the article byline. In the narrow card they wrap under */
   /* Only the open card takes part in the view transition. Coming back from an experiment, its heading then fades out
      instead of flying into a card nobody can see */
   a:not(:hover, :focus-visible) :is(.title, .caption :global(.meta)) {

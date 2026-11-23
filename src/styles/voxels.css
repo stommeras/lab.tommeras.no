@@ -1,20 +1,16 @@
-/* The faces drawn by src/lib/bench.ts, for the workbench and the objects in the list on the front page */
 .voxel-art {
-  /* The mat and the table, which some objects take their colors from */
   --mat: light-dark(color-mix(in oklch, var(--mint) 55%, var(--bg)), color-mix(in oklch, var(--mint) 30%, var(--bg)));
   --grid: color-mix(in oklch, var(--mint) 25%, var(--surface));
   --wood: light-dark(
     color-mix(in oklch, var(--peach) 45%, var(--surface)),
     color-mix(in oklch, var(--peach) 35%, var(--bg))
   );
-  /* Blueprint paper for sketches: lavender and mint meet in blue, and the lines are light in both schemes */
   --blue: color-mix(in oklch, var(--lavender) 55%, var(--mint));
   --paper: light-dark(var(--blue), color-mix(in oklch, var(--blue) 45%, var(--bg)));
   --ink: light-dark(var(--surface), var(--fg));
 }
 
-/* Each face path gets its color from --c, lit from the top left. A stroke in the same color closes the hairline gaps
-   that anti-aliasing leaves between neighbors */
+/* A stroke in the face's own color closes the hairline gaps that anti-aliasing leaves between neighbors */
 .voxel-art :is(.t, .x, .y) {
   stroke-width: 0.04;
   stroke-linejoin: round;
@@ -37,7 +33,6 @@
   stroke: var(--shade);
 }
 
-/* Overlapping strokes would show as darker seams through the glass */
 .voxel-art .glass {
   opacity: 0.45;
 }
@@ -46,7 +41,6 @@
   stroke: none;
 }
 
-/* A sketch is flat paper color, so only its lines show its shape */
 .voxel-art .sketch :is(.t, .x, .y) {
   fill: var(--paper);
   stroke: var(--paper);

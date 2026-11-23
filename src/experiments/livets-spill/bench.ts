@@ -1,4 +1,3 @@
-// A checkered board with a glider, a blinker and a block standing up from it
 import { box, mix, type BenchObject, type Cuboid } from '../../lib/bench';
 
 const CELL = 2;

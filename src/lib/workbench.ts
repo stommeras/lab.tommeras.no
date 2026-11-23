@@ -1,5 +1,3 @@
-// Places the experiments on the workbench. Sketches share one sheet of blueprint paper, and the sheet and the other
-// objects are packed onto the mat. The newest experiments that fit go on the table, and the rest are listed under it.
 import type { CollectionEntry } from 'astro:content';
 import { TABLE, crate, draw, moved, type BenchObject, type Drawn } from './bench';
 
@@ -8,23 +6,18 @@ type Footprint = Drawn['footprint'];
 const benches = import.meta.glob<{ default: BenchObject }>('../experiments/*/bench.ts', { eager: true });
 const object = (id: string) => benches[`../experiments/${id}/bench.ts`]?.default ?? crate();
 
-// The mat kept free between two objects and along the edge of the mat
 const GAP = 2;
-// The paper around and between the sketches, and how wide the sheet grows before they wrap to a new row
-const SHEET = 4;
+const SHEET_MARGIN = 4;
 const SHEET_WIDTH = 60;
 
 const size = ({ footprint: [x0, y0, x1, y1] }: Drawn) => [x1 - x0, y1 - y0] as const;
 
-// Rows along x from the back of the mat to the front, filled tallest first, so a tall object is never in front of a
-// shorter one it would hide. The space that's left spreads evenly between the rows and between the objects in each
-// row. Undefined when they don't fit
 function pack(items: Drawn[]) {
   const [width, depth] = [TABLE.width - 2 * GAP, TABLE.depth - 2 * GAP];
-  const order = [...items.keys()].sort((a, b) => items[b].height - items[a].height || a - b);
+  const tallestFirst = [...items.keys()].sort((a, b) => items[b].height - items[a].height || a - b);
   const rows: number[][] = [];
   let used = Infinity;
-  for (const i of order) {
+  for (const i of tallestFirst) {
     const [w] = size(items[i]);
     if (w > width) return undefined;
     if (used + GAP + w > width) [rows[rows.length], used] = [[], -GAP];
@@ -32,7 +25,6 @@ function pack(items: Drawn[]) {
     used += GAP + w;
   }
   const depths = rows.map((row) => Math.max(...row.map((i) => size(items[i])[1])));
-  // Rounding down keeps at least GAP between neighbors, since every footprint is a whole number of voxels
   const spread = (room: number, sizes: number[]) =>
     (room - sizes.reduce((sum, s) => sum + s, 0) - GAP * (sizes.length - 1)) / (sizes.length + 1);
   const across = spread(depth, depths);
@@ -57,19 +49,18 @@ function pack(items: Drawn[]) {
   return placed;
 }
 
-// Lays the sketches out in rows on a sheet with its corner at the origin
 function sheet(sketches: Drawn[]) {
-  let [x, y, row, width] = [SHEET, SHEET, 0, 0];
+  let [x, y, row, width] = [SHEET_MARGIN, SHEET_MARGIN, 0, 0];
   const placed = sketches.map((sketch) => {
     const [x0, y0, x1, y1] = sketch.footprint;
-    if (x > SHEET && x + x1 - x0 > SHEET_WIDTH) [x, y, row] = [SHEET, y + row + SHEET, 0];
+    if (x > SHEET_MARGIN && x + x1 - x0 > SHEET_WIDTH) [x, y, row] = [SHEET_MARGIN, y + row + SHEET_MARGIN, 0];
     const result = moved(sketch, x - x0, y - y0);
-    [x, row, width] = [x + x1 - x0 + SHEET, Math.max(row, y1 - y0), Math.max(width, x + x1 - x0 + SHEET)];
+    [x, row, width] = [x + x1 - x0 + SHEET_MARGIN, Math.max(row, y1 - y0), Math.max(width, x + x1 - x0 + SHEET_MARGIN)];
     return result;
   });
   const paper: Drawn = {
     markup: '',
-    footprint: [0, 0, width, y + row + SHEET],
+    footprint: [0, 0, width, y + row + SHEET_MARGIN],
     screen: [0, 0, 0, 0],
     height: Math.max(...sketches.map(({ height }) => height)),
   };
@@ -79,9 +70,7 @@ function sheet(sketches: Drawn[]) {
 // The experiments come newest first. Returns the drawn objects on the table, the blueprint sheet if any, every object
 // drawn on its own at the origin, and the ids of the experiments that didn't fit
 export function arrange(experiments: CollectionEntry<'experiments'>[]) {
-  // Every object on its own as well, for the list
   const alone = new Map(experiments.map(({ id, data }) => [id, draw(object(id), data.status === 'skisse')]));
-  // Tallest first, so the sheet's back rows hold the tall sketches, like the rows on the mat
   const sketches = experiments
     .filter(({ data }) => data.status === 'skisse')
     .sort((a, b) => alone.get(b.id)!.height - alone.get(a.id)!.height);

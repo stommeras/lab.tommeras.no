@@ -1,4 +1,3 @@
-// An exploded keyboard: the keycaps float above their switches, and the escape key furthest out
 import { box, mix, type BenchObject, type Cuboid } from '../../lib/bench';
 
 const cap = 'var(--surface)';
@@ -8,7 +7,6 @@ const parts: Cuboid[] = [
   box([1, 1, 2], [44, 19, 1], mix('var(--muted)', 'var(--surface)', 70)),
 ];
 
-// A key on a 4-voxel pitch, `wide` keys across, with a switch under each end
 const key = (col: number, row: number, color = cap, wide = 1, z = 5) => {
   const [x, y] = [2 + 4 * col, 1 + 4 * row];
   parts.push(box([x, y, z], [4 * wide - 1, 3, 2], color));

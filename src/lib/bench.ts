@@ -1,8 +1,4 @@
-// The voxel workbench on the front page, drawn as SVG at build time. Each experiment can have an object on the table
-// in src/experiments/<slug>/bench.ts, and src/lib/workbench.ts places them. World units are voxels: x runs right and down the screen, y left and down, z up.
-// The 2:1 isometric projection maps (x, y, z) to (x - y, (x + y) / 2 - z), so a voxel's top is a diamond two units
-// wide and one tall, and a unit of height is one unit on screen.
-
+// World units are voxels. x runs right and down the screen, y runs left and down, and z runs up.
 export type Vec3 = [x: number, y: number, z: number];
 
 export interface Cuboid {
@@ -58,25 +54,24 @@ export function ellipsoid(center: Vec3, radius: number | Vec3, color: string | (
   return parts;
 }
 
-// A plain wooden crate, for experiments without a bench.ts
 export const CRATE = 12;
 export const crate = (): BenchObject => {
   const wood = mix('var(--peach)', 'var(--surface)', 55);
   const slat = mix('var(--peach)', 'var(--muted)', 70);
   const inner = CRATE - 4;
   return {
-    // Darker boards two voxels wide along every edge, with lighter panels between them
     parts: [
       box([0, 0, 0], [CRATE, CRATE, 10], slat),
       box([0, 2, 2], [CRATE, inner, 6], wood),
       box([2, 0, 2], [inner, CRATE, 6], wood),
       box([2, 2, 8], [inner, inner, 2], wood),
-      // A gap between the planks of each panel
       box([0, 2, 5], [CRATE, inner, 1], slat),
       box([2, 0, 5], [inner, CRATE, 1], slat),
     ],
   };
 };
+
+const aboveTable = (z: number) => Math.max(0, z);
 
 const project = (x: number, y: number, z: number) => [x - y, (x + y) / 2 - z] as const;
 
@@ -84,7 +79,6 @@ const project = (x: number, y: number, z: number) => [x - y, (x + y) / 2 - z] as
 export const outline = (points: Vec3[]) =>
   'M' + points.map((point) => project(...point).join(' ')).join('L') + (points.length > 2 ? 'Z' : '');
 
-// A rectangle on the table, or at another height
 export const rectangle = (x0: number, y0: number, x1: number, y1: number, z = 0) =>
   outline([
     [x0, y0, z],
@@ -98,13 +92,13 @@ interface Voxel {
   glass: boolean;
 }
 
+type Face = 't' | 'x' | 'y';
+
 interface Paint {
   depth: number;
-  // 't' for top, 'x' and 'y' for the sides facing +x and +y
-  face: string;
+  face: Face;
   color: string;
-  // The face's coordinate along its normal, so two neighbors on screen with the same face and plane are one surface
-  plane: number;
+  normalCoordinate: number;
 }
 
 export interface Drawn {
@@ -118,23 +112,18 @@ export interface Drawn {
   height: number;
 }
 
-// The screen is a lattice of triangles, and every visible face covers exactly two of them. A triangle is known by its
-// column c (it spans x from c to c + 1) and k, twice the y of the top of its vertical edge. The vertical edge is on the
-// left when k and c have the same parity, else on the right. So instead of painting faces back to front, each
-// triangle keeps the face of the voxel nearest the viewer, the one with the largest x + y + z. Runs of triangles in a
-// column with the same paint then merge into one quadrilateral, and the output grows with the number of color
-// changes rather than with the number of voxels.
-type Buffer = Map<number, Map<number, Paint>>;
+type TriangleLattice = Map<number, Map<number, Paint>>;
 
-function paint(buffer: Buffer, c: number, k: number, value: Paint) {
+const hasLeftEdge = (c: number, k: number) => (k - c) % 2 === 0;
+
+function paint(buffer: TriangleLattice, c: number, k: number, value: Paint) {
   let column = buffer.get(c);
   if (!column) buffer.set(c, (column = new Map()));
   const current = column.get(k);
   if (!current || current.depth < value.depth) column.set(k, value);
 }
 
-// One <path> per paint, made of the runs in each column
-function trace(buffer: Buffer, keep: (c: number, k: number, value: Paint) => boolean = () => true) {
+function trace(buffer: TriangleLattice, keep: (c: number, k: number, value: Paint) => boolean = () => true) {
   const paths = new Map<string, string>();
   for (const [c, column] of buffer) {
     const ks = [...column.keys()].filter((k) => keep(c, k, column.get(k)!)).sort((a, b) => a - b);
@@ -146,10 +135,9 @@ function trace(buffer: Buffer, keep: (c: number, k: number, value: Paint) => boo
         if (next.face !== face || next.color !== color) break;
         j++;
       }
-      const leftEdge = (k: number) => (k - c) % 2 === 0;
       const [k1, k2] = [ks[i], ks[j]];
-      const [lt, rt] = leftEdge(k1) ? [k1 / 2, k1 / 2 + 0.5] : [k1 / 2 + 0.5, k1 / 2];
-      const [lb, rb] = leftEdge(k2) ? [k2 / 2 + 1, k2 / 2 + 0.5] : [k2 / 2 + 0.5, k2 / 2 + 1];
+      const [lt, rt] = hasLeftEdge(c, k1) ? [k1 / 2, k1 / 2 + 0.5] : [k1 / 2 + 0.5, k1 / 2];
+      const [lb, rb] = hasLeftEdge(c, k2) ? [k2 / 2 + 1, k2 / 2 + 0.5] : [k2 / 2 + 0.5, k2 / 2 + 1];
       const key = `${face}|${color}`;
       paths.set(key, (paths.get(key) ?? '') + `M${c} ${lt}L${c + 1} ${rt}V${rb}L${c} ${lb}Z`);
       i = j + 1;
@@ -161,50 +149,46 @@ function trace(buffer: Buffer, keep: (c: number, k: number, value: Paint) => boo
   });
 }
 
-// The lines where one surface meets another or the background, as one path. A triangle meets its neighbors in the
-// same column across its slanted edges, and the one in the next column across its vertical edge
-function edges(buffer: Buffer) {
+function edges(buffer: TriangleLattice) {
   const at = (c: number, k: number) => buffer.get(c)?.get(k);
   const segments = new Set<string>();
   const slanted = (c: number, k: number) =>
-    (k - c) % 2 === 0 ? `M${c} ${k / 2 + 1}L${c + 1} ${k / 2 + 0.5}` : `M${c} ${k / 2 + 0.5}L${c + 1} ${k / 2 + 1}`;
+    hasLeftEdge(c, k) ? `M${c} ${k / 2 + 1}L${c + 1} ${k / 2 + 0.5}` : `M${c} ${k / 2 + 0.5}L${c + 1} ${k / 2 + 1}`;
   for (const [c, column] of buffer)
     for (const [k, self] of column) {
-      const left = (k - c) % 2 === 0;
+      const left = hasLeftEdge(c, k);
       const neighbors: [Paint | undefined, string][] = [
         [at(c, k - 1), slanted(c, k - 1)],
         [at(c, k + 1), slanted(c, k)],
         [at(left ? c - 1 : c + 1, k), `M${left ? c : c + 1} ${k / 2}v1`],
       ];
       for (const [other, segment] of neighbors)
-        if (!other || other.face !== self.face || other.plane !== self.plane) segments.add(segment);
+        if (!other || other.face !== self.face || other.normalCoordinate !== self.normalCoordinate)
+          segments.add(segment);
     }
   return [...segments].join('');
 }
 
-// With sketch, the object is drawn as a line drawing: every face in one color, with lines along its edges
+// With sketch, draw returns a line drawing with every face in one color and lines along its edges
 export function draw({ parts }: BenchObject, sketch = false): Drawn {
   const voxels = new Map<string, Voxel>();
   for (const { at, size, color, glass = false } of parts)
     for (let x = at[0]; x < at[0] + size[0]; x++)
       for (let y = at[1]; y < at[1] + size[1]; y++)
-        // The table cuts off anything below it
-        for (let z = Math.max(0, at[2]); z < at[2] + size[2]; z++) {
+        for (let z = aboveTable(at[2]); z < at[2] + size[2]; z++) {
           const key = `${x},${y},${z}`;
           if (color === 'none') voxels.delete(key);
-          // A drawing has no glass or colors
           else voxels.set(key, sketch ? { color: 'var(--paper)', glass: false } : { color, glass });
         }
   if (!voxels.size) throw new Error('A bench object has no voxels');
 
-  // A face is hidden behind an opaque neighbor, and between two glass voxels
   const hidden = (self: Voxel, x: number, y: number, z: number) => {
     const neighbor = voxels.get(`${x},${y},${z}`);
     return !!neighbor && (!neighbor.glass || self.glass);
   };
 
-  const solid: Buffer = new Map();
-  const glass: Buffer = new Map();
+  const solid: TriangleLattice = new Map();
+  const glass: TriangleLattice = new Map();
   let [x0, y0, x1, y1, top] = [Infinity, Infinity, -Infinity, -Infinity, 0];
   for (const [key, voxel] of voxels) {
     const [x, y, z] = key.split(',').map(Number);
@@ -217,9 +201,8 @@ export function draw({ parts }: BenchObject, sketch = false): Drawn {
     ];
     const depth = x + y + z;
     const buffer = voxel.glass ? glass : solid;
-    // The back corner of the voxel's top face
-    const [sx, sy] = project(x, y, z + 1);
-    const k = 2 * sy;
+    const [sx, topBackCornerY] = project(x, y, z + 1);
+    const k = 2 * topBackCornerY;
     const faces = [
       [
         't',
@@ -249,11 +232,11 @@ export function draw({ parts }: BenchObject, sketch = false): Drawn {
         ],
       ],
     ] as const;
-    for (const [face, plane, isHidden, triangles] of faces)
-      if (!isHidden) for (const [c, t] of triangles) paint(buffer, c, t, { depth, face, color: voxel.color, plane });
+    for (const [face, normalCoordinate, isHidden, triangles] of faces)
+      if (!isHidden)
+        for (const [c, t] of triangles) paint(buffer, c, t, { depth, face, color: voxel.color, normalCoordinate });
   }
 
-  // Glass shows only where it's in front of the solid voxels
   const inFront = (c: number, k: number, { depth }: Paint) => (solid.get(c)?.get(k)?.depth ?? -Infinity) < depth;
   const glassPaths = trace(glass, inFront);
   const markup =
@@ -261,7 +244,6 @@ export function draw({ parts }: BenchObject, sketch = false): Drawn {
     (glassPaths.length ? `<g class="glass">${glassPaths.join('')}</g>` : '') +
     (sketch ? `<path class="edges" d="${edges(solid)}"/>` : '');
 
-  // Every corner of every voxel is within the hull of the footprint's corners at the bottom and top
   const corners = [x0, x1].flatMap((cx) => [y0, y1].flatMap((cy) => [project(cx, cy, 0), project(cx, cy, top)]));
   const screen = [
     Math.min(...corners.map(([sx]) => sx)),
@@ -272,7 +254,6 @@ export function draw({ parts }: BenchObject, sketch = false): Drawn {
   return { markup, footprint: [x0, y0, x1, y1], screen, height: top };
 }
 
-// The same drawing moved across the table
 export function moved(
   { markup, footprint: [x0, y0, x1, y1], screen: [l, t, r, b], height }: Drawn,
   dx: number,

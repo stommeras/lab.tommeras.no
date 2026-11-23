@@ -1,6 +1,3 @@
-// Screenshots each experiment's demo in light and dark mode for the front page previews.
-// Run with the dev server up: bun run previews [base URL] [slug...]. Uses the installed Chrome, so there is no
-// browser download. The pictures are 16:10 crops of the top of the demo.
 import { existsSync, readdirSync } from 'node:fs';
 import { chromium, type Locator, type Page } from 'playwright-core';
 
@@ -10,18 +7,23 @@ const slugs = readdirSync('src/experiments').filter(
   (slug) => existsSync(`src/experiments/${slug}/Demo.astro`) && (!only.length || only.includes(slug)),
 );
 
-// Drags the pointer across the element in a line between two points given as fractions of its size
-async function drag(page: Page, target: Locator, from: [number, number], to: [number, number]) {
+type ShareOfTarget = [x: number, y: number];
+
+async function drag(page: Page, target: Locator, from: ShareOfTarget, to: ShareOfTarget) {
   const box = (await target.boundingBox())!;
-  const at = ([x, y]: [number, number]) => [box.x + box.width * x, box.y + box.height * y] as const;
+  const at = ([x, y]: ShareOfTarget) => [box.x + box.width * x, box.y + box.height * y] as const;
   await page.mouse.move(...at(from));
   await page.mouse.down();
   await page.mouse.move(...at(to), { steps: 30 });
   await page.mouse.up();
 }
 
-// Puts a demo in a state worth showing. Returns the element to shoot when it isn't the whole demo
-const prepare: Record<string, (page: Page, demo: Locator) => Promise<Locator | void>> = {
+type ShotTarget = Locator | void;
+const GAME_OF_LIFE_RUN_MS = 12000;
+const GODOT_LOAD_MS = 15000;
+const PREVIEW_ASPECT = 10 / 16;
+
+const prepare: Record<string, (page: Page, demo: Locator) => Promise<ShotTarget>> = {
   // The emulator runs in an iframe. The third select picks a game, and the first one in the list is fine
   chip8: async (page, demo) => {
     await demo.locator('.start-button').click();
@@ -33,13 +35,13 @@ const prepare: Record<string, (page: Page, demo: Locator) => Promise<Locator | v
     await demo.locator('.start-button').click();
     await page.waitForTimeout(500);
     await demo.locator('.randomize-button').click();
-    await page.waitForTimeout(12000); // the noise settles into still lifes, blinkers and gliders
+    await page.waitForTimeout(GAME_OF_LIFE_RUN_MS);
   },
   // Needs the cross-origin isolation headers from vercel.json, so run it against the deployed site:
   // bun run previews https://lab.tommeras.no varde
   varde: async (page, demo) => {
     await demo.locator('.start-button').click();
-    await page.waitForTimeout(15000); // the Godot build loads and generates an island
+    await page.waitForTimeout(GODOT_LOAD_MS);
   },
   sand: async (page, demo) => {
     const canvas = demo.locator('canvas');
@@ -53,7 +55,6 @@ const prepare: Record<string, (page: Page, demo: Locator) => Promise<Locator | v
     await drag(page, canvas, [0.6, 0.05], [0.8, 0.15]);
     await page.waitForTimeout(6000);
   },
-  // The keyboard comes apart as the page scrolls past it, so scroll to the middle and shoot the sticky stage
   sprengskisse: async (page, demo) => {
     await page.mouse.wheel(0, 900);
     await page.waitForTimeout(1500);
@@ -61,12 +62,12 @@ const prepare: Record<string, (page: Page, demo: Locator) => Promise<Locator | v
   },
 };
 
+// playwright-core downloads no browser, so this uses the installed Chrome
 const browser = await chromium.launch({ channel: 'chrome' });
 for (const colorScheme of ['light', 'dark'] as const) {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, colorScheme });
   for (const slug of slugs) {
     await page.goto(`${base}/${slug}/`, { waitUntil: 'networkidle' });
-    // The demo is whatever Demo.astro renders between the byline and the note
     const demo = page.locator('main > .byline + :not(.note)').first();
     await demo.evaluate((element) => element.scrollIntoView({ block: 'start' }));
     await page.waitForTimeout(1000);
@@ -74,7 +75,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
     const box = (await target.boundingBox())!;
     await page.screenshot({
       path: `src/experiments/${slug}/preview-${colorScheme}.png`,
-      clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, box.width * 0.625) },
+      clip: { x: box.x, y: box.y, width: box.width, height: Math.min(box.height, box.width * PREVIEW_ASPECT) },
     });
     console.log(`${slug} ${colorScheme}`);
   }
