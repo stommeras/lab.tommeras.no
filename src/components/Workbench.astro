@@ -3,58 +3,20 @@ import type { CollectionEntry } from 'astro:content';
 import EntryMeta from './EntryMeta.astro';
 import CodeText from './CodeText.astro';
 import { sharedEntryStyle } from '../lib/shared-entry';
-import {
-  CRATE,
-  TABLE,
-  checkLayout,
-  crate,
-  draw,
-  freeSpot,
-  outline,
-  rectangle,
-  type BenchObject,
-  type Drawn,
-} from '../lib/bench';
+import { TABLE, outline, rectangle, type Drawn } from '../lib/bench';
 
 interface Props {
+  // Only the experiments on the table, newest first
   experiments: CollectionEntry<'experiments'>[];
+  // From arrange() in src/lib/workbench.ts
+  table: Map<string, Drawn>;
+  paper?: Drawn['footprint'];
   previews: Map<string, { light: string; dark: string } | undefined>;
   class?: string;
 }
 
-const { experiments, previews, class: className } = Astro.props;
-
-const benches = import.meta.glob<{ default: BenchObject }>('../experiments/*/bench.ts', { eager: true });
-const own = (id: string) => benches[`../experiments/${id}/bench.ts`]?.default;
-
-// A sketch is a line drawing on a sheet of blueprint paper, this much wider than the object on every side. The sheet
-// counts as the footprint, so other objects keep off it
-const SHEET = 4;
-const sketches = new Set(experiments.filter(({ data }) => data.status === 'skisse').map(({ id }) => id));
-const drawn = new Map<string, Drawn>();
-const place = (id: string, object: BenchObject) => {
-  const sketch = sketches.has(id);
-  const result = draw(object, sketch);
-  const [x0, y0, x1, y1] = result.footprint;
-  if (sketch) result.footprint = [x0 - SHEET, y0 - SHEET, x1 + SHEET, y1 + SHEET];
-  drawn.set(id, result);
-};
-
-// Experiments with their own object go first, so the crates fill the space that's left
-for (const { id } of experiments) {
-  const object = own(id);
-  if (object) place(id, object);
-}
-for (const { id } of experiments)
-  if (!drawn.has(id)) {
-    const pad = sketches.has(id) ? SHEET : 0;
-    const [x, y] = freeSpot(
-      [...drawn.values()].map(({ footprint }) => footprint),
-      CRATE + 2 * pad,
-    );
-    place(id, crate([x + pad, y + pad]));
-  }
-checkLayout([...drawn].map(([id, { footprint }]) => ({ id, footprint })));
+const { experiments, table: drawn, paper, previews, class: className } = Astro.props;
+const sketch = (id: string) => experiments.find((entry) => entry.id === id)?.data.status === 'skisse';
 
 // Objects further back are painted first. The list keeps the date order for screen readers and the tab order, so
 // the painter's order goes in each object's z-index instead
@@ -154,6 +116,7 @@ const sheet = ([x0, y0, x1, y1]: Drawn['footprint']) => {
     ]);
   return { faces: slab(x0, y0, x1, y1, 0, 0.3), grid, frame };
 };
+const blueprint = paper && sheet(paper);
 
 // The card opens beside the object, on the side with more room, and stays within the height of the table
 const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
@@ -175,25 +138,32 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
     ))}
     <path class="grid" d={lines(false)} />
     <path class="grid major" d={lines(true)} />
+    {
+      blueprint && (
+        <g class="sketch">
+          {blueprint.faces.map(([face, d]) => (
+            <path class={face} style="--c: var(--paper)" d={d} />
+          ))}
+          <path class="paper-grid" d={blueprint.grid} />
+          <path class="paper-line" d={blueprint.frame} />
+        </g>
+      )
+    }
   </svg>
   <ol aria-label="Eksperimenter på arbeidsbenken">
     {experiments.map(({ id, data }) => {
       const object = drawn.get(id)!;
       const [x0, y0, x1, y1] = object.footprint;
       const preview = previews.get(id);
-      const paper = sketches.has(id) && sheet(object.footprint);
       return (
         <li>
           <a href={`/${id}/`} aria-labelledby={`bench-${id}`} aria-describedby={`bench-${id}-summary`}>
             <svg
-              class:list={{ sketch: paper }}
+              class:list={{ sketch: sketch(id) }}
               viewBox={viewBox}
               aria-hidden="true"
               style={`z-index: ${rank.get(id)}`}
             >
-              {paper && paper.faces.map(([face, d]) => <path class={face} style="--c: var(--paper)" d={d} />)}
-              {paper && <path class="paper-grid" d={paper.grid} />}
-              {paper && <path class="paper-line" d={paper.frame} />}
               <path class="footprint" d={rectangle(x0 - 1, y0 - 1, x1 + 1, y1 + 1)} />
               <g class="voxels" set:html={object.markup} />
             </svg>
@@ -294,8 +264,9 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
     stroke: none;
   }
 
-  /* Blueprint paper: lavender and mint meet in blue, and the lines are light in both schemes */
-  .sketch {
+  /* Blueprint paper for the sheet and the sketches on it: lavender and mint meet in blue, and the lines are light in
+     both schemes */
+  .bench {
     --blue: color-mix(in oklch, var(--lavender) 55%, var(--mint));
     --paper: light-dark(var(--blue), color-mix(in oklch, var(--blue) 45%, var(--bg)));
     --ink: light-dark(var(--surface), var(--fg));

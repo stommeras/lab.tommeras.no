@@ -70,4 +70,4 @@ cairn([PEAK[0], PEAK[1]], [3, 3, 3, 2, 2, 2, 1, 1]);
 cairn([9, 17], [2, 1, 1]);
 cairn([7, 9], [2, 1, 1]);
 
-export default { at: [4, 4], parts } satisfies BenchObject;
+export default { parts } satisfies BenchObject;

@@ -26,4 +26,4 @@ for (let i = 0; i < POINTS; i++) {
   parts.push(box(at, [1, 1, 1], mix('var(--pink)', 'var(--lavender)', Math.round(((z + 1) / 2) * 100))));
 }
 
-export default { at: [52, 4], parts } satisfies BenchObject;
+export default { parts } satisfies BenchObject;

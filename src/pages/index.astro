@@ -6,8 +6,10 @@ import EntryMeta from '../components/EntryMeta.astro';
 import CodeText from '../components/CodeText.astro';
 import { sharedEntryStyle } from '../lib/shared-entry';
 import Workbench from '../components/Workbench.astro';
+import { arrange } from '../lib/workbench';
 
 const experiments = (await getCollection('experiments')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const { table, paper, rest } = arrange(experiments);
 
 // Screenshots from `bun run previews`, one per color scheme. An experiment without a Demo.astro has none
 const shots = import.meta.glob<{ default: ImageMetadata }>('../experiments/*/preview-*.png', { eager: true });
@@ -29,13 +31,24 @@ const previews = new Map(
 <Layout>
   <h1>Lab</h1>
   <p class="intro">Eksperimenter, skisser og ting som kanskje ikke virker enda.</p>
-  {experiments.length > 0 && <Workbench class="scene" experiments={experiments} previews={previews} />}
+  {
+    experiments.length > 0 && (
+      <Workbench
+        class="scene"
+        experiments={experiments.filter(({ id }) => table.has(id))}
+        table={table}
+        paper={paper}
+        previews={previews}
+      />
+    )
+  }
+  {rest.length > 0 && <h2 class="older">Eldre eksperimenter</h2>}
   {experiments.length ? (
     <ol class="list">
       {experiments.map(({ id, data }) => {
         const preview = previews.get(id);
         return (
-          <li>
+          <li class:list={{ 'on-bench': table.has(id) }}>
             <a href={`/${id}/`} style={sharedEntryStyle('title', id)}>
               {data.title}
             </a>
@@ -83,20 +96,33 @@ const previews = new Map(
 </script>
 
 <style>
-  /* Wide screens with a mouse get the workbench, the rest the list. Never both: the two share view-transition-name
-     values, and a duplicate name aborts the transition */
-  .scene {
+  /* Wide screens with a mouse get the workbench, and under it the list of the experiments that aren't on the table.
+     The rest get the whole list. An experiment never shows in both: the two share view-transition-name values, and a
+     duplicate name aborts the transition */
+  .scene,
+  .older {
     display: none;
   }
 
   @media (hover: hover) and (pointer: fine) and (min-width: 760px) {
-    .scene {
+    .scene,
+    .older {
       display: block;
     }
 
-    .list {
+    .list > .on-bench {
       display: none;
     }
+
+    .list {
+      margin-top: 16px;
+    }
+  }
+
+  .older {
+    margin-top: 0;
+    color: var(--muted);
+    font-size: inherit;
   }
 
   /* The titles below are the big type, so the page heading stays at body size */

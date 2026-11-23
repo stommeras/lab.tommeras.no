@@ -32,4 +32,4 @@ parts.push(
   ),
 );
 
-export default { at: [6, 44], parts } satisfies BenchObject;
+export default { parts } satisfies BenchObject;

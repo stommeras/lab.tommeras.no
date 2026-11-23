@@ -9,7 +9,6 @@ const RING = 6;
 const hue = (degrees: number) => `light-dark(oklch(60% 0.15 ${degrees}), oklch(80% 0.11 ${degrees}))`;
 
 export default {
-  at: [40, 62],
   parts: [
     ...cylinder([CENTER, CENTER], 9, 0, 1, mix('var(--muted)', 'var(--surface)', 30)),
     ...Array.from({ length: BEADS }, (_, i) => {

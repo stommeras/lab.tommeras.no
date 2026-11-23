@@ -22,4 +22,4 @@ key(1, 4, cap);
 key(2, 4, cap, 6);
 for (const col of [8, 9, 10]) key(col, 4, 'var(--lavender)');
 
-export default { at: [64, 56], parts } satisfies BenchObject;
+export default { parts } satisfies BenchObject;

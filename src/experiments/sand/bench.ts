@@ -41,4 +41,4 @@ parts.push(
   ].map(([x, y]) => box([x, y, FLOOR], [1, 1, CEILING - FLOOR], wood)),
 );
 
-export default { at: [78, 3], parts } satisfies BenchObject;
+export default { parts } satisfies BenchObject;

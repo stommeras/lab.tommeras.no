@@ -17,4 +17,4 @@ for (let x = 0; x < 2 * C; x++)
   }
 parts.push(...cylinder([C, C], 3, 2, 1, color), ...cylinder([C, C], 1.5, 3, 7, color));
 
-export default { at: [42, 30], parts } satisfies BenchObject;
+export default { parts } satisfies BenchObject;

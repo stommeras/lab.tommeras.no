@@ -1,5 +1,5 @@
-// The voxel workbench on the front page, drawn as SVG at build time. Each experiment can place an object on the table
-// in src/experiments/<slug>/bench.ts. World units are voxels: x runs right and down the screen, y left and down, z up.
+// The voxel workbench on the front page, drawn as SVG at build time. Each experiment can have an object on the table
+// in src/experiments/<slug>/bench.ts, and src/lib/workbench.ts places them. World units are voxels: x runs right and down the screen, y left and down, z up.
 // The 2:1 isometric projection maps (x, y, z) to (x - y, (x + y) / 2 - z), so a voxel's top is a diamond two units
 // wide and one tall, and a unit of height is one unit on screen.
 
@@ -14,9 +14,8 @@ export interface Cuboid {
   glass?: boolean;
 }
 
+// The workbench places each object on the table itself, so the parts only need to be right relative to each other
 export interface BenchObject {
-  // The corner of the object's own origin on the table
-  at: [x: number, y: number];
   // Later parts paint over earlier ones where they overlap
   parts: Cuboid[];
 }
@@ -61,12 +60,11 @@ export function ellipsoid(center: Vec3, radius: number | Vec3, color: string | (
 
 // A plain wooden crate, for experiments without a bench.ts
 export const CRATE = 12;
-export const crate = (at: [number, number]): BenchObject => {
+export const crate = (): BenchObject => {
   const wood = mix('var(--peach)', 'var(--surface)', 55);
   const slat = mix('var(--peach)', 'var(--muted)', 70);
   const inner = CRATE - 4;
   return {
-    at,
     // Darker boards two voxels wide along every edge, with lighter panels between them
     parts: [
       box([0, 0, 0], [CRATE, CRATE, 10], slat),
@@ -116,6 +114,8 @@ export interface Drawn {
   footprint: [x0: number, y0: number, x1: number, y1: number];
   // The bounding box on screen, in projected units
   screen: [left: number, top: number, right: number, bottom: number];
+  // In voxels above the table
+  height: number;
 }
 
 // The screen is a lattice of triangles, and every visible face covers exactly two of them. A triangle is known by its
@@ -183,14 +183,14 @@ function edges(buffer: Buffer) {
 }
 
 // With sketch, the object is drawn as a line drawing: every face in one color, with lines along its edges
-export function draw({ at: [ox, oy], parts }: BenchObject, sketch = false): Drawn {
+export function draw({ parts }: BenchObject, sketch = false): Drawn {
   const voxels = new Map<string, Voxel>();
   for (const { at, size, color, glass = false } of parts)
     for (let x = at[0]; x < at[0] + size[0]; x++)
       for (let y = at[1]; y < at[1] + size[1]; y++)
         // The table cuts off anything below it
         for (let z = Math.max(0, at[2]); z < at[2] + size[2]; z++) {
-          const key = `${ox + x},${oy + y},${z}`;
+          const key = `${x},${y},${z}`;
           if (color === 'none') voxels.delete(key);
           // A drawing has no glass or colors
           else voxels.set(key, sketch ? { color: 'var(--paper)', glass: false } : { color, glass });
@@ -270,35 +270,17 @@ export function draw({ at: [ox, oy], parts }: BenchObject, sketch = false): Draw
     Math.max(...corners.map(([sx]) => sx)),
     Math.max(...corners.map(([, sy]) => sy)),
   ] as Drawn['screen'];
-  return { markup, footprint: [x0, y0, x1, y1], screen };
+  return { markup, footprint: [x0, y0, x1, y1], screen, height: top };
 }
 
-const GAP = 2;
-
-// Fails the build when two objects share table space or one hangs off the mat. Objects keep a little mat between
-// them, so no object is drawn over one in front of it.
-export function checkLayout(objects: { id: string; footprint: Drawn['footprint'] }[]) {
-  for (const {
-    id,
-    footprint: [x0, y0, x1, y1],
-  } of objects)
-    if (x0 < GAP || y0 < GAP || x1 > TABLE.width - GAP || y1 > TABLE.depth - GAP)
-      throw new Error(`${id}'s bench object is off the mat`);
-  for (const [i, a] of objects.entries())
-    for (const b of objects.slice(i + 1))
-      if (overlaps(a.footprint, b.footprint)) throw new Error(`The bench objects of ${a.id} and ${b.id} overlap`);
+// The same drawing moved across the table
+export function moved({ markup, footprint: [x0, y0, x1, y1], screen: [l, t, r, b], height }: Drawn, dx: number, dy: number) {
+  const [sx, sy] = project(dx, dy, 0);
+  return {
+    markup: `<g transform="translate(${sx} ${sy})">${markup}</g>`,
+    footprint: [x0 + dx, y0 + dy, x1 + dx, y1 + dy],
+    screen: [l + sx, t + sy, r + sx, b + sy],
+    height,
+  } satisfies Drawn;
 }
 
-const overlaps = ([ax0, ay0, ax1, ay1]: Drawn['footprint'], [bx0, by0, bx1, by1]: Drawn['footprint'], gap = GAP) =>
-  ax0 < bx1 + gap && bx0 < ax1 + gap && ay0 < by1 + gap && by0 < ay1 + gap;
-
-// The first free spot on the mat for a crate, scanning from the front corner
-export function freeSpot(taken: Drawn['footprint'][], size = CRATE): [number, number] {
-  for (let depth = TABLE.width + TABLE.depth; depth > 0; depth--)
-    for (let x = TABLE.width - GAP - size; x >= GAP; x--) {
-      const y = depth - x;
-      if (y < GAP || y > TABLE.depth - GAP - size) continue;
-      if (!taken.some((footprint) => overlaps(footprint, [x, y, x + size, y + size], 2 * GAP))) return [x, y];
-    }
-  throw new Error('No room on the bench for another crate');
-}

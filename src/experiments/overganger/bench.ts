@@ -8,7 +8,6 @@ const heading = mix('var(--lavender)', 'var(--bg)', 70);
 const pages = [mix('var(--lavender)', paper, 40), mix('var(--pink)', paper, 30), paper];
 
 export default {
-  at: [104, 36],
   parts: [
     ...pages.map((color, i) => box([3 * i, 2 * i, i], [16, 11, 1], color)),
     // A heading and lines of text on the top page

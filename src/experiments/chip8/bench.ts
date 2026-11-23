@@ -6,7 +6,6 @@ const groove = mix('var(--muted)', 'var(--surface)', 75);
 const print = mix('var(--lavender)', 'var(--fg)', 60);
 
 export default {
-  at: [104, 6],
   parts: [
     // Standing, with the label on the side facing +y and a notch for the contacts
     box([0, 0, 0], [14, 4, 17], plastic),

@@ -30,4 +30,4 @@ for (let col = 0; col < 10; col++)
     if ((col + row) % 2) parts.push(at(col, row, 1, 1, mix('var(--muted)', 'var(--surface)', 40)));
 for (const [col, row] of [...glider, ...blinker, ...block]) parts.push(at(col, row, 2, 2, 'var(--mint)'));
 
-export default { at: [74, 26], parts } satisfies BenchObject;
+export default { parts } satisfies BenchObject;
