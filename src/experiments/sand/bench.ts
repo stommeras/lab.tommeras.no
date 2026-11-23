@@ -5,7 +5,7 @@ const sand = 'var(--peach)';
 const layers = [sand, mix('var(--peach)', 'var(--pink)', 55), mix('var(--peach)', 'var(--surface)', 60), sand];
 
 export default {
-  at: [40, 32],
+  at: [78, 3],
   parts: [
     ...cylinder([9, 9], 8, 0, 20, mix('var(--mint)', 'var(--surface)', 25), true),
     ...cylinder([9, 9], 6.8, 1, 19, 'none'),
