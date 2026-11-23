@@ -58,6 +58,7 @@ const previews = new Map(
               <svg
                 class:list={{ sketch: data.status === 'skisse' }}
                 viewBox={fit(alone.get(id)!)}
+                preserveAspectRatio="xMidYMax meet"
                 set:html={alone.get(id)!.markup}
               />
             </a>
@@ -158,7 +159,8 @@ const previews = new Map(
     display: grid;
     grid-template-columns: 88px minmax(0, 1fr);
     column-gap: 16px;
-    align-items: center;
+    /* The object and the title stand on the same line, so a short title sits right above its caption */
+    align-items: end;
   }
 
   .art {
@@ -207,12 +209,12 @@ const previews = new Map(
   /* Touch screens get the caption under the object and the title, across the whole row, and no picture */
   @media not ((hover: hover) and (pointer: fine)) {
     li {
-      padding-bottom: 20px;
+      padding-bottom: 40px;
     }
 
     .card {
       grid-column: 1 / -1;
-      margin-top: 8px;
+      margin-top: 4px;
     }
 
     picture {
