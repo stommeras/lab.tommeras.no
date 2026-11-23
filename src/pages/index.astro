@@ -1,66 +1,228 @@
 ---
 import { getCollection } from 'astro:content';
+import { getImage } from 'astro:assets';
 import Layout from '../layouts/Layout.astro';
 import EntryMeta from '../components/EntryMeta.astro';
 import CodeText from '../components/CodeText.astro';
 import { sharedEntryStyle } from '../lib/shared-entry';
-import LifeBackdrop from '../components/LifeBackdrop.astro';
+import Workbench from '../components/Workbench.astro';
 
 const experiments = (await getCollection('experiments')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+// Screenshots from `bun run previews`, one per color scheme. An experiment without a Demo.astro has none
+const shots = import.meta.glob<{ default: ImageMetadata }>('../experiments/*/preview-*.png', { eager: true });
+const shot = (id: string, scheme: 'light' | 'dark') => shots[`../experiments/${id}/preview-${scheme}.png`]?.default;
+const previews = new Map(
+  await Promise.all(
+    experiments.map(async ({ id }) => {
+      const light = shot(id, 'light');
+      const dark = shot(id, 'dark');
+      if (!light || !dark) return [id, undefined] as const;
+      // Twice the 320 px the card shows them at
+      const [l, d] = await Promise.all([light, dark].map((src) => getImage({ src, width: 640, format: 'webp' })));
+      return [id, { light: l.src, dark: d.src }] as const;
+    }),
+  ),
+);
 ---
 
 <Layout>
-  <LifeBackdrop />
   <h1>Lab</h1>
   <p class="intro">Eksperimenter, skisser og ting som kanskje ikke virker enda.</p>
+  {experiments.length > 0 && <Workbench class="scene" experiments={experiments} previews={previews} />}
   {experiments.length ? (
-    <ol>
-      {experiments.map(({ id, data }) => (
-        <li>
-          <a href={`/${id}/`} style={sharedEntryStyle('title', id)}>
-            {data.title}
-          </a>
-          <EntryMeta id={id} data={data} />
-          <p>
-            <CodeText text={data.summary} />
-          </p>
-        </li>
-      ))}
+    <ol class="list">
+      {experiments.map(({ id, data }) => {
+        const preview = previews.get(id);
+        return (
+          <li>
+            <a href={`/${id}/`} style={sharedEntryStyle('title', id)}>
+              {data.title}
+            </a>
+            <div class="card">
+              {preview && (
+                <picture>
+                  <source media="(prefers-color-scheme: dark)" srcset={preview.dark} />
+                  <img src={preview.light} alt="" width="320" height="200" loading="lazy" decoding="async" />
+                </picture>
+              )}
+              <div class="caption">
+                <EntryMeta id={id} data={data} />
+                <p>
+                  <CodeText text={data.summary} />
+                </p>
+              </div>
+            </div>
+          </li>
+        );
+      })}
     </ol>
   ) : (
     <p class="intro">Ingen eksperimenter enda.</p>
   )}
 </Layout>
 
+<script>
+  // The card follows the pointer over its row. It flips to the left of the pointer near the right edge of the window
+  const GAP = 32;
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+
+  for (const row of document.querySelectorAll<HTMLElement>('.list > li')) {
+    const card = row.querySelector<HTMLElement>('.card')!;
+    row.addEventListener('pointermove', (event) => {
+      if (still.matches || event.pointerType !== 'mouse') return;
+      const box = row.getBoundingClientRect();
+      const left = event.clientX + GAP + card.offsetWidth > innerWidth - 16;
+      const x = event.clientX - box.left + (left ? -GAP - card.offsetWidth : GAP);
+      row.style.setProperty('--x', `${x}px`);
+      row.style.setProperty('--y', `${event.clientY - box.top}px`);
+      row.dataset.follow = '';
+    });
+    row.addEventListener('pointerleave', () => delete row.dataset.follow);
+  }
+</script>
+
 <style>
+  /* Wide screens with a mouse get the workbench, the rest the list. Never both: the two share view-transition-name
+     values, and a duplicate name aborts the transition */
+  .scene {
+    display: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) and (min-width: 760px) {
+    .scene {
+      display: block;
+    }
+
+    .list {
+      display: none;
+    }
+  }
+
+  /* The titles below are the big type, so the page heading stays at body size */
   h1 {
-    font-size: 2rem;
+    font-size: inherit;
   }
 
   .intro {
-    margin-top: 1em;
-  }
-
-  .intro,
-  li p {
     color: var(--muted);
   }
 
   ol {
-    margin-top: 32px;
+    margin-top: 48px;
     padding: 0;
     list-style: none;
   }
 
   li {
-    display: grid;
-    gap: 4px;
-    justify-items: start;
-    padding: 16px 0;
-    border-top: 1px solid var(--line);
+    position: relative;
   }
 
   li > a {
+    display: inline-block;
+    padding: 4px 0;
+    font-size: clamp(1.5rem, 0.9rem + 3.2cqi, 2.625rem);
     font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    text-decoration-color: transparent;
+    transition:
+      opacity 0.2s,
+      text-decoration-color 0.2s;
+  }
+
+  /* One title at a time: the hovered or focused one stays, the rest step back */
+  ol:has(li:is(:hover, :focus-within)) li:not(:hover, :focus-within) > a {
+    opacity: 0.35;
+  }
+
+  li > a:is(:hover, :focus-visible) {
+    color: var(--fg);
+    text-decoration-color: var(--pink);
+  }
+
+  .caption {
+    display: grid;
+    gap: 4px;
+  }
+
+  .caption p {
+    color: var(--muted);
+  }
+
+  /* Touch screens get the caption under the title and no picture */
+  @media not ((hover: hover) and (pointer: fine)) {
+    li {
+      padding-bottom: 20px;
+    }
+
+    picture {
+      display: none;
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .card {
+      position: absolute;
+      z-index: 1;
+      /* Without a pointer position (keyboard focus, reduced motion) the card sits at the right end of the row */
+      top: 50%;
+      right: 0;
+      width: 320px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: 0 12px 32px -12px light-dark(rgb(42 38 56 / 0.35), rgb(0 0 0 / 0.6));
+      font-size: 0.875rem;
+      line-height: 1.5;
+      opacity: 0;
+      visibility: hidden;
+      translate: 0 -50%;
+      scale: 0.96;
+      pointer-events: none;
+      transition:
+        opacity 0.15s,
+        scale 0.15s,
+        visibility 0s 0.15s;
+    }
+
+    li[data-follow] .card {
+      top: var(--y);
+      right: auto;
+      left: var(--x);
+    }
+
+    li:is(:hover, :focus-within) .card {
+      opacity: 1;
+      visibility: visible;
+      scale: 1;
+      transition:
+        opacity 0.15s,
+        scale 0.15s;
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .caption {
+      padding: 12px 14px 14px;
+    }
+
+    /* The meta's tags sit on the right in the article byline. In the narrow card they wrap under */
+    .caption :global(.tags) {
+      margin-left: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    li > a,
+    .card {
+      transition: none !important;
+    }
   }
 </style>
