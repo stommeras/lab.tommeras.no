@@ -146,13 +146,17 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
 </section>
 
 <script>
-  // Clicking a part does the same as clicking its label. The parts are inside aria-hidden, so they can't be
-  // buttons themselves.
+  // Clicking a part toggles its caption, like clicking its label. The parts are inside aria-hidden, so they
+  // can't be buttons themselves. A click on a part counts as outside the caption, so light dismiss has already
+  // closed an open caption by the time the click fires. pointerdown records whether it was open first.
   for (const layer of document.querySelectorAll<HTMLElement>('.sprengskisse .layer')) {
+    const about = document.getElementById(`sprengskisse-${layer.dataset.part}`);
+    let wasOpen = false;
+    layer.addEventListener('pointerdown', () => {
+      wasOpen = !!about?.matches(':popover-open');
+    });
     layer.addEventListener('click', () => {
-      document
-        .querySelector<HTMLButtonElement>(`.sprengskisse .label[data-part='${layer.dataset.part}'] button`)
-        ?.click();
+      if (!wasOpen && !about?.matches(':popover-open')) about?.showPopover();
     });
   }
 </script>
@@ -784,23 +788,19 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
       position: static;
       translate: none;
     }
-
-    .label::before {
-      content: none;
-    }
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .sprengskisse {
-      height: 300vh;
-    }
-
-    .stage {
-      position: sticky;
-      top: 15vh;
-    }
-
     @supports (animation-timeline: view()) {
+      .sprengskisse {
+        height: 300vh;
+      }
+
+      .stage {
+        position: sticky;
+        top: 15vh;
+      }
+
       .stage,
       .label {
         animation-timing-function: linear;
@@ -809,7 +809,6 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
         animation-range: contain 0% contain 100%;
       }
 
-      /* The timing function applies to each step between keyframes, so every phase eases in and out */
       .toggle {
         display: none;
       }
@@ -821,6 +820,7 @@ const gridLayers = new Set(['pcb', 'plate', 'stabilizers', 'switches', 'keycaps'
         animation-range: contain 0% contain 100%;
       }
 
+      /* The timing function applies to each step between keyframes, so every phase eases in and out */
       .stage {
         animation-name: explode;
         animation-timing-function: ease-in-out;

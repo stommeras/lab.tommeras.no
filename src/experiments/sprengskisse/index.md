@@ -13,6 +13,6 @@ Gjenstanden er et mekanisk tastatur med norsk oppsett. Når du scroller, vipper 
 
 Lagene er vanlige elementer i CSS 3D med `transform-style: preserve-3d`, og hver tast er en egen `div`. Merkelappene bruker anchor positioning, så de henger fast på sin del uten at JavaScript regner ut noen posisjoner.
 
-Det jeg ikke visste: Chrome følger et anchor gjennom 3D-transforms, men tar ikke med `perspective`. Med perspektiv drev merkelappene opptil 15 piksler bort fra delen sin når lagene gled fra hverandre. Uten perspektiv sitter de helt presist, så tastaturet er tegnet ortografisk, sånn som en sprengskisse i en bruksanvisning uansett pleier å være.
+Det jeg ikke visste, er at Chrome følger et anchor gjennom 3D-transforms, men tar ikke med `perspective`. Med perspektiv drev merkelappene opptil 15 piksler bort fra delen sin når lagene gled fra hverandre. Uten perspektiv sitter de helt presist, så tastaturet er tegnet ortografisk, sånn som en sprengskisse i en bruksanvisning uansett pleier å være.
 
 Med redusert bevegelse står tastaturet ferdig delt opp, og du klikker på Sett sammen for å se det samlet. Firefox 157 har anchor positioning, men plasserer et anchor etter boksen før transformen, så alle merkelappene havner på samme sted. Der, og i nettlesere uten anchor positioning, blir merkelappene en forklaring under tastaturet.
