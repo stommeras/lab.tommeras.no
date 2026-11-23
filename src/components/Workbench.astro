@@ -20,9 +20,11 @@ const { experiments, table: drawn, paper, previews, class: className } = Astro.p
 const sketch = (id: string) => experiments.find((entry) => entry.id === id)?.data.status === 'skisse';
 
 // Objects further back are painted first. The list keeps the date order for screen readers and the tab order, so
-// the painter's order goes in each object's z-index instead
-const center = ({ footprint: [x0, y0, x1, y1] }: Drawn) => x0 + x1 + y0 + y1;
-const rank = new Map([...drawn].sort(([, a], [, b]) => center(a) - center(b)).map(([id], i) => [id, i + 1]));
+// the painter's order goes in each object's z-index instead. The objects stand in rows along x, so an object in a row
+// further forward has its whole footprint in front, and row-mates overlap in y and go by x
+const behind = ({ footprint: a }: Drawn, { footprint: b }: Drawn) =>
+  a[3] <= b[1] ? -1 : b[3] <= a[1] ? 1 : a[0] - b[0];
+const rank = new Map([...drawn].sort(([, a], [, b]) => behind(a, b)).map(([id], i) => [id, i + 1]));
 
 const { width: W, depth: D, thickness: T } = TABLE;
 // The wooden table top under the mat: how far it reaches past the mat, how thick it is, and how wide its boards are
@@ -139,17 +141,15 @@ const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
     ))}
     <path class="grid" d={lines(false)} />
     <path class="grid major" d={lines(true)} />
-    {
-      blueprint && (
-        <g class="sketch">
-          {blueprint.faces.map(([face, d]) => (
-            <path class={face} style="--c: var(--paper)" d={d} />
-          ))}
-          <path class="paper-grid" d={blueprint.grid} />
-          <path class="paper-line" d={blueprint.frame} />
-        </g>
-      )
-    }
+    {blueprint && (
+      <g class="sketch">
+        {blueprint.faces.map(([face, d]) => (
+          <path class={face} style="--c: var(--paper)" d={d} />
+        ))}
+        <path class="paper-grid" d={blueprint.grid} />
+        <path class="paper-line" d={blueprint.frame} />
+      </g>
+    )}
   </svg>
   <ol aria-label="Eksperimenter på arbeidsbenken">
     {experiments.map(({ id, data }) => {

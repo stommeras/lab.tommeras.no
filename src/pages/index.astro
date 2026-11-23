@@ -35,17 +35,15 @@ const previews = new Map(
 <Layout>
   <h1>Lab</h1>
   <p class="intro">Eksperimenter, skisser og ting som kanskje ikke virker enda.</p>
-  {
-    experiments.length > 0 && (
-      <Workbench
-        class="scene"
-        experiments={experiments.filter(({ id }) => table.has(id))}
-        table={table}
-        paper={paper}
-        previews={previews}
-      />
-    )
-  }
+  {experiments.length > 0 && (
+    <Workbench
+      class="scene"
+      experiments={experiments.filter(({ id }) => table.has(id))}
+      table={table}
+      paper={paper}
+      previews={previews}
+    />
+  )}
   {rest.length > 0 && <h2 class="older">Eldre eksperimenter</h2>}
   {experiments.length ? (
     <ol class="list">
@@ -62,7 +60,13 @@ const previews = new Map(
                 set:html={alone.get(id)!.markup}
               />
             </a>
-            <a class="title" href={`/${id}/`} style={sharedEntryStyle('title', id)}>
+            {/* On a desktop the caption is in a hidden card, which screen readers skip unless the link points at it */}
+            <a
+              class="title"
+              href={`/${id}/`}
+              style={sharedEntryStyle('title', id)}
+              aria-describedby={`list-${id}-caption`}
+            >
               {data.title}
             </a>
             <div class="card">
@@ -72,7 +76,7 @@ const previews = new Map(
                   <img src={preview.light} alt="" width="320" height="200" loading="lazy" decoding="async" />
                 </picture>
               )}
-              <div class="caption">
+              <div class="caption" id={`list-${id}-caption`}>
                 <EntryMeta id={id} data={data} />
                 <p>
                   <CodeText text={data.summary} />
@@ -277,6 +281,11 @@ const previews = new Map(
     /* The meta's tags sit on the right in the article byline. In the narrow card they wrap under */
     .caption :global(.tags) {
       margin-left: 0;
+    }
+
+    /* Only the open card's meta takes part in the view transition, like on the workbench */
+    li:not(:hover, :focus-within) .caption :global(.meta) {
+      view-transition-name: none !important;
     }
   }
 

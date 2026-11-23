@@ -3,7 +3,10 @@
   /* The mat and the table, which some objects take their colors from */
   --mat: light-dark(color-mix(in oklch, var(--mint) 55%, var(--bg)), color-mix(in oklch, var(--mint) 30%, var(--bg)));
   --grid: color-mix(in oklch, var(--mint) 25%, var(--surface));
-  --wood: light-dark(color-mix(in oklch, var(--peach) 45%, var(--surface)), color-mix(in oklch, var(--peach) 35%, var(--bg)));
+  --wood: light-dark(
+    color-mix(in oklch, var(--peach) 45%, var(--surface)),
+    color-mix(in oklch, var(--peach) 35%, var(--bg))
+  );
   /* Blueprint paper for sketches: lavender and mint meet in blue, and the lines are light in both schemes */
   --blue: color-mix(in oklch, var(--lavender) 55%, var(--mint));
   --paper: light-dark(var(--blue), color-mix(in oklch, var(--blue) 45%, var(--bg)));

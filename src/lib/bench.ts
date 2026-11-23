@@ -250,8 +250,7 @@ export function draw({ parts }: BenchObject, sketch = false): Drawn {
       ],
     ] as const;
     for (const [face, plane, isHidden, triangles] of faces)
-      if (!isHidden)
-        for (const [c, t] of triangles) paint(buffer, c, t, { depth, face, color: voxel.color, plane });
+      if (!isHidden) for (const [c, t] of triangles) paint(buffer, c, t, { depth, face, color: voxel.color, plane });
   }
 
   // Glass shows only where it's in front of the solid voxels
@@ -274,7 +273,11 @@ export function draw({ parts }: BenchObject, sketch = false): Drawn {
 }
 
 // The same drawing moved across the table
-export function moved({ markup, footprint: [x0, y0, x1, y1], screen: [l, t, r, b], height }: Drawn, dx: number, dy: number) {
+export function moved(
+  { markup, footprint: [x0, y0, x1, y1], screen: [l, t, r, b], height }: Drawn,
+  dx: number,
+  dy: number,
+) {
   const [sx, sy] = project(dx, dy, 0);
   return {
     markup: `<g transform="translate(${sx} ${sy})">${markup}</g>`,
@@ -283,4 +286,3 @@ export function moved({ markup, footprint: [x0, y0, x1, y1], screen: [l, t, r, b
     height,
   } satisfies Drawn;
 }
-
