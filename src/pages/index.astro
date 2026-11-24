@@ -1,66 +1,299 @@
 ---
 import { getCollection } from 'astro:content';
+import { getImage } from 'astro:assets';
 import Layout from '../layouts/Layout.astro';
 import EntryMeta from '../components/EntryMeta.astro';
 import CodeText from '../components/CodeText.astro';
 import { sharedEntryStyle } from '../lib/shared-entry';
-import LifeBackdrop from '../components/LifeBackdrop.astro';
+import Workbench from '../components/Workbench.astro';
+import { arrange, symbolId } from '../lib/workbench';
+import type { Drawn } from '../lib/bench';
+import '../styles/voxels.css';
 
 const experiments = (await getCollection('experiments')).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+const { table, paper, alone, rest } = arrange(experiments);
+const fit = ({ screen: [l, t, r, b] }: Drawn) => `${l - 1} ${t - 1} ${r - l + 2} ${b - t + 2}`;
+
+const CARD_WIDTH = 320;
+const shots = import.meta.glob<{ default: ImageMetadata }>('../experiments/*/preview-*.png', { eager: true });
+const shot = (id: string, scheme: 'light' | 'dark') => shots[`../experiments/${id}/preview-${scheme}.png`]?.default;
+const previews = new Map(
+  await Promise.all(
+    experiments.map(async ({ id }) => {
+      const light = shot(id, 'light');
+      const dark = shot(id, 'dark');
+      if (!light || !dark) return [id, undefined] as const;
+      const [l, d] = await Promise.all(
+        [light, dark].map((src) => getImage({ src, width: 2 * CARD_WIDTH, format: 'webp' })),
+      );
+      return [id, { light: l.src, dark: d.src }] as const;
+    }),
+  ),
+);
 ---
 
 <Layout>
-  <LifeBackdrop />
   <h1>Lab</h1>
   <p class="intro">Eksperimenter, skisser og ting som kanskje ikke virker enda.</p>
-  {experiments.length ? (
-    <ol>
+  <svg class="defs voxel-art" aria-hidden="true">
+    <defs>
       {experiments.map(({ id, data }) => (
-        <li>
-          <a href={`/${id}/`} style={sharedEntryStyle('title', id)}>
-            {data.title}
-          </a>
-          <EntryMeta id={id} data={data} />
-          <p>
-            <CodeText text={data.summary} />
-          </p>
-        </li>
+        <g id={symbolId(id)} class:list={{ sketch: data.status === 'skisse' }} set:html={alone.get(id)!.markup} />
       ))}
+    </defs>
+  </svg>
+  {experiments.length > 0 && (
+    <Workbench
+      class="scene"
+      experiments={experiments.filter(({ id }) => table.has(id))}
+      table={table}
+      paper={paper}
+      previews={previews}
+    />
+  )}
+  {rest.length > 0 && <h2 class="older">Eldre eksperimenter</h2>}
+  {experiments.length ? (
+    <ol class="list" style={`--card-width: ${CARD_WIDTH}px`}>
+      {experiments.map(({ id, data }) => {
+        const preview = previews.get(id);
+        return (
+          <li class:list={{ 'on-bench': table.has(id) }}>
+            {/* Outside the title's link, or the view transition would carry the object into the page heading */}
+            <a class="art voxel-art" href={`/${id}/`} tabindex="-1" aria-hidden="true">
+              <svg
+                class:list={{ sketch: data.status === 'skisse' }}
+                viewBox={fit(alone.get(id)!)}
+                preserveAspectRatio="xMidYMax meet"
+              >
+                <use href={`#${symbolId(id)}`} />
+              </svg>
+            </a>
+            <a class="title" href={`/${id}/`} style={sharedEntryStyle('title', id)}>
+              {data.title}
+            </a>
+            <div class="card">
+              {preview && (
+                <picture>
+                  <source media="(prefers-color-scheme: dark)" srcset={preview.dark} />
+                  <img
+                    src={preview.light}
+                    alt=""
+                    width={CARD_WIDTH}
+                    height={(CARD_WIDTH * 10) / 16}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </picture>
+              )}
+              <div class="caption">
+                <EntryMeta id={id} data={data} />
+                <p>
+                  <CodeText text={data.summary} />
+                </p>
+              </div>
+            </div>
+          </li>
+        );
+      })}
     </ol>
   ) : (
     <p class="intro">Ingen eksperimenter enda.</p>
   )}
 </Layout>
 
+<script>
+  const POINTER_GAP = 32;
+  const WINDOW_GUTTER = 16;
+  const still = matchMedia('(prefers-reduced-motion: reduce)');
+
+  for (const row of document.querySelectorAll<HTMLElement>('.list > li')) {
+    const card = row.querySelector<HTMLElement>('.card')!;
+    row.addEventListener('pointermove', (event) => {
+      if (still.matches || event.pointerType !== 'mouse') return;
+      const box = row.getBoundingClientRect();
+      const left = event.clientX + POINTER_GAP + card.offsetWidth > innerWidth - WINDOW_GUTTER;
+      const x = event.clientX - box.left + (left ? -POINTER_GAP - card.offsetWidth : POINTER_GAP);
+      row.style.setProperty('--x', `${x}px`);
+      row.style.setProperty('--y', `${event.clientY - box.top}px`);
+      row.dataset.follow = '';
+    });
+    row.addEventListener('pointerleave', () => delete row.dataset.follow);
+  }
+</script>
+
 <style>
+  /* An experiment never shows on both the workbench and the list, because they share view-transition-name values and
+     a duplicate name aborts the transition */
+  :global(.scene),
+  .older {
+    display: none;
+  }
+
+  .defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+  }
+
+  @media (hover: hover) and (pointer: fine) and (min-width: 760px) {
+    :global(.scene),
+    .older {
+      display: block;
+    }
+
+    .list > .on-bench {
+      display: none;
+    }
+
+    .list {
+      margin-top: 16px;
+    }
+  }
+
+  .older {
+    margin-top: 0;
+    color: var(--muted);
+    font-size: inherit;
+  }
+
   h1 {
-    font-size: 2rem;
+    font-size: inherit;
   }
 
   .intro {
-    margin-top: 1em;
-  }
-
-  .intro,
-  li p {
     color: var(--muted);
   }
 
   ol {
-    margin-top: 32px;
+    margin-top: 48px;
     padding: 0;
     list-style: none;
   }
 
   li {
+    position: relative;
     display: grid;
-    gap: 4px;
-    justify-items: start;
-    padding: 16px 0;
-    border-top: 1px solid var(--line);
+    grid-template-columns: 88px minmax(0, 1fr);
+    column-gap: 16px;
+    align-items: end;
   }
 
-  li > a {
+  .art {
+    height: 72px;
+  }
+
+  .art svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  li > .title {
+    justify-self: start;
+    display: inline-block;
+    padding: 4px 0;
+    font-size: clamp(1.5rem, 0.9rem + 3.2cqi, 2.625rem);
     font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    text-decoration-color: transparent;
+    transition:
+      opacity 0.2s,
+      text-decoration-color 0.2s;
+  }
+
+  ol:has(li:is(:hover, :focus-within)) li:not(:hover, :focus-within) > a {
+    opacity: 0.35;
+  }
+
+  li > .title:is(:hover, :focus-visible) {
+    color: var(--fg);
+    text-decoration-color: var(--pink);
+  }
+
+  .caption {
+    display: grid;
+    gap: 4px;
+  }
+
+  .caption p {
+    color: var(--muted);
+  }
+
+  @media not ((hover: hover) and (pointer: fine)) {
+    li {
+      padding-bottom: 40px;
+    }
+
+    .card {
+      grid-column: 1 / -1;
+      margin-top: 4px;
+    }
+
+    picture {
+      display: none;
+    }
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .card {
+      position: absolute;
+      z-index: 1;
+      top: 50%;
+      right: 0;
+      width: var(--card-width);
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: 0 12px 32px -12px light-dark(rgb(42 38 56 / 0.35), rgb(0 0 0 / 0.6));
+      font-size: 0.875rem;
+      line-height: 1.5;
+      /* Only transparent, not visibility: hidden, so screen readers read the caption in its place on every device */
+      opacity: 0;
+      translate: 0 -50%;
+      scale: 0.96;
+      pointer-events: none;
+      transition:
+        opacity 0.15s,
+        scale 0.15s;
+    }
+
+    li[data-follow] .card {
+      top: var(--y);
+      right: auto;
+      left: var(--x);
+    }
+
+    li:is(:hover, :focus-within) .card {
+      opacity: 1;
+      scale: 1;
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .caption {
+      padding: 12px 14px 14px;
+    }
+
+    .caption :global(.tags) {
+      margin-left: 0;
+    }
+
+    li:not(:hover, :focus-within) .caption :global(.meta) {
+      view-transition-name: none !important;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    li > .title,
+    .card {
+      transition: none !important;
+    }
   }
 </style>

@@ -1,0 +1,343 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import EntryMeta from './EntryMeta.astro';
+import CodeText from './CodeText.astro';
+import { sharedEntryStyle } from '../lib/shared-entry';
+import '../styles/voxels.css';
+import { TABLE, outline, rectangle, type Drawn } from '../lib/bench';
+
+interface Props {
+  // Only the experiments on the table, newest first
+  experiments: CollectionEntry<'experiments'>[];
+  table: Map<string, Drawn>;
+  paper?: Drawn['footprint'];
+  previews: Map<string, { light: string; dark: string } | undefined>;
+  class?: string;
+}
+
+const { experiments, table: drawn, paper, previews, class: className } = Astro.props;
+
+const backToFront = ({ footprint: a }: Drawn, { footprint: b }: Drawn) =>
+  a[3] <= b[1] ? -1 : b[3] <= a[1] ? 1 : a[0] - b[0];
+const paintOrder = new Map([...drawn].sort(([, a], [, b]) => backToFront(a, b)).map(([id], i) => [id, i + 1]));
+
+const { width: W, depth: D, thickness: T } = TABLE;
+const WOOD = { margin: 5, thickness: 5, board: 8 };
+const M = WOOD.margin;
+const bottom = -T - WOOD.thickness;
+
+const LIFT = 3;
+const left = -D - 2 * M - 1;
+const width = W + D + 4 * M + 2;
+const top = Math.min(-M - 1, ...[...drawn.values()].map(({ screen }) => screen[1])) - LIFT - 1;
+const height = (W + D) / 2 + M - bottom + 1 - top;
+const viewBox = `${left} ${top} ${width} ${height}`;
+
+const slab = (x0: number, y0: number, x1: number, y1: number, z: number, thickness: number) => [
+  [
+    'y',
+    outline([
+      [x0, y1, z],
+      [x1, y1, z],
+      [x1, y1, z - thickness],
+      [x0, y1, z - thickness],
+    ]),
+  ],
+  [
+    'x',
+    outline([
+      [x1, y0, z],
+      [x1, y1, z],
+      [x1, y1, z - thickness],
+      [x1, y0, z - thickness],
+    ]),
+  ],
+  ['t', rectangle(x0, y0, x1, y1, z)],
+];
+const table = slab(-M, -M, W + M, D + M, -T, WOOD.thickness);
+const mat = slab(0, 0, W, D, 0, T);
+let seams = '';
+for (let y = -M + WOOD.board; y < D + M; y += WOOD.board)
+  seams +=
+    outline([
+      [-M, y, -T],
+      [W + M, y, -T],
+    ]) +
+    outline([
+      [W + M, y, -T],
+      [W + M, y, bottom],
+    ]);
+const BORDER = 2;
+const lines = (major: boolean) => {
+  const keep = (i: number) => (major ? (i - BORDER) % 10 === 0 : (i - BORDER) % 2 === 0 && (i - BORDER) % 10 !== 0);
+  let d = '';
+  for (let x = BORDER; x <= W - BORDER; x++)
+    if (keep(x))
+      d += outline([
+        [x, BORDER, 0],
+        [x, D - BORDER, 0],
+      ]);
+  for (let y = BORDER; y <= D - BORDER; y++)
+    if (keep(y))
+      d += outline([
+        [BORDER, y, 0],
+        [W - BORDER, y, 0],
+      ]);
+  return d;
+};
+
+const sheet = ([x0, y0, x1, y1]: Drawn['footprint']) => {
+  let grid = '';
+  for (let x = x0 + 2; x < x1 - 1; x += 2)
+    grid += outline([
+      [x, y0 + 1, 0],
+      [x, y1 - 1, 0],
+    ]);
+  for (let y = y0 + 2; y < y1 - 1; y += 2)
+    grid += outline([
+      [x0 + 1, y, 0],
+      [x1 - 1, y, 0],
+    ]);
+  const frame =
+    rectangle(x0 + 1, y0 + 1, x1 - 1, y1 - 1) +
+    rectangle(x0 + 1, y1 - 4, x0 + 10, y1 - 1) +
+    outline([
+      [x0 + 1, y1 - 2.5, 0],
+      [x0 + 10, y1 - 2.5, 0],
+    ]);
+  return { faces: slab(x0, y0, x1, y1, 0, 0.3), grid, frame };
+};
+const blueprint = paper && sheet(paper);
+
+const CARD_CENTER = { min: 0.38, max: 0.62 };
+const card = ({ screen: [sx0, sy0, sx1, sy1] }: Drawn) => {
+  const right = (sx0 + sx1) / 2 < left + width / 2;
+  const x = ((right ? sx1 + 1 : sx0 - 1) - left) / width;
+  const y = Math.min(CARD_CENTER.max, Math.max(CARD_CENTER.min, ((sy0 + sy1) / 2 - top) / height));
+  return `--x: ${(x * 100).toFixed(2)}%; --y: ${(y * 100).toFixed(2)}%; --side: ${right ? 0 : -100}%`;
+};
+---
+
+<div class:list={['bench', 'voxel-art', className]} style={`aspect-ratio: ${width} / ${height}; --lift: ${LIFT}px`}>
+  <svg class="mat" viewBox={viewBox} aria-hidden="true">
+    {table.map(([face, d]) => (
+      <path class={face} style="--c: var(--wood)" d={d} />
+    ))}
+    <path class="seams" d={seams} />
+    {mat.map(([face, d]) => (
+      <path class={face} style="--c: var(--mat)" d={d} />
+    ))}
+    <path class="grid" d={lines(false)} />
+    <path class="grid major" d={lines(true)} />
+    {blueprint && (
+      <g class="sketch">
+        {blueprint.faces.map(([face, d]) => (
+          <path class={face} style="--c: var(--paper)" d={d} />
+        ))}
+        <path class="paper-grid" d={blueprint.grid} />
+        <path class="paper-line" d={blueprint.frame} />
+      </g>
+    )}
+  </svg>
+  <ol aria-label="Eksperimenter på arbeidsbenken">
+    {experiments.map(({ id, data }) => {
+      const object = drawn.get(id)!;
+      const [x0, y0, x1, y1] = object.footprint;
+      const preview = previews.get(id);
+      return (
+        <li>
+          <a href={`/${id}/`} aria-labelledby={`bench-${id}`} aria-describedby={`bench-${id}-summary`}>
+            <svg
+              class:list={{ sketch: data.status === 'skisse' }}
+              viewBox={viewBox}
+              aria-hidden="true"
+              style={`z-index: ${paintOrder.get(id)}`}
+            >
+              <path class="footprint" d={rectangle(x0 - 1, y0 - 1, x1 + 1, y1 + 1)} />
+              <g class="voxels" set:html={object.markup} />
+            </svg>
+            <div class="card" style={card(object)}>
+              {preview && (
+                <picture>
+                  <source media="(prefers-color-scheme: dark)" srcset={preview.dark} />
+                  <img src={preview.light} alt="" width="300" height="188" loading="lazy" decoding="async" />
+                </picture>
+              )}
+              <div class="caption">
+                <span class="title" id={`bench-${id}`} style={sharedEntryStyle('title', id)}>
+                  {data.title}
+                </span>
+                <EntryMeta id={id} data={data} />
+                <p id={`bench-${id}-summary`}>
+                  <CodeText text={data.summary} />
+                </p>
+              </div>
+            </div>
+          </a>
+        </li>
+      );
+    })}
+  </ol>
+</div>
+
+<style>
+  .bench {
+    position: relative;
+    isolation: isolate;
+    /* cqi leaves out the scrollbar, which vw includes */
+    --width: min(1200px, 100cqi - 32px);
+    width: var(--width);
+    margin: 32px 0 48px calc(50% - var(--width) / 2);
+  }
+
+  .mat {
+    filter: drop-shadow(
+        0 10px 8px light-dark(rgb(42 38 56 / 0.18), color-mix(in oklch, var(--lavender) 12%, transparent))
+      )
+      drop-shadow(0 36px 32px light-dark(rgb(42 38 56 / 0.2), color-mix(in oklch, var(--lavender) 16%, transparent)));
+  }
+
+  .seams {
+    fill: none;
+    stroke: color-mix(in oklch, var(--wood), black 22%);
+    stroke-width: 0.15;
+  }
+
+  svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+  }
+
+  .grid {
+    fill: none;
+    stroke: var(--grid);
+    stroke-width: 0.04;
+    opacity: 0.6;
+  }
+
+  .grid.major {
+    stroke-width: 0.2;
+  }
+
+  ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  a :global(:is(.voxels path, .footprint)) {
+    pointer-events: visiblePainted;
+    cursor: pointer;
+  }
+
+  a:focus-visible {
+    outline: none;
+  }
+
+  .footprint {
+    fill: color-mix(in oklch, var(--pink) 30%, transparent);
+    stroke: var(--pink);
+    stroke-width: 0.3;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .voxels {
+    transition: translate 0.2s ease-out;
+  }
+
+  a:is(:hover, :focus-visible) .footprint {
+    opacity: 1;
+  }
+
+  a:is(:hover, :focus-visible) .voxels {
+    translate: 0 calc(-1 * var(--lift));
+  }
+
+  .card {
+    position: absolute;
+    z-index: 99;
+    top: var(--y);
+    left: var(--x);
+    width: 300px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    box-shadow: 0 12px 32px -12px light-dark(rgb(42 38 56 / 0.35), rgb(0 0 0 / 0.6));
+    color: var(--fg);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    opacity: 0;
+    visibility: hidden;
+    translate: var(--side) -50%;
+    scale: 0.96;
+    pointer-events: none;
+    transition:
+      opacity 0.15s,
+      scale 0.15s,
+      visibility 0s 0.15s;
+  }
+
+  a:is(:hover, :focus-visible) .card {
+    opacity: 1;
+    visibility: visible;
+    scale: 1;
+    transition:
+      opacity 0.15s,
+      scale 0.15s;
+  }
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .caption {
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px 14px;
+  }
+
+  /* As a block, the view transition would stretch the snapshot of the title to the width of the card */
+  .title {
+    width: fit-content;
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .caption p {
+    color: var(--muted);
+  }
+
+  /* Only the open card takes part in the view transition. Coming back from an experiment, its heading then fades out
+     instead of flying into a card nobody can see */
+  a:not(:hover, :focus-visible) :is(.title, .caption :global(.meta)) {
+    view-transition-name: none !important;
+  }
+
+  .caption :global(.tags) {
+    margin-left: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .footprint,
+    .voxels,
+    .card {
+      transition: none !important;
+    }
+  }
+</style>

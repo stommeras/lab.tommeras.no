@@ -1,0 +1,50 @@
+.voxel-art {
+  --mat: light-dark(color-mix(in oklch, var(--mint) 55%, var(--bg)), color-mix(in oklch, var(--mint) 30%, var(--bg)));
+  --grid: color-mix(in oklch, var(--mint) 25%, var(--surface));
+  --wood: light-dark(
+    color-mix(in oklch, var(--peach) 45%, var(--surface)),
+    color-mix(in oklch, var(--peach) 35%, var(--bg))
+  );
+  --blue: color-mix(in oklch, var(--lavender) 55%, var(--mint));
+  --paper: light-dark(var(--blue), color-mix(in oklch, var(--blue) 45%, var(--bg)));
+  --ink: light-dark(var(--surface), var(--fg));
+}
+
+/* The table, the mat and the sheet. The objects carry their own fills, from src/lib/bench.ts */
+.voxel-art :is(.t, .x, .y) {
+  stroke-width: 0.04;
+  stroke-linejoin: round;
+}
+
+.voxel-art .t {
+  fill: var(--c);
+  stroke: var(--c);
+}
+
+.voxel-art .y {
+  --shade: color-mix(in oklch, var(--c), black 15%);
+  fill: var(--shade);
+  stroke: var(--shade);
+}
+
+.voxel-art .x {
+  --shade: color-mix(in oklch, var(--c), black 32%);
+  fill: var(--shade);
+  stroke: var(--shade);
+}
+
+.voxel-art .sketch :is(.paper-line, .paper-grid) {
+  fill: none;
+  stroke: var(--ink);
+  stroke-linecap: round;
+}
+
+.voxel-art .sketch .paper-line {
+  stroke-width: 0.12;
+  opacity: 0.8;
+}
+
+.voxel-art .sketch .paper-grid {
+  stroke-width: 0.04;
+  opacity: 0.3;
+}

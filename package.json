@@ -8,7 +8,8 @@
     "preview": "astro preview",
     "format": "prettier --write .",
     "build:wasm:life": "zig build-exe src/experiments/livets-spill/life.zig -target wasm32-freestanding -O ReleaseSmall -fno-entry -rdynamic -femit-bin=src/experiments/livets-spill/life.wasm",
-    "test:life": "zig test src/experiments/livets-spill/life.zig"
+    "test:life": "zig test src/experiments/livets-spill/life.zig",
+    "previews": "bun scripts/previews.ts"
   },
   "dependencies": {
     "astro": "^7.4.13",
@@ -16,7 +17,9 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
+    "@types/bun": "1.4.5",
     "@types/three": "0.186.0",
+    "playwright-core": "1.65.1",
     "prettier": "^3.10.1",
     "prettier-plugin-astro": "^1.1.2",
     "typescript": "^6.0.3"
