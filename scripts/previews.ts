@@ -20,7 +20,6 @@ async function drag(page: Page, target: Locator, from: ShareOfTarget, to: ShareO
 
 type ShotTarget = Locator | void;
 const GAME_OF_LIFE_RUN_MS = 12000;
-const GODOT_LOAD_MS = 15000;
 const PREVIEW_ASPECT = 10 / 16;
 
 const prepare: Record<string, (page: Page, demo: Locator) => Promise<ShotTarget>> = {
@@ -36,12 +35,6 @@ const prepare: Record<string, (page: Page, demo: Locator) => Promise<ShotTarget>
     await page.waitForTimeout(500);
     await demo.locator('.randomize-button').click();
     await page.waitForTimeout(GAME_OF_LIFE_RUN_MS);
-  },
-  // Needs the cross-origin isolation headers from vercel.json, so run it against the deployed site:
-  // bun run previews https://lab.tommeras.no varde
-  varde: async (page, demo) => {
-    await demo.locator('.start-button').click();
-    await page.waitForTimeout(GODOT_LOAD_MS);
   },
   sand: async (page, demo) => {
     const canvas = demo.locator('canvas');
