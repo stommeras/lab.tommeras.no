@@ -1,11 +1,4 @@
 {
-  "redirects": [
-    {
-      "source": "/varde/:path*",
-      "destination": "https://varde.tommeras.no",
-      "permanent": true
-    }
-  ],
   "headers": [
     {
       "source": "/(.*)",
