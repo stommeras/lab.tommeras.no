@@ -48,6 +48,12 @@ const prepare: Record<string, (page: Page, demo: Locator) => Promise<ShotTarget>
     await drag(page, canvas, [0.6, 0.05], [0.8, 0.15]);
     await page.waitForTimeout(6000);
   },
+  // WebGPU needs a GPU, so this one only works headed or with --enable-unsafe-webgpu on a machine that has one
+  staerflokk: async (page, demo) => {
+    await demo.locator('.start-button').click();
+    await page.waitForTimeout(12000);
+    return demo.locator('.stage');
+  },
   sprengskisse: async (page, demo) => {
     await page.mouse.wheel(0, 900);
     await page.waitForTimeout(1500);

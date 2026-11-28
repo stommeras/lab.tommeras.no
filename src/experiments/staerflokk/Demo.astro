@@ -1,0 +1,484 @@
+---
+// Each slider multiplies a base weight in the script, so 1 is the tuned default
+const sliders = [
+  { id: 'count', label: 'Fugler', min: 5000, max: 100000, step: 5000, value: 50000 },
+  { id: 'separation', label: 'Avstand', min: 0, max: 3, step: 0.1, value: 1 },
+  { id: 'alignment', label: 'Retning', min: 0, max: 3, step: 0.1, value: 1 },
+  { id: 'cohesion', label: 'Samhold', min: 0, max: 3, step: 0.1, value: 1 },
+];
+---
+
+<div class="demo">
+  <div class="stage">
+    <canvas class="canvas" role="img" aria-label="En stærflokk mot en kveldshimmel"></canvas>
+    <button type="button" class="button start-button">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" />
+      </svg>
+      Start
+    </button>
+    <p class="message" hidden></p>
+  </div>
+  <div class="controls">
+    {sliders.map(({ id, label, min, max, step, value }) => (
+      <div class="slider">
+        <label for={`flock-${id}`}>{label}</label>
+        <input type="range" id={`flock-${id}`} data-param={id} min={min} max={max} step={step} value={value} />
+        <output for={`flock-${id}`}>{value}</output>
+      </div>
+    ))}
+  </div>
+  <p class="hint">Musepekeren er en hauk. Før den inn i flokken.</p>
+  <div hidden>
+    <span class="swatch swatch-top"></span>
+    <span class="swatch swatch-mid"></span>
+    <span class="swatch swatch-horizon"></span>
+    <span class="swatch swatch-bird"></span>
+  </div>
+</div>
+
+<script>
+  import common from './common.wgsl?raw';
+  import simulateSource from './simulate.wgsl?raw';
+  import drawSource from './draw.wgsl?raw';
+  import { toRgba } from '../../lib/color';
+
+  // TypeScript's DOM types have the WebGPU interfaces but not these flag namespaces, which browsers define globally
+  declare const GPUBufferUsage: Record<'UNIFORM' | 'STORAGE' | 'COPY_DST', number>;
+  declare const GPUShaderStage: Record<'COMPUTE', number>;
+  declare const GPUTextureUsage: Record<'RENDER_ATTACHMENT', number>;
+
+  const MAX_BIRDS = 100_000;
+  const BIRD_FLOATS = 6;
+  const PARAMS_BYTES = 160;
+  const SAMPLES = 4;
+  // The canvas is always 16:10, so the world runs from -ASPECT to ASPECT across and -1 to 1 up
+  const ASPECT = 1.6;
+  const RADIUS = 0.04;
+  // The grid reaches a bit past the view. Birds outside it count as being in the edge cells
+  const GRID_REACH = 1.25;
+  const GRID_W = Math.ceil((2 * GRID_REACH * ASPECT) / RADIUS);
+  const GRID_H = Math.ceil((2 * GRID_REACH) / RADIUS);
+  const CELLS = GRID_W * GRID_H;
+  // The slider values multiply these
+  const BASE = { separation: 1.5, alignment: 4, cohesion: 0.3 };
+
+  const demo = document.querySelector<HTMLElement>('.demo')!;
+  const canvas = demo.querySelector<HTMLCanvasElement>('.canvas')!;
+  const startButton = demo.querySelector<HTMLButtonElement>('.start-button')!;
+  const message = demo.querySelector<HTMLElement>('.message')!;
+  const inputs = demo.querySelectorAll<HTMLInputElement>('input[type="range"]');
+  const numberFormat = new Intl.NumberFormat('nb-NO');
+
+  const settings = { count: 50000, separation: 1, alignment: 1, cohesion: 1 };
+  type Setting = keyof typeof settings;
+
+  for (const input of inputs) {
+    const output = input.nextElementSibling as HTMLOutputElement;
+    const show = () => {
+      const value = Number(input.value);
+      settings[input.dataset.param as Setting] = value;
+      output.value = input.dataset.param === 'count' ? numberFormat.format(value) : value.toFixed(1);
+    };
+    input.addEventListener('input', show);
+    show();
+  }
+
+  function fail(text: string) {
+    startButton.hidden = true;
+    message.textContent = text;
+    message.hidden = false;
+  }
+
+  if (!navigator.gpu) {
+    fail('Nettleseren din har ikke WebGPU, så flokken kan ikke fly her. Prøv en nyere Chrome, Edge eller Safari.');
+  }
+
+  // Each swatch has its color from the tokens in CSS, read back as 0 to 1 for the shaders
+  function swatch(name: string) {
+    const [r, g, b, a] = toRgba(getComputedStyle(demo.querySelector(`.swatch-${name}`)!).color);
+    return [r / 255, g / 255, b / 255, a / 255];
+  }
+
+  function initialBirds() {
+    const data = new Float32Array(MAX_BIRDS * BIRD_FLOATS);
+    for (let i = 0; i < MAX_BIRDS; i++) {
+      // A loose disc that already swirls, so the flock starts as one
+      const angle = Math.random() * 2 * Math.PI;
+      const r = Math.sqrt(Math.random());
+      const x = Math.cos(angle) * r * 0.6;
+      const y = Math.sin(angle) * r * 0.35;
+      data.set([x, y, 0.3 - y * 0.3, 0.05 + x * 0.2, 0, Math.random()], i * BIRD_FLOATS);
+    }
+    return data;
+  }
+
+  async function start() {
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) {
+      fail('Nettleseren din har WebGPU, men fant ikke noe skjermkort å bruke.');
+      return;
+    }
+    const device = await adapter.requestDevice();
+    device.lost.then((info) => {
+      if (info.reason !== 'destroyed') fail('Skjermkortet ga opp underveis. Last inn siden på nytt for å prøve igjen.');
+    });
+
+    const context = canvas.getContext('webgpu') as GPUCanvasContext;
+    const format = navigator.gpu.getPreferredCanvasFormat();
+    context.configure({ device, format, alphaMode: 'opaque' });
+
+    const params = device.createBuffer({ size: PARAMS_BYTES, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+    const storage = (size: number) =>
+      device.createBuffer({ size, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+    const birds = storage(MAX_BIRDS * BIRD_FLOATS * 4);
+    const buffers = [
+      params,
+      birds,
+      storage(MAX_BIRDS * BIRD_FLOATS * 4),
+      storage(CELLS * 4),
+      storage(CELLS * 4),
+      storage(MAX_BIRDS * 8),
+    ];
+    device.queue.writeBuffer(birds, 0, initialBirds());
+
+    const computeLayout = device.createBindGroupLayout({
+      entries: buffers.map((_, binding) => ({
+        binding,
+        visibility: GPUShaderStage.COMPUTE,
+        buffer: { type: binding === 0 ? 'uniform' : 'storage' },
+      })),
+    });
+    const computeGroup = device.createBindGroup({
+      layout: computeLayout,
+      entries: buffers.map((buffer, binding) => ({ binding, resource: { buffer } })),
+    });
+    const simulate = device.createShaderModule({ code: common + simulateSource });
+    const computeLayoutAll = device.createPipelineLayout({ bindGroupLayouts: [computeLayout] });
+    const pass = (entryPoint: string) =>
+      device.createComputePipeline({ layout: computeLayoutAll, compute: { module: simulate, entryPoint } });
+    const [clearCells, countBirds, prefixSum, scatter, update] = [
+      'clearCells',
+      'countBirds',
+      'prefixSum',
+      'scatter',
+      'update',
+    ].map(pass);
+
+    const draw = device.createShaderModule({ code: common + drawSource });
+    const blend: GPUBlendState = {
+      color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+      alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+    };
+    const renderPipeline = (vertex: string, fragment: string, withBlend: boolean) =>
+      device.createRenderPipeline({
+        layout: 'auto',
+        vertex: { module: draw, entryPoint: vertex },
+        fragment: { module: draw, entryPoint: fragment, targets: [{ format, blend: withBlend ? blend : undefined }] },
+        multisample: { count: SAMPLES },
+      });
+    const sky = renderPipeline('skyVertex', 'skyFragment', false);
+    const flock = renderPipeline('birdVertex', 'birdFragment', true);
+    const skyGroup = device.createBindGroup({
+      layout: sky.getBindGroupLayout(0),
+      entries: [{ binding: 0, resource: { buffer: params } }],
+    });
+    const flockGroup = device.createBindGroup({
+      layout: flock.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: params } },
+        { binding: 1, resource: { buffer: birds } },
+      ],
+    });
+
+    // Four samples per pixel give a bird smaller than a pixel a partial shade instead of vanishing
+    let msaa: GPUTexture | undefined;
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.max(1, Math.round(rect.width * devicePixelRatio));
+      const height = Math.max(1, Math.round(rect.height * devicePixelRatio));
+      if (msaa && canvas.width === width && canvas.height === height) return;
+      canvas.width = width;
+      canvas.height = height;
+      msaa?.destroy();
+      msaa = device.createTexture({
+        size: [width, height],
+        format,
+        sampleCount: SAMPLES,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT,
+      });
+    }
+    new ResizeObserver(resize).observe(canvas);
+    resize();
+
+    let colors = [swatch('top'), swatch('mid'), swatch('horizon'), swatch('bird')];
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      colors = [swatch('top'), swatch('mid'), swatch('horizon'), swatch('bird')];
+    });
+
+    let hawk: [number, number] | undefined;
+    canvas.addEventListener('pointermove', (event) => {
+      const rect = canvas.getBoundingClientRect();
+      hawk = [
+        (((event.clientX - rect.left) / rect.width) * 2 - 1) * ASPECT,
+        1 - ((event.clientY - rect.top) / rect.height) * 2,
+      ];
+    });
+    for (const type of ['pointerleave', 'pointercancel'] as const)
+      canvas.addEventListener(type, () => (hawk = undefined));
+
+    const bytes = new ArrayBuffer(PARAMS_BYTES);
+    const u32 = new Uint32Array(bytes);
+    const f32 = new Float32Array(bytes);
+    function writeParams(dt: number, time: number) {
+      const { count } = settings;
+      u32.set([count, GRID_W, GRID_H, 0]);
+      f32.set([-GRID_REACH * ASPECT, -GRID_REACH, RADIUS, dt], 4);
+      f32.set([hawk?.[0] ?? 0, hawk?.[1] ?? 0, hawk ? 1 : 0, time], 8);
+      f32.set(
+        [
+          ASPECT,
+          settings.separation * BASE.separation,
+          settings.alignment * BASE.alignment,
+          settings.cohesion * BASE.cohesion,
+        ],
+        12,
+      );
+      f32.set([RADIUS, 0.45, 0.22, 0.2], 16);
+      // More birds fly closer together, so the flock keeps about the same size on screen
+      const birdPx = 2.2 * devicePixelRatio * (50000 / count) ** 0.25;
+      const sepRadius = Math.min(RADIUS * 0.8, 0.028 * Math.sqrt(50000 / count));
+      f32.set([2 / canvas.height, birdPx, sepRadius, 0], 20);
+      colors.forEach((color, i) => f32.set(color, 24 + 4 * i));
+      device.queue.writeBuffer(params, 0, bytes);
+    }
+
+    let visible = true;
+    new IntersectionObserver(([entry]) => {
+      visible = entry!.isIntersecting;
+      if (visible && !frameId) frameId = requestAnimationFrame(frame);
+    }).observe(canvas);
+
+    let frameId = 0;
+    let last: number | undefined;
+    let time = 0;
+    function frame(now: number) {
+      frameId = 0;
+      if (!visible) {
+        last = undefined;
+        return;
+      }
+      // A long gap, like a tab coming back, runs as one normal frame instead of a jump
+      const dt = last === undefined ? 1 / 60 : Math.min((now - last) / 1000, 1 / 30);
+      last = now;
+      time += dt;
+      writeParams(dt, time);
+
+      const groups = Math.ceil(settings.count / 256);
+      const encoder = device.createCommandEncoder();
+      const compute = encoder.beginComputePass();
+      compute.setBindGroup(0, computeGroup);
+      for (const [pipeline, count] of [
+        [clearCells, Math.ceil(CELLS / 256)],
+        [countBirds, groups],
+        [prefixSum, 1],
+        [scatter, groups],
+        [update, groups],
+      ] as const) {
+        compute.setPipeline(pipeline!);
+        compute.dispatchWorkgroups(count);
+      }
+      compute.end();
+
+      const render = encoder.beginRenderPass({
+        colorAttachments: [
+          {
+            view: msaa!.createView(),
+            resolveTarget: context.getCurrentTexture().createView(),
+            loadOp: 'clear',
+            storeOp: 'discard',
+          },
+        ],
+      });
+      render.setPipeline(sky);
+      render.setBindGroup(0, skyGroup);
+      render.draw(3);
+      render.setPipeline(flock);
+      render.setBindGroup(0, flockGroup);
+      render.draw(3 * settings.count);
+      render.end();
+      device.queue.submit([encoder.finish()]);
+      frameId = requestAnimationFrame(frame);
+    }
+
+    startButton.hidden = true;
+    canvas.classList.add('running');
+    frameId = requestAnimationFrame(frame);
+  }
+
+  startButton.addEventListener('click', () => {
+    startButton.disabled = true;
+    start().catch((error: unknown) => {
+      console.error(error);
+      fail('Noe gikk galt da WebGPU skulle starte. Sjekk konsollen for detaljer.');
+    });
+  });
+</script>
+
+<style>
+  .demo {
+    --sky-top: color-mix(in oklch, var(--lavender) 40%, var(--bg));
+    --sky-mid: color-mix(in oklch, var(--pink) 45%, var(--surface));
+    --sky-horizon: color-mix(in oklch, var(--peach) 60%, var(--surface));
+    --sky-bird: light-dark(var(--fg), var(--bg));
+    margin: 32px 0 48px;
+  }
+
+  /* The CSS gradient matches the sky the shader draws, so the stage looks the same before Start */
+  .stage {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    border: 2px solid var(--pink);
+    background: linear-gradient(
+      to top,
+      var(--sky-horizon) 1%,
+      var(--sky-mid) 25%,
+      color-mix(in oklch, var(--sky-mid), var(--sky-top)) 50%,
+      var(--sky-top)
+    );
+  }
+
+  .canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Once the flock flies, a drag on a touch screen moves the hawk instead of scrolling the page */
+  .canvas.running {
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  /* The display rules here would otherwise win over the hidden attribute */
+  .demo [hidden] {
+    display: none;
+  }
+
+  /* Matches the buttons in livets-spill/Demo.astro */
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 16px 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+
+  .button:hover:not(:disabled) {
+    border-color: var(--pink);
+  }
+
+  .button:disabled {
+    color: var(--muted);
+    cursor: default;
+  }
+
+  .start-button,
+  .message {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: fit-content;
+    height: fit-content;
+  }
+
+  .message {
+    max-width: min(40ch, calc(100% - 32px));
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--surface);
+    text-align: center;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 4px 24px;
+    margin-top: 12px;
+  }
+
+  .slider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .slider label,
+  .slider output,
+  .hint {
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .slider label {
+    min-width: 8ch;
+  }
+
+  .slider input {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 44px;
+    accent-color: var(--pink);
+    cursor: pointer;
+  }
+
+  /* Room for 100 000, so the slider doesn't move when the count gains a digit */
+  .slider output {
+    min-width: 7ch;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hint {
+    margin: 8px 0 0;
+  }
+
+  /* Forced colors would turn every swatch into the same system color, and the canvas pixels aren't forced */
+  .swatch {
+    forced-color-adjust: none;
+  }
+
+  .swatch-top {
+    color: var(--sky-top);
+  }
+
+  .swatch-mid {
+    color: var(--sky-mid);
+  }
+
+  .swatch-horizon {
+    color: var(--sky-horizon);
+  }
+
+  .swatch-bird {
+    color: var(--sky-bird);
+  }
+</style>
