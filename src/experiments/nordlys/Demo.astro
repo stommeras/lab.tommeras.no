@@ -1,0 +1,331 @@
+<div class="frame">
+  <canvas class="sky" role="img" aria-label="Nordlys over en fjord om natta. Flytt musa for å endre vinden."></canvas>
+</div>
+<div class="controls" hidden>
+  <button type="button" class="button play">Pause</button>
+  <span class="hint">Flytt musa sideveis for å snu vinden.</span>
+</div>
+<p class="unsupported" hidden>Nettleseren din støtter ikke WebGL 2.</p>
+
+<script>
+  const vertex = `#version 300 es
+void main() {
+  // One triangle that covers the screen, with no vertex buffer
+  vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+  const fragment = `#version 300 es
+precision highp float;
+uniform vec2 uRes;
+uniform float uTime;
+uniform float uDrift;
+uniform float uLook;
+uniform float uSeed;
+out vec4 outColor;
+
+const float CAM_H = 1.0;
+
+mat2 rot(float a) { float c = cos(a), s = sin(a); return mat2(c, -s, s, c); }
+
+float hash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + 1.0), f.x), f.y);
+}
+
+float fbm(vec2 p) {
+  float s = 0.0, a = 0.5;
+  for (int i = 0; i < 3; i++) { s += a * noise(p); p = p * 2.03 + 17.0; a *= 0.5; }
+  return s;
+}
+
+// Where curtain k crosses the line x, as a distance ahead of the camera. Folds come from the noise
+float curtainPath(float x, float t, float k) {
+  return 36.0 + k * 18.0 + (fbm(vec2(x * 0.022 + k * 7.0, t * 0.025 + k)) - 0.5) * 46.0
+    + sin(x * 0.09 + t * 0.2 + k * 3.0) * 2.5;
+}
+
+// Light from the aurora at a point at height h above the camera
+vec3 aurora(vec2 p, float h, float t) {
+  vec3 acc = vec3(0);
+  for (int i = 0; i < 2; i++) {
+    float k = float(i);
+    float x = p.x + uDrift * (1.0 + k * 0.35);
+    // The lower edge rises and sinks along the curtain, so it isn't one straight line across the sky
+    float f = (h - 3.0 - 6.0 * noise(vec2(x * 0.03 + k * 9.0, t * 0.05))) / 22.0;
+    if (f < 0.0) continue;
+    float d = p.y - curtainPath(x, t, k);
+    float w = 0.8 + f * 3.0;
+    float band = exp(-d * d / (w * w));
+    // The rays only depend on x, so they run straight up through every layer
+    float rays = 0.6 * noise(vec2(x * 1.6 + t * 0.5, k * 13.0)) + 0.4 * noise(vec2(x * 5.0 - t * 0.8, k * 5.0 + t * 0.1));
+    float pulse = 0.35 + 0.65 * noise(vec2(x * 0.04 - t * 0.35, k * 3.0));
+    // Bright at the lower edge, fading upward
+    float profile = smoothstep(0.0, 0.025, f) * exp(-f * 2.6);
+    vec3 col = mix(vec3(0.12, 1.0, 0.45), vec3(0.5, 0.2, 1.0), smoothstep(0.25, 0.9, f));
+    col = mix(vec3(1.0, 0.2, 0.55), col, smoothstep(0.0, 0.06, f));
+    acc += col * band * rays * rays * pulse * profile * (1.0 - k * 0.35);
+  }
+  return acc;
+}
+
+vec3 auroraLight(vec3 rd, float t, int steps, float jitter) {
+  vec3 acc = vec3(0);
+  if (rd.y < 0.01) return acc;
+  for (int i = 0; i < steps; i++) {
+    float h = mix(3.0, 34.0, (float(i) + jitter) / float(steps));
+    float dist = h / rd.y;
+    if (dist > 260.0) break;
+    acc += aurora(rd.xz * dist, h, t) * exp(-dist * 0.006);
+  }
+  return acc * (40.0 / float(steps));
+}
+
+// Height of the mountains above the horizon, by direction. The fjord opens straight ahead
+float ridge(float a) {
+  float side = smoothstep(0.12, 0.85, abs(a + 0.08));
+  return 0.01 + side * (0.05 + 0.34 * fbm(vec2(a * 4.0, 1.0))) + 0.015 * fbm(vec2(a * 25.0, 3.0));
+}
+
+float stars(vec3 rd, float t) {
+  // Turns around a pole about 60 degrees up in the north, like the sky in Norway
+  vec3 q = rd;
+  q.yz = rot(0.52) * q.yz;
+  q.xz = rot(t * 0.004) * q.xz;
+  vec2 uv = vec2(atan(q.x, q.z), asin(clamp(q.y, -1.0, 1.0))) * 110.0;
+  vec2 cell = floor(uv);
+  float h = hash(cell);
+  if (h < 0.982) return 0.0;
+  vec2 at = vec2(hash(cell + 3.1), hash(cell + 7.7)) * 0.7 + 0.15;
+  float px = length(fwidth(uv));
+  float d = length(fract(uv) - at);
+  float twinkle = 0.65 + 0.35 * sin(t * 2.5 + h * 300.0);
+  return smoothstep(px * 1.3, 0.0, d) * (h - 0.982) / 0.018 * twinkle * 0.7;
+}
+
+vec3 above(vec3 rd, float t, int steps, float jitter) {
+  float y = max(rd.y, 0.0);
+  vec3 col = mix(vec3(0.012, 0.022, 0.05), vec3(0.002, 0.004, 0.012), sqrt(y));
+  col += vec3(0.02, 0.05, 0.05) * exp(-y * 10.0);
+  float m = ridge(atan(rd.x, rd.z));
+  if (rd.y < m) {
+    // Dark rock, with a faint green edge where the aurora lights the ridge
+    return vec3(0.004, 0.006, 0.01) + vec3(0.01, 0.04, 0.03) * smoothstep(m - 0.03, m, rd.y);
+  }
+  col += stars(rd, t) * vec3(0.9, 0.95, 1.0);
+  return col + auroraLight(rd, t, steps, jitter);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - 0.5 * uRes) / uRes.y;
+  vec3 rd = normalize(vec3(uv, 1.1));
+  rd.yz = rot(0.17) * rd.yz;
+  rd.xz = rot(uLook) * rd.xz;
+  float jitter = hash(gl_FragCoord.xy + uSeed);
+
+  vec3 col;
+  if (rd.y >= 0.0) {
+    col = above(rd, uTime, 44, jitter);
+  } else {
+    // The water reflects the sky. Waves bend the reflection, mostly up and down, and calm down far away
+    float dist = CAM_H / -rd.y;
+    vec2 wp = rd.xz * dist;
+    float amp = 0.004 + 0.05 * exp(-dist * 0.05);
+    vec2 n = vec2(noise(wp * vec2(0.5, 0.15) + vec2(0.0, uTime * 0.5)), noise(wp * vec2(0.9, 0.25) - vec2(uTime * 0.3, 0.0))) - 0.5;
+    vec3 rr = normalize(vec3(rd.x + n.x * amp * 0.3, -rd.y + n.y * amp, rd.z));
+    float fresnel = 0.12 + 0.45 * pow(1.0 - rr.y, 5.0);
+    col = above(rr, uTime, 24, jitter) * fresnel + vec3(0.002, 0.004, 0.008);
+  }
+
+  col = 1.0 - exp(-col * 1.4);
+  col = pow(col, vec3(0.4545));
+  outColor = vec4(col + (hash(gl_FragCoord.xy * 1.7 + uSeed) - 0.5) / 255.0, 1.0);
+}`;
+
+  const canvas = document.querySelector<HTMLCanvasElement>('canvas.sky')!;
+  const controls = document.querySelector<HTMLElement>('.controls')!;
+  const play = controls.querySelector<HTMLButtonElement>('.play')!;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+
+  function fail() {
+    canvas.parentElement!.hidden = true;
+    controls.hidden = true;
+    document.querySelector<HTMLElement>('.unsupported')!.hidden = false;
+  }
+
+  function compile(gl: WebGL2RenderingContext, type: number, source: string) {
+    const shader = gl.createShader(type)!;
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader) ?? 'shader');
+    return shader;
+  }
+
+  function start() {
+    const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, preserveDrawingBuffer: true });
+    if (!gl) return fail();
+    const program = gl.createProgram()!;
+    try {
+      gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, vertex));
+      gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, fragment));
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? 'link');
+    } catch (error) {
+      console.error(error);
+      return fail();
+    }
+    gl.useProgram(program);
+    const u = (name: string) => gl.getUniformLocation(program, name);
+    const [uRes, uTime, uDrift, uLook, uSeed] = ['uRes', 'uTime', 'uDrift', 'uLook', 'uSeed'].map(u);
+    // Each frame jitters the aurora layers differently and blends over the last ones, so the grain averages out
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA);
+    gl.blendColor(0, 0, 0, 0.25);
+    controls.hidden = false;
+
+    // Each pixel marches 44 layers of aurora, so it renders below full resolution and the browser scales it up.
+    // ponytail: fixed scale, measure frame times and adapt it if slow GPUs struggle
+    const scale = Math.min(devicePixelRatio, 2) * 0.6;
+    let time = 20;
+    let drift = 0;
+    let wind = 0;
+    let windTarget = 0;
+    let look = 0;
+    let running = !reduce.matches;
+    let visible = true;
+    let frame = 0;
+    let last = 0;
+
+    function draw() {
+      gl!.uniform2f(uRes, canvas.width, canvas.height);
+      gl!.uniform1f(uTime, time);
+      gl!.uniform1f(uDrift, drift);
+      gl!.uniform1f(uLook, look);
+      gl!.uniform1f(uSeed, Math.random() * 100);
+      gl!.drawArrays(gl!.TRIANGLES, 0, 3);
+    }
+
+    // A still picture, after a resize or while paused, gets enough frames to settle
+    function drawStill() {
+      for (let i = 0; i < 16; i++) draw();
+    }
+
+    function tick(now: number) {
+      const dt = Math.min((now - last) / 1000, 0.1);
+      last = now;
+      time += dt;
+      // Eases toward the pointer, so the wind turns instead of jumping
+      const ease = 1 - Math.exp(-dt * 1.5);
+      wind += (windTarget - wind) * ease;
+      look += (windTarget * 0.12 - look) * ease;
+      drift += (2 + wind * 14) * dt;
+      draw();
+      frame = requestAnimationFrame(tick);
+    }
+
+    function update() {
+      cancelAnimationFrame(frame);
+      play.textContent = running ? 'Pause' : 'Spill av';
+      if (running && visible) {
+        last = performance.now();
+        frame = requestAnimationFrame(tick);
+      }
+    }
+
+    new ResizeObserver(() => {
+      canvas.width = Math.round(canvas.clientWidth * scale);
+      canvas.height = Math.round(canvas.clientHeight * scale);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      drawStill();
+    }).observe(canvas);
+
+    // Stops drawing while the sky is off screen
+    new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      update();
+    }).observe(canvas);
+
+    canvas.addEventListener('pointermove', (event) => {
+      const box = canvas.getBoundingClientRect();
+      windTarget = ((event.clientX - box.left) / box.width) * 2 - 1;
+    });
+    canvas.addEventListener('pointerleave', () => (windTarget = 0));
+    play.addEventListener('click', () => {
+      running = !running;
+      update();
+    });
+    canvas.addEventListener('webglcontextlost', fail);
+
+    update();
+  }
+
+  // The shader is small, but it keeps the GPU busy, so it only starts once the sky scrolls into view
+  new IntersectionObserver((entries, observer) => {
+    if (!entries[0].isIntersecting) return;
+    observer.disconnect();
+    start();
+  }).observe(canvas);
+</script>
+
+<style>
+  .frame {
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    /* The sky is dark in both color schemes, so the frame shows dark before the first frame too */
+    background: #05070d;
+  }
+
+  .sky {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+  }
+
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    margin-top: 12px;
+  }
+
+  .controls[hidden] {
+    display: none;
+  }
+
+  /* Matches the buttons in livets-spill/Demo.astro */
+  .button {
+    min-height: 44px;
+    min-width: 96px;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--fg);
+    cursor: pointer;
+  }
+
+  .button:hover {
+    border-color: var(--pink);
+  }
+
+  .hint {
+    color: var(--muted);
+    font-size: 0.9375rem;
+  }
+
+  .unsupported {
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--peach);
+  }
+</style>

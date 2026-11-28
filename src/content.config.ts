@@ -16,11 +16,11 @@ export const STATUS_COLORS = {
 } satisfies Record<Status, string>;
 
 // What the experiment is about. Add a value when a new kind of experiment shows up.
-export const TAGS = ['3D', 'Animasjon', 'Emulator', 'Layout', 'Simulering', 'Spill', 'WebAssembly'] as const;
+export const TAGS = ['3D', 'Animasjon', 'Emulator', 'Layout', 'Shader', 'Simulering', 'Spill', 'WebAssembly'] as const;
 export type Tag = (typeof TAGS)[number];
 
 // The main language the experiment is written in, one per experiment
-export const LANGUAGES = ['CSS', 'TypeScript', 'Zig', 'Rust', 'GDScript'] as const;
+export const LANGUAGES = ['CSS', 'GLSL', 'TypeScript', 'Zig', 'Rust', 'GDScript'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
 // Each experiment is a folder in src/experiments: index.md holds the metadata and the note, Demo.astro the experiment
