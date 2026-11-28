@@ -2,7 +2,10 @@ import { defineConfig, fontProviders } from 'astro/config';
 
 export default defineConfig({
   site: 'https://lab.tommeras.no',
-  // Hashes every inline script and style into a CSP <meta>. vercel.json sends the directives a <meta> can't carry.
+  // Hashes every inline script and style into a CSP <meta>. vercel.json sends the directives a <meta> can't carry,
+  // plus a looser default-src, script-src and style-src for scanners and for responses without the <meta> (404s, files in public/).
+  // Browsers enforce the header and the <meta> together, so the header's 'unsafe-inline' doesn't loosen pages that have the <meta>.
+  // Keep the header's sources a superset of the <meta>'s, or the header blocks what the <meta> allows.
   // WebAssembly experiments need 'wasm-unsafe-eval', and style attributes (view transition names, tag hues, Shiki) need 'unsafe-inline' on style-src-attr
   security: {
     csp: {
